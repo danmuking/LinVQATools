@@ -1,9 +1,7 @@
 from typing import Dict, List
 
-import cv2
 import torch
 import decord
-import glob
 import os.path as osp
 import numpy as np
 import random
@@ -11,140 +9,21 @@ import copy
 
 from decord import VideoReader
 
-from data.sampler.fragment_sampler import TimeFragmentSampler
+from data.sampler.fragment_sampler import TimeFragmentSampler, SpatialFragmentSampler
 
 random.seed(42)
 
 decord.bridge.set_bridge("torch")
 
 
-def get_spatial_fragments(
-        video,
-        fragments_h=7,
-        fragments_w=7,
-        fsize_h=32,
-        fsize_w=32,
-        aligned=32,
-        nfrags=1,
-        random=False,
-        random_upsample=False,
-        fallback_type="upsample",
-        **kwargs,
-):
-    """
-    进行空间采样
-    :param video: 视频矩阵
-    :param fragments_h: 每一列的fragment数量
-    :param fragments_w: 每一行的fragment数量
-    :param fsize_h: 每个fragment的列pix
-    :param fsize_w: 每个fragment的行pix
-    :param aligned:
-    :param nfrags:
-    :param random:
-    :param random_upsample:
-    :param fallback_type:
-    :param kwargs:
-    :return:
-    """
-    size_h = fragments_h * fsize_h
-    size_w = fragments_w * fsize_w
-    ## video: [C,T,H,W]
-    ## situation for images
-    if video.shape[1] == 1:
-        aligned = 1
-
-    # 帧数，高，宽
-    dur_t, res_h, res_w = video.shape[-3:]
-    ratio = min(res_h / size_h, res_w / size_w)
-    # 上采样？
-    if fallback_type == "upsample" and ratio < 1:
-        ovideo = video
-        video = torch.nn.functional.interpolate(
-            video / 255.0, scale_factor=1 / ratio, mode="bilinear"
-        )
-        video = (video * 255.0).type_as(ovideo)
-    # 随机上采样
-    if random_upsample:
-        randratio = random.random() * 0.5 + 1
-        video = torch.nn.functional.interpolate(
-            video / 255.0, scale_factor=randratio, mode="bilinear"
-        )
-        video = (video * 255.0).type_as(ovideo)
-
-    assert dur_t % aligned == 0, "Please provide match vclip and align index"
-    size = size_h, size_w
-
-    ## make sure that sampling will not run out of the picture
-    # 计算采样网格
-    hgrids = torch.LongTensor(
-        [min(res_h // fragments_h * i, res_h - fsize_h) for i in range(fragments_h)]
-    )
-    wgrids = torch.LongTensor(
-        [min(res_w // fragments_w * i, res_w - fsize_w) for i in range(fragments_w)]
-    )
-    # 每个网格的宽高
-    hlength, wlength = res_h // fragments_h, res_w // fragments_w
-
-    # 生成采样位置
-    if random:
-        print("This part is deprecated. Please remind that.")
-        if res_h > fsize_h:
-            rnd_h = torch.randint(
-                res_h - fsize_h, (len(hgrids), len(wgrids), dur_t // aligned)
-            )
-        else:
-            rnd_h = torch.zeros((len(hgrids), len(wgrids), dur_t // aligned)).int()
-        if res_w > fsize_w:
-            rnd_w = torch.randint(
-                res_w - fsize_w, (len(hgrids), len(wgrids), dur_t // aligned)
-            )
-        else:
-            rnd_w = torch.zeros((len(hgrids), len(wgrids), dur_t // aligned)).int()
-    else:
-        if hlength > fsize_h:
-            rnd_h = torch.randint(
-                hlength - fsize_h, (len(hgrids), len(wgrids), dur_t // aligned)
-            )
-        else:
-            rnd_h = torch.zeros((len(hgrids), len(wgrids), dur_t // aligned)).int()
-        if wlength > fsize_w:
-            rnd_w = torch.randint(
-                wlength - fsize_w, (len(hgrids), len(wgrids), dur_t // aligned)
-            )
-        else:
-            rnd_w = torch.zeros((len(hgrids), len(wgrids), dur_t // aligned)).int()
-
-    target_video = torch.zeros(video.shape[:-2] + size).to(video.device)
-    # target_videos = []
-
-    # 视频矩阵采样
-    for i, hs in enumerate(hgrids):
-        for j, ws in enumerate(wgrids):
-            for t in range(dur_t // aligned):
-                t_s, t_e = t * aligned, (t + 1) * aligned
-                h_s, h_e = i * fsize_h, (i + 1) * fsize_h
-                w_s, w_e = j * fsize_w, (j + 1) * fsize_w
-                if random:
-                    h_so, h_eo = rnd_h[i][j][t], rnd_h[i][j][t] + fsize_h
-                    w_so, w_eo = rnd_w[i][j][t], rnd_w[i][j][t] + fsize_w
-                else:
-                    h_so, h_eo = hs + rnd_h[i][j][t], hs + rnd_h[i][j][t] + fsize_h
-                    w_so, w_eo = ws + rnd_w[i][j][t], ws + rnd_w[i][j][t] + fsize_w
-                target_video[:, t_s:t_e, h_s:h_e, w_s:w_e] = video[
-                                                             :, t_s:t_e, h_so:h_eo, w_so:w_eo
-                                                             ]
-    # target_videos.append(video[:,t_s:t_e,h_so:h_eo,w_so:w_eo])
-    # target_video = torch.stack(target_videos, 0).reshape((dur_t // aligned, fragments, fragments,) + target_videos[0].shape).permute(3,0,4,1,5,2,6)
-    # target_video = target_video.reshape((-1, dur_t,) + size) ## Splicing Fragments
-    return target_video
-
 def get_single_sample(
         video,
         sample_type="resize",
         **kwargs,
 ):
+    sampler = SpatialFragmentSampler(**kwargs)
     if sample_type.startswith("fragments"):
-        video = get_spatial_fragments(video, **kwargs)
+        video = sampler(video)
     elif sample_type == "original":
         return video
 
@@ -219,8 +98,8 @@ class FusionDataset(torch.utils.data.Dataset):
         self.crop = opt.get("random_crop", False)
 
         # TODO: 计算数据集均值和标准差
-        # self.mean = torch.FloatTensor([123.675, 116.28, 103.53])
-        # self.std = torch.FloatTensor([58.395, 57.12, 57.375])
+        self.mean = torch.FloatTensor([123.675, 116.28, 103.53])
+        self.std = torch.FloatTensor([58.395, 57.12, 57.375])
 
         # 初始化时间采样器
         self.samplers = {}
@@ -238,6 +117,7 @@ class FusionDataset(torch.utils.data.Dataset):
             self.video_infos = self.ann_file
         else:
             self.video_infos = self.get_video_infos()
+
 
     def refresh_hypers(self):
         if not hasattr(self, "initial_sample_types"):
