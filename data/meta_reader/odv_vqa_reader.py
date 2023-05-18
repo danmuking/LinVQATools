@@ -34,11 +34,11 @@ class ODVVQAReader(AbstractReader):
         with open(self.anno_file, "r") as fin:
             for line in fin:
                 line_split = line.strip().split()
-                scense_id, _, reference_path, impaired_path, score, _, _, _ = line_split
+                scene_id, _, reference_path, impaired_path, score, _, _, _ = line_split
                 score = 1 - float(score)
-                scense_id = int(scense_id)
+                scene_id = int(scene_id)
                 video_infos.append(dict(
-                    scense_id=scense_id,
+                    scene_id=scene_id,
                     video_path=impaired_path,
                     ref_video_path=reference_path,
                     score=score))
