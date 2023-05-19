@@ -1,7 +1,6 @@
 import random
 from typing import Dict, List
 
-
 import numpy as np
 import torch
 from mmengine import MMLogger
@@ -17,6 +16,7 @@ import decord
 
 random.seed(42)
 decord.bridge.set_bridge("torch")
+
 
 @DATASETS.register_module()
 class DefaultDataset(Dataset):
@@ -40,7 +40,6 @@ class DefaultDataset(Dataset):
         if 'spatial_sampler' in opt:
             self.spatial_sampler = getattr(sampler, opt['spatial_sampler']['name'])(**opt['spatial_sampler'])
 
-
         # 读取数据集声明文件
         self.anno_reader: AbstractReader = getattr(meta_reader, opt['anno_reader'])(anno_root)
 
@@ -52,7 +51,6 @@ class DefaultDataset(Dataset):
         # 用于获取的训练集/测试集信息
         self.data: List = self.video_info[self.phase]
 
-    # TODO:
     def __getitem__(self, index):
         video_info = self.data[index]
         video_path = video_info["video_path"]
