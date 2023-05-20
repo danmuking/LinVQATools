@@ -7,7 +7,6 @@ from .head import VQAHead
 from mmengine import MODELS
 
 
-@MODELS.register_module()
 class DiViDeAddEvaluator(nn.Module):
     def __init__(
             self,
