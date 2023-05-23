@@ -1,8 +1,8 @@
+import torch
 import random
 from typing import Dict, List
 
 import numpy as np
-import torch
 from mmengine import MMLogger
 from torch.utils.data import Dataset
 from mmengine import DATASETS
@@ -68,7 +68,7 @@ class DefaultDataset(Dataset):
         video = torch.stack(imgs, 0).permute(3, 0, 1, 2)
         if self.spatial_sampler is not None:
             video = self.spatial_sampler(video)
-        data = {"video": video, "num_clips": {}, "frame_inds": frame_idxs, "gt_label": score,
+        data = {"inputs": video, "num_clips": {}, "frame_inds": frame_idxs, "gt_label": score,
                 "name": osp.basename(video_path)}
         # for k, v in data.items():
         #     data[k] = ((v.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
@@ -76,6 +76,9 @@ class DefaultDataset(Dataset):
         # for stype, sopt in self.sample_types.items():
         #     data["num_clips"][stype] = sopt["num_clips"]
         # print(data['fragments'].shape)
+        # data = dict(
+        #     inputs=data,
+        # )
         return data
 
     def __len__(self):

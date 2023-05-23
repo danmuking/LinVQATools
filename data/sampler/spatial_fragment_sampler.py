@@ -222,7 +222,7 @@ class SphereSpatialFragmentSampler:
                     frames = frames.permute(1, 2, 0)
                     frames = frames.numpy()
                     equ = Equirectangular(frames)
-                    frames = equ.GetPerspective(10, -180 + (360 / 6) * i, -60 + (120 / 6) * j, 32, 32)
+                    frames = equ.GetPerspective(3, -180 + (360 / 6) * j, 60 - (120 / 6) * i, 32, 32)
                     frames = torch.from_numpy(frames)
                     frames = frames.permute(2, 0, 1)
                     frames = torch.unsqueeze(frames, dim=1)

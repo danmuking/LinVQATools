@@ -55,7 +55,13 @@ class DiViDeAddEvaluator(nn.Module):
         else:
             self.vqa_head = VQAHead(**vqa_head)
 
-    def forward(self, vclips, inference=True, return_pooled_feats=False, reduce_scores=True, pooled=False, **kwargs):
+    def forward(self, vclips, inference=False, return_pooled_feats=False, reduce_scores=True, pooled=False, **kwargs):
+        # print(vclips)
+        vclips = {
+            'fragments': vclips
+        }
+        # print(vclips['fragments'].shape)
+        # print(vclips)
         if inference:
             self.eval()
             with torch.no_grad():
@@ -63,6 +69,7 @@ class DiViDeAddEvaluator(nn.Module):
                 scores = []
                 feats = {}
                 for key in vclips:
+                    # key = 'fragments'
                     feat = getattr(self, key.split("_")[0] + "_backbone")(vclips[key], multi=self.multi,
                                                                           layer=self.layer, **kwargs)
                     if hasattr(self, key.split("_")[0] + "_head"):
@@ -87,6 +94,7 @@ class DiViDeAddEvaluator(nn.Module):
             scores = []
             feats = {}
             for key in vclips:
+                # key = 'fragments_backbone'
                 feat = getattr(self, key.split("_")[0] + "_backbone")(vclips[key], multi=self.multi, layer=self.layer,
                                                                       **kwargs)
                 if hasattr(self, key.split("_")[0] + "_head"):
