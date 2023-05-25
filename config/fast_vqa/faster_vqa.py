@@ -45,10 +45,10 @@ train_cfg = dict(
     val_interval=1)
 optim_wrapper = dict(
     type='AmpOptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.00005, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
     paramwise_cfg=dict(
         custom_keys={
-            'model.fragments_backbone': dict(lr_mult=1),
+            'model.fragments_backbone': dict(lr_mult=0.1),
         })
 )
 param_scheduler = [
@@ -65,7 +65,8 @@ param_scheduler = [
     dict(
         type='CosineAnnealingLR',
         by_epoch=True,
-        T_max=30,
+        T_max=80,
+        eta_min=0.000001,
         convert_to_iter_based=True
     )
 ]

@@ -51,6 +51,9 @@ class DefaultDataset(Dataset):
         # 用于获取的训练集/测试集信息
         self.data: List = self.video_info[self.phase]
 
+        self.mean = torch.FloatTensor([123.675, 116.28, 103.53])
+        self.std = torch.FloatTensor([58.395, 57.12, 57.375])
+
     def __getitem__(self, index):
         video_info = self.data[index]
         video_path = video_info["video_path"]
@@ -68,6 +71,8 @@ class DefaultDataset(Dataset):
         video = torch.stack(imgs, 0).permute(3, 0, 1, 2)
         if self.spatial_sampler is not None:
             video = self.spatial_sampler(video)
+
+        video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
         data = {"inputs": video, "num_clips": {}, "frame_inds": frame_idxs, "gt_label": score,
                 "name": osp.basename(video_path)}
         # for k, v in data.items():
