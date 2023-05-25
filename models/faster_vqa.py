@@ -4,7 +4,9 @@ import torch
 from typing import Optional, Union, Dict
 
 from mmengine.model import BaseModel
+from mmengine.optim import OptimWrapper
 
+from models.ema import EMA
 from models.evaluators import DiViDeAddEvaluator
 from mmengine import MMLogger, MODELS
 
@@ -54,9 +56,10 @@ class FasterVQA(BaseModel):
             self.logger.info("加载{}权重".format(load_path))
             self._load_weight(load_path)
 
+
     def forward(self, inputs: torch.Tensor, data_samples: Optional[list] = None, mode: str = 'tensor', **kargs) -> \
-    Union[
-        Dict[str, torch.Tensor], list]:
+            Union[
+                Dict[str, torch.Tensor], list]:
         y = kargs['gt_label'].float().unsqueeze(-1)
         # print(y.shape)
         if mode == 'loss':
@@ -71,7 +74,7 @@ class FasterVQA(BaseModel):
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
             loss = p_loss + 0.3 * r_loss
-            return {'loss': loss,'p_loss': p_loss,'r_loss': r_loss}
+            return {'loss': loss, 'p_loss': p_loss, 'r_loss': r_loss}
         elif mode == 'predict':
             scores = self.model(inputs, inference=True,
                                 reduce_scores=False)
@@ -81,6 +84,7 @@ class FasterVQA(BaseModel):
                 y_pred = scores[0]
             y_pred = y_pred.mean((-3, -2, -1))
             return y_pred, y
+
 
     def _load_weight(self, load_path):
         # 加载预训练参数

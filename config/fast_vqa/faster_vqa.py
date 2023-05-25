@@ -40,12 +40,12 @@ train_dataloader = dict(
     num_workers=6)
 train_cfg = dict(
     by_epoch=True,
-    max_epochs=40,
+    max_epochs=80,
     val_begin=2,
     val_interval=1)
 optim_wrapper = dict(
     type='AmpOptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=0.00005, weight_decay=0.05),
     paramwise_cfg=dict(
         custom_keys={
             'model.fragments_backbone': dict(lr_mult=1),
@@ -121,6 +121,7 @@ visualizer = dict(
 
 default_hooks = dict(
     checkpoint=dict(type='CheckpointHook', interval=1))
+custom_hooks = [dict(type='EMAHook',momentum=0.999)]
 launcher = 'none'
 env_cfg = dict(
     cudnn_benchmark=False,
