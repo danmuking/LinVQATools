@@ -62,4 +62,7 @@ class FragmentSampleFrames:
 
         frame_inds = np.concatenate(frame_inds)
         frame_inds = np.mod(frame_inds + start_index, total_frames)
+       #  frame_inds = np.array([  1,   3,   5,   7,  60,  62,  64,  66,  85,  87,  89,  91, 116,
+       # 118, 120, 122, 149, 151, 153, 155, 212, 214, 216, 218, 242, 244,
+       # 246, 248, 259, 261, 263, 265])
         return frame_inds.astype(np.int32)

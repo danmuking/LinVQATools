@@ -17,6 +17,10 @@ import decord
 random.seed(42)
 decord.bridge.set_bridge("torch")
 
+# random.seed(42)
+# np.random.seed(42)
+# torch.manual_seed(42)
+# torch.cuda.manual_seed_all(42)
 
 @DATASETS.register_module()
 class DefaultDataset(Dataset):
@@ -75,15 +79,7 @@ class DefaultDataset(Dataset):
         video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
         data = {"inputs": video, "num_clips": {}, "frame_inds": frame_idxs, "gt_label": score,
                 "name": osp.basename(video_path)}
-        # for k, v in data.items():
-        #     data[k] = ((v.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
 
-        # for stype, sopt in self.sample_types.items():
-        #     data["num_clips"][stype] = sopt["num_clips"]
-        # print(data['fragments'].shape)
-        # data = dict(
-        #     inputs=data,
-        # )
         return data
 
     def __len__(self):

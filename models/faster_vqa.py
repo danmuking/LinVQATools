@@ -50,10 +50,10 @@ class FasterVQA(BaseModel):
             backbone=backbone, backbone_size=backbone_size,
             backbone_preserve_keys=backbone_preserve_keys, divide_head=divide_head,
             vqa_head=vqa_head, multi=multi, layer=layer)
-        self.logger = MMLogger.get_instance('mmengine', log_level='INFO')
+        # self.logger = MMLogger.get_instance('mmengine', log_level='INFO')
         # 加载预训练权重
         if load_path is not None:
-            self.logger.info("加载{}权重".format(load_path))
+            # self.logger.info("加载{}权重".format(load_path))
             self._load_weight(load_path)
 
 
@@ -111,4 +111,5 @@ class FasterVQA(BaseModel):
             for key, value in t_state_dict.items():
                 if key in i_state_dict and i_state_dict[key].shape != value.shape:
                     i_state_dict.pop(key)
-            self.logger.info(self.model.load_state_dict(i_state_dict, strict=False))
+            self.model.load_state_dict(i_state_dict, strict=False)
+            # self.logger.info(self.model.load_state_dict(i_state_dict, strict=False))

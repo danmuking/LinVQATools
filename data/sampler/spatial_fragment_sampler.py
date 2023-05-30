@@ -99,6 +99,8 @@ class PlaneSpatialFragmentSampler:
 
         target_video = torch.zeros(video.shape[:-2] + size).to(video.device)
         # target_videos = []
+        # rnd_h = torch.zeros_like(rnd_h)
+        # rnd_w = torch.zeros_like(rnd_w)
 
         for i, hs in enumerate(hgrids):
             for j, ws in enumerate(wgrids):
@@ -112,6 +114,7 @@ class PlaneSpatialFragmentSampler:
                     else:
                         h_so, h_eo = hs + rnd_h[i][j][t], hs + rnd_h[i][j][t] + self.fsize_h
                         w_so, w_eo = ws + rnd_w[i][j][t], ws + rnd_w[i][j][t] + self.fsize_w
+                        # print(h_so, w_so)
                     target_video[:, t_s:t_e, h_s:h_e, w_s:w_e] = video[
                                                                  :, t_s:t_e, h_so:h_eo, w_so:w_eo
                                                                  ]

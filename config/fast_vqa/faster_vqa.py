@@ -1,5 +1,6 @@
-custom_imports = dict(imports=['faster_vqa', 'default_dataset', 'srocc','rmse','plcc','krcc'], allow_failed_imports=False)
-work_dir = 'faster_vqa/basic'
+custom_imports = dict(imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse', 'plcc', 'krcc'],
+                      allow_failed_imports=False)
+work_dir = 'faster_vqa/ema'
 model = dict(
     type='FasterVQA',
     backbone_size='swin_tiny_grpb',
@@ -35,20 +36,20 @@ train_dataloader = dict(
         type='DefaultSampler',
         shuffle=True),
     collate_fn=dict(type='default_collate'),
-    batch_size=4,
+    batch_size=6,
     pin_memory=True,
-    num_workers=6)
+    num_workers=4)
 train_cfg = dict(
     by_epoch=True,
     max_epochs=80,
     val_begin=2,
     val_interval=1)
 optim_wrapper = dict(
-    type='AmpOptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
+    type='OptimWrapper',
+    optimizer=dict(type='AdamW', lr=0.001, weight_decay=0.05),
     paramwise_cfg=dict(
         custom_keys={
-            'model.fragments_backbone': dict(lr_mult=0.1),
+            'model.fragments_backbone': dict(lr_mult=1),
         })
 )
 param_scheduler = [
@@ -58,13 +59,14 @@ param_scheduler = [
         start_factor=0.001,
         by_epoch=True,
         begin=0,
-        end=2.5,
+        end=2,
         convert_to_iter_based=True
     ),
     # 在 [100, 900) 迭代时使用余弦学习率
     dict(
         type='CosineAnnealingLR',
         by_epoch=True,
+        begin=2,
         T_max=80,
         eta_min=0.000001,
         convert_to_iter_based=True
@@ -99,9 +101,9 @@ val_dataloader = dict(
         shuffle=False
     ),
     collate_fn=dict(type='default_collate'),
-    batch_size=4,
+    batch_size=6,
     pin_memory=True,
-    num_workers=6)
+    num_workers=4)
 val_cfg = dict()
 val_evaluator = [
     dict(type='SROCC'),
@@ -122,7 +124,9 @@ visualizer = dict(
 
 default_hooks = dict(
     checkpoint=dict(type='CheckpointHook', interval=1))
-custom_hooks = [dict(type='EMAHook',momentum=0.999),dict(type='EmptyCacheHook', after_epoch=True)]
+custom_hooks = [
+    # dict(type='EMAHook',momentum=0.001),
+    dict(type='EmptyCacheHook', after_epoch=True)]
 launcher = 'none'
 env_cfg = dict(
     cudnn_benchmark=False,
