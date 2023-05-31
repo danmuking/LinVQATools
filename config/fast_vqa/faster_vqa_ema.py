@@ -1,6 +1,6 @@
 custom_imports = dict(imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse', 'plcc', 'krcc'],
                       allow_failed_imports=False)
-work_dir = 'faster_vqa/basic'
+work_dir = 'faster_vqa/ema'
 model = dict(
     type='FasterVQA',
     backbone_size='swin_tiny_grpb',
