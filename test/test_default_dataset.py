@@ -4,6 +4,7 @@ from unittest import TestCase
 import cv2
 import numpy as np
 import torch
+from torch.utils.data import DataLoader
 
 from data.default_dataset import DefaultDataset
 
@@ -30,12 +31,10 @@ class TestDefaultDataset(TestCase):
         )
         dataset = DefaultDataset(anno_reader='ODVVQAReader', split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
                                  frame_sampler=frame_sampler, spatial_sampler=spatial_sampler)
-        # print(dataset[0])
-        data1 = dataset[0]['inputs']
-        data2 = torch.load("temp")
-        print(data1.shape)
-        print(data2)
-        print(data1 == data2)
+        dataloader = DataLoader(dataset,batch_size=2)
+        for item in dataloader:
+            print(item)
+            break
 
     def test_save_video(self):
         os.chdir('../')

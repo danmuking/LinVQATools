@@ -23,7 +23,7 @@ class TestFasterVQA(TestCase):
         # print(model.state_dict())
         # model.eval()
 
-        video = torch.ones((1, 3, 32, 224, 224))
+        video = torch.ones((2, 3, 32, 224, 224))
         scores = model(inputs=video,mode="predict",gt_label=torch.tensor(1))
         print(scores)
         # if len(scores) > 1:
