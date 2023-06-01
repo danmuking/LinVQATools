@@ -125,7 +125,7 @@ visualizer = dict(
 default_hooks = dict(
     checkpoint=dict(type='CheckpointHook', interval=1))
 custom_hooks = [
-    dict(type='EMAHook'),
+    dict(type='EMAHook', momentum=0.001),
     dict(type='EmptyCacheHook', after_epoch=True)]
 launcher = 'none'
 env_cfg = dict(

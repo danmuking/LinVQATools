@@ -70,7 +70,7 @@ class FasterVQA(BaseModel):
             else:
                 y_pred = scores[0]
             y_pred = y_pred.mean((-3, -2, -1))
-            print(y_pred.shape)
+            # print(y_pred.shape)
             # y_pred = scores[0]
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
