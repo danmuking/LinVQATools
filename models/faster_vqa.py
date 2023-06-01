@@ -65,13 +65,13 @@ class FasterVQA(BaseModel):
         if mode == 'loss':
             scores = self.model(inputs, inference=False,
                                 reduce_scores=False)
-            # if len(scores) > 1:
-            #     y_pred = reduce(lambda x, y: x + y, scores)
-            # else:
-            #     y_pred = scores[0]
-            # y_pred = y_pred.mean((-3, -2, -1))
-            # print(y_pred.shape)
-            y_pred = scores
+            if len(scores) > 1:
+                y_pred = reduce(lambda x, y: x + y, scores)
+            else:
+                y_pred = scores[0]
+            y_pred = y_pred.mean((-3, -2, -1))
+            print(y_pred.shape)
+            # y_pred = scores[0]
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
             loss = p_loss + 0.3 * r_loss
@@ -79,12 +79,12 @@ class FasterVQA(BaseModel):
         elif mode == 'predict':
             scores = self.model(inputs, inference=True,
                                 reduce_scores=False)
-            # if len(scores) > 1:
-            #     y_pred = reduce(lambda x, y: x + y, scores)
-            # else:
-            #     y_pred = scores[0]
-            # y_pred = y_pred.mean((-3, -2, -1))
-            y_pred = scores
+            if len(scores) > 1:
+                y_pred = reduce(lambda x, y: x + y, scores)
+            else:
+                y_pred = scores[0]
+            y_pred = y_pred.mean((-3, -2, -1))
+            # y_pred = scores[0]
             return y_pred, y
 
 

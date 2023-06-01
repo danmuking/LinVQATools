@@ -30,8 +30,8 @@ class VQAHead(nn.Module):
     def forward(self, x, rois=None):
         x = self.dropout(x)
         qlt_score = self.fc_last(self.dropout(self.gelu(self.fc_hid(x))))
-        qlt_score = self.gelu(qlt_score).reshape(qlt_score.shape[0],-1)
-        qlt_score = self.fc(qlt_score)
+        # qlt_score = self.gelu(qlt_score).reshape(qlt_score.shape[0],-1)
+        # qlt_score = self.fc(qlt_score)
         return qlt_score
 
 

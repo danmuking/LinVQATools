@@ -1,6 +1,6 @@
 custom_imports = dict(imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse', 'plcc', 'krcc'],
                       allow_failed_imports=False)
-work_dir = 'faster_vqa/basic'
+work_dir = 'faster_vqa/fc'
 model = dict(
     type='FasterVQA',
     backbone_size='swin_tiny_grpb',
@@ -36,7 +36,7 @@ train_dataloader = dict(
         type='DefaultSampler',
         shuffle=True),
     collate_fn=dict(type='default_collate'),
-    batch_size=5,
+    batch_size=6,
     pin_memory=True,
     num_workers=4)
 train_cfg = dict(
@@ -101,7 +101,7 @@ val_dataloader = dict(
         shuffle=False
     ),
     collate_fn=dict(type='default_collate'),
-    batch_size=5,
+    batch_size=6,
     pin_memory=True,
     num_workers=4)
 val_cfg = dict()
@@ -117,7 +117,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='toy-example')
+            init_kwargs=dict(project='VQA',name='在head后添加全连接层')
         ),
     ],
 )
@@ -125,7 +125,7 @@ visualizer = dict(
 default_hooks = dict(
     checkpoint=dict(type='CheckpointHook', interval=1))
 custom_hooks = [
-    dict(type='EMAHook'),
+    # dict(type='EMAHook'),
     dict(type='EmptyCacheHook', after_epoch=True)]
 launcher = 'none'
 env_cfg = dict(
