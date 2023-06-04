@@ -1,6 +1,8 @@
+import os
+
 import torch
 import random
-from typing import Dict, List
+from typing import Dict, List, Any
 
 import numpy as np
 from mmengine import MMLogger
@@ -17,6 +19,7 @@ import decord
 random.seed(42)
 decord.bridge.set_bridge("torch")
 
+
 # random.seed(42)
 # np.random.seed(42)
 # torch.manual_seed(42)
@@ -29,7 +32,7 @@ class DefaultDataset(Dataset):
 
         # 数据集声明文件根路径
         if 'anno_root' not in opt:
-            anno_root = './data/odv_vqa'
+            anno_root = '/home/ly/code/LinVQATools/data/odv_vqa'
             logger.warning("anno_root参数未找到，默认为./data/odv_vqa")
         else:
             anno_root = opt['anno_root']
@@ -63,24 +66,42 @@ class DefaultDataset(Dataset):
         video_path = video_info["video_path"]
         score = video_info["score"]
 
-        vreader = VideoReader(video_path)
-        ## Read Original Frames
-        ## Process Frames
-        frame_idxs = self.frame_sampler(len(vreader))
+        # 直接读取视频
+        num = random.randint(0, 79)
+        # 预处理好的视频路径
+        video_pre_path = video_path.split('/')
+        video_pre_path.insert(3, 'fragment')
+        video_pre_path.insert(4, '{}'.format(num))
+        video_pre_path = os.path.join('/', *video_pre_path)
+        if os.path.exists(video_pre_path):
+            vreader = VideoReader(video_pre_path)
+            frame_dict = {idx: vreader[idx] for idx in range(len(vreader))}
+            imgs = [frame_dict[idx] for idx in range(len(vreader))]
+            video = torch.stack(imgs, 0).permute(3, 0, 1, 2)
+            frame_idxs: List[Any] = []
+        else:
+            vreader = VideoReader(video_path)
+            ## Read Original Frames
+            ## Process Frames
+            frame_idxs = self.frame_sampler(len(vreader))
 
-        ### Each frame is only decoded one time!!!
-        all_frame_inds = frame_idxs
-        frame_dict = {idx: vreader[idx] for idx in np.unique(all_frame_inds)}
-        imgs = [frame_dict[idx] for idx in all_frame_inds]
-        video = torch.stack(imgs, 0).permute(3, 0, 1, 2)
-        if self.spatial_sampler is not None:
-            video = self.spatial_sampler(video)
+            ### Each frame is only decoded one time!!!
+            all_frame_inds = frame_idxs
+            frame_dict = {idx: vreader[idx] for idx in np.unique(all_frame_inds)}
+            imgs = [frame_dict[idx] for idx in all_frame_inds]
+            video = torch.stack(imgs, 0).permute(3, 0, 1, 2)
+            if self.spatial_sampler is not None:
+                video = self.spatial_sampler(video)
 
         video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
-        data = {"inputs": video, "num_clips": {}, "frame_inds": frame_idxs, "gt_label": score,
+        data = {"inputs": video, "num_clips": {},
+                # "frame_inds": frame_idxs,
+                "gt_label": score,
                 "name": osp.basename(video_path)}
 
         return data
+
+        # return None
 
     def __len__(self):
         return len(self.data)

@@ -133,5 +133,5 @@ env_cfg = dict(
     backend='nccl',
     mp_cfg=dict(mp_start_method='fork'))
 log_level = 'INFO'
-load_from = None
-resume = False
+load_from = '/home/ly/code/LinVQATools/faster_vqa/ema/epoch_21.pth'
+resume = True

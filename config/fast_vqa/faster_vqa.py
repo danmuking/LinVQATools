@@ -6,7 +6,7 @@ model = dict(
     backbone_size='swin_tiny_grpb',
     backbone={"fragments": dict(window_size=(4, 4, 4))},
     backbone_preserve_keys='fragments',
-    load_path="./pretrained_weights/FAST_VQA_3D_1_1.pth"
+    # load_path="./pretrained_weights/FAST_VQA_3D_1_1.pth"
 )
 train_dataloader = dict(
     dataset=dict(
@@ -117,7 +117,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA',name='在head后添加全连接层')
+            init_kwargs=dict(project='VQA',name='basic')
         ),
     ],
 )
@@ -133,5 +133,5 @@ env_cfg = dict(
     backend='nccl',
     mp_cfg=dict(mp_start_method='fork'))
 log_level = 'INFO'
-load_from = None
-resume = False
+load_from = '/home/ly/code/LinVQATools/faster_vqa/basic/epoch_46.pth'
+resume = True

@@ -5,6 +5,7 @@ import cv2
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
+from tqdm import tqdm
 
 from data.default_dataset import DefaultDataset
 
@@ -31,10 +32,9 @@ class TestDefaultDataset(TestCase):
         )
         dataset = DefaultDataset(anno_reader='ODVVQAReader', split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
                                  frame_sampler=frame_sampler, spatial_sampler=spatial_sampler)
-        dataloader = DataLoader(dataset,batch_size=2)
-        for item in dataloader:
+        dataloader = DataLoader(dataset,batch_size=6,num_workers=4)
+        for item in tqdm(dataloader):
             print(item)
-            break
 
     def test_save_video(self):
         os.chdir('../')
@@ -57,9 +57,9 @@ class TestDefaultDataset(TestCase):
         )
         dataset = DefaultDataset(anno_reader='ODVVQAReader', split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
                                  frame_sampler=frame_sampler, spatial_sampler=spatial_sampler)
-        # data = dataset[0]
-        video = torch.from_numpy(np.load("temp.npy"))
-        # video = data['inputs']
+        data = dataset[0]
+        # video = torch.from_numpy(np.load("temp.npy"))
+        video = data['inputs']
         # print(data)
         print(video.shape)
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
