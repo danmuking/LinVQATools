@@ -94,7 +94,7 @@ class DefaultDataset(Dataset):
             if self.spatial_sampler is not None:
                 video = self.spatial_sampler(video)
 
-        # video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
+        video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
         data = {"inputs": video, "num_clips": {},
                 # "frame_inds": frame_idxs,
                 "gt_label": score,
