@@ -48,7 +48,7 @@ class TestDefaultDataset(TestCase):
             num_clips=1,
         )
         spatial_sampler = dict(
-            name='PlaneSpatialFragmentSampler',
+            name='SphereSpatialFragmentSampler',
             fragments_h=7,
             fragments_w=7,
             fsize_h=32,

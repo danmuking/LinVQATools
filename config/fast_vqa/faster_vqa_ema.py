@@ -6,7 +6,7 @@ model = dict(
     backbone_size='swin_tiny_grpb',
     backbone={"fragments": dict(window_size=(4, 4, 4))},
     backbone_preserve_keys='fragments',
-    load_path="./pretrained_weights/FAST_VQA_3D_1_1.pth"
+    # load_path="./pretrained_weights/FAST_VQA_3D_1_1.pth"
 )
 train_dataloader = dict(
     dataset=dict(

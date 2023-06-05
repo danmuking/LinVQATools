@@ -74,6 +74,7 @@ class DefaultDataset(Dataset):
         video_pre_path.insert(4, '{}'.format(num))
         video_pre_path = os.path.join('/', *video_pre_path)
         if os.path.exists(video_pre_path):
+        # if False:
             vreader = VideoReader(video_pre_path)
             frame_dict = {idx: vreader[idx] for idx in range(len(vreader))}
             imgs = [frame_dict[idx] for idx in range(len(vreader))]
@@ -93,7 +94,7 @@ class DefaultDataset(Dataset):
             if self.spatial_sampler is not None:
                 video = self.spatial_sampler(video)
 
-        video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
+        # video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
         data = {"inputs": video, "num_clips": {},
                 # "frame_inds": frame_idxs,
                 "gt_label": score,

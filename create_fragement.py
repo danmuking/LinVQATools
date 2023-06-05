@@ -12,6 +12,7 @@ from tqdm import tqdm
 
 from data.default_dataset import DefaultDataset
 
+
 def makedir(path: str):
     dir_path = os.path.dirname(path)
     if (os.path.exists(dir_path)):
@@ -38,9 +39,10 @@ spatial_sampler = dict(
     fsize_w=32,
     aligned=8,
 )
-dataset = DefaultDataset(anno_reader='ODVVQAReader', split_file='/home/ly/code/LinVQATools/data/odv_vqa/tr_te_VQA_ODV.txt',
-                         frame_sampler=frame_sampler, spatial_sampler=spatial_sampler)
-dataloader = DataLoader(dataset,batch_size=1,num_workers=6,shuffle=False)
+dataset = DefaultDataset(anno_reader='ODVVQAReader',
+                         split_file='/home/ly/code/LinVQATools/data/odv_vqa/tr_te_VQA_ODV.txt',
+                         frame_sampler=frame_sampler, spatial_sampler=spatial_sampler, phase='test')
+dataloader = DataLoader(dataset, batch_size=1, num_workers=6, shuffle=False)
 for j in range(80):
     index = 0
     for item in tqdm(dataloader):
@@ -50,7 +52,7 @@ for j in range(80):
         video_path = video_path.split('/')
         video_path.insert(3, 'fragment')
         video_path.insert(4, '{}'.format(j))
-        video_path = os.path.join('/',*video_path)
+        video_path = os.path.join('/', *video_path)
         # video_path = os.path.join('D:/code/LinVQATools/data/odv_vqa/',video_path)
         makedir(video_path)
         video = data['inputs']
@@ -71,4 +73,4 @@ for j in range(80):
             fra = cv2.cvtColor(fra, cv2.COLOR_RGB2BGR)
             out.write(fra)
         out.release()
-        index = index+1
+        index = index + 1

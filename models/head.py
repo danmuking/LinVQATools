@@ -25,7 +25,7 @@ class VQAHead(nn.Module):
         self.gelu = nn.GELU()
 
         self.avg_pool = nn.AdaptiveAvgPool3d((1, 1, 1))
-        # self.fc = nn.Linear(16*7*7,1)
+        self.fc = nn.Linear(16*7*7,1)
 
     def forward(self, x, rois=None):
         x = self.dropout(x)
