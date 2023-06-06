@@ -9,8 +9,8 @@ class RMSE(BaseMetric):
     def process(self, data_batch, data_samples):
         score, gt = data_samples
         if torch.is_tensor(score) and torch.is_tensor(gt):
-            score = score.cpu().numpy()
-            gt = gt.cpu().numpy()
+            score = score.detach().cpu().numpy()
+            gt = gt.detach().cpu().numpy()
         # 将一个批次的中间结果保存至 `self.results`
         self.results.append({
             'score': score,
@@ -30,6 +30,6 @@ class RMSE(BaseMetric):
             temp.extend(i)
         pr_labels = temp
         pr_labels = np.array(pr_labels).flatten()
-        r = np.sqrt(((gt_labels - pr_labels) ** 2).mean())
+        r = np.sqrt(((gt_labels - pr_labels) ** 2).mean()).item()
         # 返回保存有评测指标结果的字典，其中键为指标名称
         return dict(RMSE=r)

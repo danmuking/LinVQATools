@@ -1,8 +1,10 @@
 from typing import Optional
 
+import wandb
 from mmengine import HOOKS
 from mmengine.hooks import Hook
 from mmengine.hooks.hook import DATA_BATCH
+from mmengine.visualization import Visualizer
 
 from global_class.train_recorder import TrainResultRecorder
 
@@ -14,6 +16,7 @@ class TrainEvaluatorHook(Hook):
     """
 
     def __init__(self):
+        self.visualizer = None
         self.evaluator = None
         self.recoder = TrainResultRecorder.get_instance('mmengine')
 
@@ -31,6 +34,8 @@ class TrainEvaluatorHook(Hook):
                 dict(type='RMSE'),
             ]
             self.evaluator = runner.build_evaluator(evaluator)
+        self.visualizer = Visualizer.get_current_instance()
+        # print(self.wandb)
 
     def after_train_iter(self,
                          runner,
@@ -40,12 +45,11 @@ class TrainEvaluatorHook(Hook):
         outputs = (self.recoder.iter_y_pre, self.recoder.iter_y)
         self.recoder.y_pre.append(self.recoder.iter_y_pre)
         self.recoder.y.append(self.recoder.iter_y)
-        self.recoder.iter_y_pre = []
-        self.recoder.iter_y = []
         self.evaluator.process(data_samples=outputs, data_batch=data_batch)
 
     def after_train_epoch(self, runner) -> None:
         metrics = self.evaluator.evaluate(len(runner.train_dataloader.dataset))
-        print("+" * 100)
-        print(metrics)
-        print("+" * 100)
+        metrics = {'train_SROCC': metrics['SROCC'], 'train_KRCC': metrics['KRCC'],
+                   'train_PLCC': metrics['PLCC'], 'train_RMSE': metrics['RMSE']}
+        self.visualizer.add_scalars(metrics)
+

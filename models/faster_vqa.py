@@ -120,8 +120,8 @@ class FasterVQA(BaseModel):
         # 略作修改，适配一下train hook
         result = losses['result']
         recorder = TrainResultRecorder.get_instance('mmengine')
-        recorder.iter_y_pre.append(result[0])
-        recorder.iter_y.append(result[1])
+        recorder.iter_y_pre = result[0]
+        recorder.iter_y = result[1]
 
         losses = {'loss': losses['loss'], 'p_loss': losses['p_loss'], 'r_loss': losses['r_loss']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore

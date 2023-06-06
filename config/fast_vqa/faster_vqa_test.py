@@ -14,7 +14,7 @@ train_dataloader = dict(
         prefix='fragment',
         anno_reader='ODVVQAReader',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
-        phase='train',
+        phase='test',
         frame_sampler=dict(
             name='FragmentSampleFrames',
             fsize_t=32 // 8,
@@ -43,7 +43,7 @@ train_dataloader = dict(
 train_cfg = dict(
     by_epoch=True,
     max_epochs=80,
-    val_begin=2,
+    val_begin=1,
     val_interval=1)
 optim_wrapper = dict(
     type='OptimWrapper',
@@ -120,7 +120,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA',name='basic')
+            init_kwargs=dict(project='test',name='test')
         ),
     ],
 )
