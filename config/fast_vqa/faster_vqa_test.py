@@ -37,7 +37,7 @@ train_dataloader = dict(
         type='DefaultSampler',
         shuffle=True),
     collate_fn=dict(type='default_collate'),
-    batch_size=4,
+    batch_size=2,
     pin_memory=True,
     num_workers=4)
 train_cfg = dict(

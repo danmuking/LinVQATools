@@ -7,6 +7,7 @@ class FragmentSampleFrames:
     """
     时间上的fragment采样
     """
+
     def __init__(self, fsize_t, fragments_t, frame_interval=1, num_clips=1, drop_rate=0., **opt):
         # 每个fragment采样几帧
         self.fragments_t = fragments_t
@@ -62,7 +63,14 @@ class FragmentSampleFrames:
 
         frame_inds = np.concatenate(frame_inds)
         frame_inds = np.mod(frame_inds + start_index, total_frames)
-       #  frame_inds = np.array([  1,   3,   5,   7,  60,  62,  64,  66,  85,  87,  89,  91, 116,
-       # 118, 120, 122, 149, 151, 153, 155, 212, 214, 216, 218, 242, 244,
-       # 246, 248, 259, 261, 263, 265])
+        return frame_inds.astype(np.int32)
+
+
+class FragmentFullFrameSampler:
+    """
+    采样全部帧
+    """
+
+    def __call__(self, total_frames):
+        frame_inds = np.array([i for i in range(total_frames)])
         return frame_inds.astype(np.int32)

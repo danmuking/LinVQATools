@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 from mmengine import METRICS
 from mmengine.evaluator import BaseMetric
 from scipy.stats import spearmanr, pearsonr
@@ -8,8 +9,9 @@ from scipy.stats import spearmanr, pearsonr
 class PLCC(BaseMetric):
     def process(self, data_batch, data_samples):
         score, gt = data_samples
-        score = score.cpu().numpy()
-        gt = gt.cpu().numpy()
+        if torch.is_tensor(score) and torch.is_tensor(gt):
+            score = score.cpu().numpy()
+            gt = gt.cpu().numpy()
         # 将一个批次的中间结果保存至 `self.results`
         self.results.append({
             'score': score,

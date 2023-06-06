@@ -6,11 +6,12 @@ model = dict(
     backbone_size='swin_tiny_grpb',
     backbone={"fragments": dict(window_size=(4, 4, 4))},
     backbone_preserve_keys='fragments',
-    # load_path="./pretrained_weights/FAST_VQA_3D_1_1.pth"
+    load_path="./pretrained_weights/FAST_VQA_3D_1_1.pth"
 )
 train_dataloader = dict(
     dataset=dict(
         type='DefaultDataset',
+        prefix='fragment',
         anno_reader='ODVVQAReader',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
         phase='train',
@@ -36,7 +37,7 @@ train_dataloader = dict(
         type='DefaultSampler',
         shuffle=True),
     collate_fn=dict(type='default_collate'),
-    batch_size=5,
+    batch_size=4,
     pin_memory=True,
     num_workers=4)
 train_cfg = dict(
@@ -46,10 +47,11 @@ train_cfg = dict(
     val_interval=1)
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.00007, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
+    accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
-            'model.fragments_backbone': dict(lr_mult=1),
+            'model.fragments_backbone': dict(lr_mult=0.1),
         })
 )
 param_scheduler = [
@@ -76,6 +78,7 @@ val_dataloader = dict(
     dataset=dict(
         type='DefaultDataset',
         anno_reader='ODVVQAReader',
+        prefix='fragment',
         phase='test',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
         frame_sampler=dict(
@@ -101,7 +104,7 @@ val_dataloader = dict(
         shuffle=False
     ),
     collate_fn=dict(type='default_collate'),
-    batch_size=5,
+    batch_size=4,
     pin_memory=True,
     num_workers=4)
 val_cfg = dict()
@@ -117,7 +120,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='toy-example')
+            init_kwargs=dict(project='VQA',name='EMA')
         ),
     ],
 )
@@ -126,12 +129,13 @@ default_hooks = dict(
     checkpoint=dict(type='CheckpointHook', interval=1))
 custom_hooks = [
     dict(type='EMAHook', momentum=0.001),
-    dict(type='EmptyCacheHook', after_epoch=True)]
+    # dict(type='EmptyCacheHook', after_epoch=True)
+    ]
 launcher = 'none'
 env_cfg = dict(
     cudnn_benchmark=False,
     backend='nccl',
     mp_cfg=dict(mp_start_method='fork'))
 log_level = 'INFO'
-load_from = '/home/ly/code/LinVQATools/faster_vqa/ema/epoch_21.pth'
-resume = True
+load_from = None
+resume = False

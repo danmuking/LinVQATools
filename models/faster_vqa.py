@@ -6,9 +6,9 @@ from typing import Optional, Union, Dict
 from mmengine.model import BaseModel
 from mmengine.optim import OptimWrapper
 
-from models.ema import EMA
+from global_class.train_recorder import TrainResultRecorder
 from models.evaluators import DiViDeAddEvaluator
-from mmengine import MMLogger, MODELS
+from mmengine import MODELS
 
 
 def rank_loss(y_pred, y):
@@ -56,7 +56,6 @@ class FasterVQA(BaseModel):
             # self.logger.info("加载{}权重".format(load_path))
             self._load_weight(load_path)
 
-
     def forward(self, inputs: torch.Tensor, data_samples: Optional[list] = None, mode: str = 'tensor', **kargs) -> \
             Union[
                 Dict[str, torch.Tensor], list]:
@@ -75,7 +74,7 @@ class FasterVQA(BaseModel):
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
             loss = p_loss + 0.3 * r_loss
-            return {'loss': loss, 'p_loss': p_loss, 'r_loss': r_loss}
+            return {'loss': loss, 'p_loss': p_loss, 'r_loss': r_loss, 'result': [y_pred, y]}
         elif mode == 'predict':
             scores = self.model(inputs, inference=True,
                                 reduce_scores=False)
@@ -87,6 +86,47 @@ class FasterVQA(BaseModel):
             y_pred = scores[0]
             return y_pred, y
 
+    def train_step(self, data: Union[dict, tuple, list],
+                   optim_wrapper: OptimWrapper) -> Dict[str, torch.Tensor]:
+        """Implements the default model training process including
+        preprocessing, model forward propagation, loss calculation,
+        optimization, and back-propagation.
+
+        During non-distributed training. If subclasses do not override the
+        :meth:`train_step`, :class:`EpochBasedTrainLoop` or
+        :class:`IterBasedTrainLoop` will call this method to update model
+        parameters. The default parameter update process is as follows:
+
+        1. Calls ``self.data_processor(data, training=False)`` to collect
+           batch_inputs and corresponding data_samples(labels).
+        2. Calls ``self(batch_inputs, data_samples, mode='loss')`` to get raw
+           loss
+        3. Calls ``self.parse_losses`` to get ``parsed_losses`` tensor used to
+           backward and dict of loss tensor used to log messages.
+        4. Calls ``optim_wrapper.update_params(loss)`` to update model.
+
+        Args:
+            data (dict or tuple or list): Data sampled from dataset.
+            optim_wrapper (OptimWrapper): OptimWrapper instance
+                used to update model parameters.
+
+        Returns:
+            Dict[str, torch.Tensor]: A ``dict`` of tensor for logging.
+        """
+        # Enable automatic mixed precision training context.
+        with optim_wrapper.optim_context(self):
+            data = self.data_preprocessor(data, True)
+            losses = self._run_forward(data, mode='loss')  # type: ignore
+        # 略作修改，适配一下train hook
+        result = losses['result']
+        recorder = TrainResultRecorder.get_instance('mmengine')
+        recorder.iter_y_pre.append(result[0])
+        recorder.iter_y.append(result[1])
+
+        losses = {'loss': losses['loss'], 'p_loss': losses['p_loss'], 'r_loss': losses['r_loss']}
+        parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
+        optim_wrapper.update_params(parsed_losses)
+        return log_vars
 
     def _load_weight(self, load_path):
         # 加载预训练参数
