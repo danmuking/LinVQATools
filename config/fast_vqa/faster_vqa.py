@@ -1,6 +1,7 @@
-custom_imports = dict(imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse', 'plcc', 'krcc','train_evaluator_hook'],
-                      allow_failed_imports=False)
-work_dir = 'faster_vqa/test'
+custom_imports = dict(
+    imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse', 'plcc', 'krcc', 'train_evaluator_hook'],
+    allow_failed_imports=False)
+work_dir = 'faster_vqa/basic'
 model = dict(
     type='FasterVQA',
     backbone_size='swin_tiny_grpb',
@@ -43,7 +44,7 @@ train_dataloader = dict(
 train_cfg = dict(
     by_epoch=True,
     max_epochs=80,
-    val_begin=2,
+    val_begin=1,
     val_interval=1)
 optim_wrapper = dict(
     type='OptimWrapper',
@@ -51,7 +52,7 @@ optim_wrapper = dict(
     accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
-            'model.fragments_backbone': dict(lr_mult=0.1),
+            'model.fragments_backbone': dict(lr_mult=1),
         })
 )
 param_scheduler = [
@@ -70,7 +71,6 @@ param_scheduler = [
         by_epoch=True,
         begin=2,
         T_max=80,
-        eta_min=0.000001,
         convert_to_iter_based=True
     )
 ]
@@ -120,18 +120,18 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA',name='basic')
+            init_kwargs=dict(project='VQA', name='basic')
         ),
     ],
 )
 
 default_hooks = dict(
-    checkpoint=dict(type='CheckpointHook', interval=1))
+    checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=10, save_best='SROCC', rule='greater'))
 custom_hooks = [
     # dict(type='EMAHook'),
     # dict(type='EmptyCacheHook', after_epoch=True)
     dict(type='TrainEvaluatorHook')
-    ]
+]
 launcher = 'none'
 env_cfg = dict(
     cudnn_benchmark=False,

@@ -13,3 +13,6 @@ from mmengine.runner import Runner
 config = Config.fromfile('./config/fast_vqa/faster_vqa_test.py')
 runner = Runner.from_cfg(config)
 runner.train()
+while True:
+    pass
+

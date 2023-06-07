@@ -64,13 +64,11 @@ class FasterVQA(BaseModel):
         if mode == 'loss':
             scores = self.model(inputs, inference=False,
                                 reduce_scores=False)
-            # if len(scores) > 1:
-            #     y_pred = reduce(lambda x, y: x + y, scores)
-            # else:
-            #     y_pred = scores[0]
-            # y_pred = y_pred.mean((-3, -2, -1))
-            # print(y_pred.shape)
-            y_pred = scores[0]
+            if len(scores) > 1:
+                y_pred = reduce(lambda x, y: x + y, scores)
+            else:
+                y_pred = scores[0]
+            y_pred = y_pred.mean((-3, -2, -1))
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
             loss = p_loss + 0.3 * r_loss
@@ -78,12 +76,11 @@ class FasterVQA(BaseModel):
         elif mode == 'predict':
             scores = self.model(inputs, inference=True,
                                 reduce_scores=False)
-            # if len(scores) > 1:
-            #     y_pred = reduce(lambda x, y: x + y, scores)
-            # else:
-            #     y_pred = scores[0]
-            # y_pred = y_pred.mean((-3, -2, -1))
-            y_pred = scores[0]
+            if len(scores) > 1:
+                y_pred = reduce(lambda x, y: x + y, scores)
+            else:
+                y_pred = scores[0]
+            y_pred = y_pred.mean((-3, -2, -1))
             return y_pred, y
 
     def train_step(self, data: Union[dict, tuple, list],
@@ -117,6 +114,7 @@ class FasterVQA(BaseModel):
         with optim_wrapper.optim_context(self):
             data = self.data_preprocessor(data, True)
             losses = self._run_forward(data, mode='loss')  # type: ignore
+
         # 略作修改，适配一下train hook
         result = losses['result']
         recorder = TrainResultRecorder.get_instance('mmengine')
