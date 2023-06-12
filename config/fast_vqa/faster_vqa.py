@@ -38,7 +38,7 @@ train_dataloader = dict(
         type='DefaultSampler',
         shuffle=True),
     collate_fn=dict(type='default_collate'),
-    batch_size=4,
+    batch_size=5,
     pin_memory=True,
     num_workers=4)
 train_cfg = dict(
@@ -49,7 +49,6 @@ train_cfg = dict(
 optim_wrapper = dict(
     type='OptimWrapper',
     optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
-    accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
             'model.fragments_backbone': dict(lr_mult=1),
@@ -104,7 +103,7 @@ val_dataloader = dict(
         shuffle=False
     ),
     collate_fn=dict(type='default_collate'),
-    batch_size=4,
+    batch_size=5,
     pin_memory=True,
     num_workers=4)
 val_cfg = dict()
@@ -130,8 +129,10 @@ default_hooks = dict(
 custom_hooks = [
     # dict(type='EMAHook'),
     # dict(type='EmptyCacheHook', after_epoch=True)
-    dict(type='TrainEvaluatorHook')
+    dict(type='TrainEvaluatorHook'),
+    dict(type='CustomEMAHook')
 ]
+randomness = dict(seed=42)
 launcher = 'none'
 env_cfg = dict(
     cudnn_benchmark=False,

@@ -69,33 +69,18 @@ class PlaneSpatialFragmentSampler:
             [min(res_w // self.fragments_w * i, res_w - self.fsize_w) for i in range(self.fragments_w)]
         )
         hlength, wlength = res_h // self.fragments_h, res_w // self.fragments_w
-        if self.random:
-            print("This part is deprecated. Please remind that.")
-            if res_h > self.fsize_h:
-                rnd_h = torch.randint(
-                    res_h - self.fsize_h, (len(hgrids), len(wgrids), dur_t // self.aligned)
-                )
-            else:
-                rnd_h = torch.zeros((len(hgrids), len(wgrids), dur_t // self.aligned)).int()
-            if res_w > self.fsize_w:
-                rnd_w = torch.randint(
-                    res_w - self.fsize_w, (len(hgrids), len(wgrids), dur_t // self.aligned)
-                )
-            else:
-                rnd_w = torch.zeros((len(hgrids), len(wgrids), dur_t // self.aligned)).int()
+        if hlength > self.fsize_h:
+            rnd_h = torch.randint(
+                hlength - self.fsize_h, (len(hgrids), len(wgrids), dur_t // self.aligned)
+            )
         else:
-            if hlength > self.fsize_h:
-                rnd_h = torch.randint(
-                    hlength - self.fsize_h, (len(hgrids), len(wgrids), dur_t // self.aligned)
-                )
-            else:
-                rnd_h = torch.zeros((len(hgrids), len(wgrids), dur_t // self.aligned)).int()
-            if wlength > self.fsize_w:
-                rnd_w = torch.randint(
-                    wlength - self.fsize_w, (len(hgrids), len(wgrids), dur_t // self.aligned)
-                )
-            else:
-                rnd_w = torch.zeros((len(hgrids), len(wgrids), dur_t // self.aligned)).int()
+            rnd_h = torch.zeros((len(hgrids), len(wgrids), dur_t // self.aligned)).int()
+        if wlength > self.fsize_w:
+            rnd_w = torch.randint(
+                wlength - self.fsize_w, (len(hgrids), len(wgrids), dur_t // self.aligned)
+            )
+        else:
+            rnd_w = torch.zeros((len(hgrids), len(wgrids), dur_t // self.aligned)).int()
 
         target_video = torch.zeros(video.shape[:-2] + size).to(video.device)
         # target_videos = []
@@ -108,12 +93,8 @@ class PlaneSpatialFragmentSampler:
                     t_s, t_e = t * self.aligned, (t + 1) * self.aligned
                     h_s, h_e = i * self.fsize_h, (i + 1) * self.fsize_h
                     w_s, w_e = j * self.fsize_w, (j + 1) * self.fsize_w
-                    if self.random:
-                        h_so, h_eo = rnd_h[i][j][t], rnd_h[i][j][t] + self.fsize_h
-                        w_so, w_eo = rnd_w[i][j][t], rnd_w[i][j][t] + self.fsize_w
-                    else:
-                        h_so, h_eo = hs + rnd_h[i][j][t], hs + rnd_h[i][j][t] + self.fsize_h
-                        w_so, w_eo = ws + rnd_w[i][j][t], ws + rnd_w[i][j][t] + self.fsize_w
+                    h_so, h_eo = hs + rnd_h[i][j][t], hs + rnd_h[i][j][t] + self.fsize_h
+                    w_so, w_eo = ws + rnd_w[i][j][t], ws + rnd_w[i][j][t] + self.fsize_w
                         # print(h_so, w_so)
                     target_video[:, t_s:t_e, h_s:h_e, w_s:w_e] = video[
                                                                  :, t_s:t_e, h_so:h_eo, w_so:w_eo

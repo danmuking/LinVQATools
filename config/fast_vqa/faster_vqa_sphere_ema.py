@@ -1,19 +1,19 @@
 custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
-             'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
+             'plcc', 'krcc', 'train_evaluator_hook','custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'faster_vqa/swin'
+work_dir = 'faster_vqa/sphere'
 model = dict(
     type='FasterVQA',
     backbone_size='swin_tiny_grpb',
     backbone={"fragments": dict(window_size=(4, 4, 4))},
     backbone_preserve_keys='fragments',
-    load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
+    load_path="./pretrained_weights/FAST_VQA_3D_1_1.pth"
 )
 train_dataloader = dict(
     dataset=dict(
         type='DefaultDataset',
-        prefix='fragment',
+        prefix='sphere',
         anno_reader='ODVVQAReader',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
         phase='train',
@@ -50,7 +50,7 @@ train_cfg = dict(
 optim_wrapper = dict(
     type='OptimWrapper',
     optimizer=dict(type='AdamW', lr=0.001, weight_decay=0.05),
-    # accumulative_counts=4,
+    accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
             'model.fragments_backbone': dict(lr_mult=0.1),
@@ -72,7 +72,7 @@ param_scheduler = [
         by_epoch=True,
         begin=3,
         T_max=80,
-        eta_min=0.00003,
+        eta_min=1e-06,
         convert_to_iter_based=True
     )
 ]
@@ -80,7 +80,7 @@ val_dataloader = dict(
     dataset=dict(
         type='DefaultDataset',
         anno_reader='ODVVQAReader',
-        prefix='fragment',
+        prefix='sphere',
         phase='test',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
         frame_sampler=dict(
@@ -122,7 +122,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='Swin')
+            init_kwargs=dict(project='VQA',name='Sphere')
         ),
     ],
 )
@@ -131,13 +131,11 @@ default_hooks = dict(
     checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=10, save_best='SROCC', rule='greater'))
 custom_hooks = [
     dict(type='TrainEvaluatorHook'),
-    dict(type='CustomEMAHook',momentum=0.001)
+    dict(type='CustomEMAHook')
     # dict(type='EmptyCacheHook', after_epoch=True)
-]
+    ]
 launcher = 'none'
-randomness = dict(seed=42)
-# randomness = dict(seed=3407)
-# randomness = dict(seed=114514)
+randomness=dict(seed=42)
 env_cfg = dict(
     cudnn_benchmark=False,
     backend='nccl',

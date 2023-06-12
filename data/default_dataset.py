@@ -16,7 +16,6 @@ import os.path as osp
 import data.sampler as sampler
 import decord
 
-random.seed(42)
 decord.bridge.set_bridge("torch")
 
 
@@ -65,6 +64,8 @@ class DefaultDataset(Dataset):
         self.mean = torch.FloatTensor([123.675, 116.28, 103.53])
         self.std = torch.FloatTensor([58.395, 57.12, 57.375])
 
+        # self.prefix = 'fragment'
+
     def __getitem__(self, index):
         logger = MMLogger.get_instance('dataset')
 
@@ -72,25 +73,26 @@ class DefaultDataset(Dataset):
         video_path = video_info["video_path"]
         score = video_info["score"]
 
-        video_pre_path = "/"
+        video_pre_path = "/123"
         # 含有预处理前缀,加载预处理数据
         if self.prefix is not None:
             # 直接读取视频
-            num = random.randint(0, 79)
+            num = random.randint(0, 19)
             # 预处理好的视频路径
             video_pre_path = video_path.split('/')
             video_pre_path.insert(3, self.prefix)
             video_pre_path.insert(4, '{}'.format(num))
             video_pre_path = os.path.join('/', *video_pre_path)
         if os.path.exists(video_pre_path):
-            logger.debug("加载预处理的{}".format(video_pre_path))
-            vreader = VideoReader(video_pre_path)
-            frame_dict = {idx: vreader[idx] for idx in range(len(vreader))}
-            imgs = [frame_dict[idx] for idx in range(len(vreader))]
-            video = torch.stack(imgs, 0).permute(3, 0, 1, 2)
+            # logger.info("加载预处理的{}".format(video_pre_path))
+            # vreader = VideoReader(video_pre_path)
+            # frame_dict = {idx: vreader[idx] for idx in range(len(vreader))}
+            # imgs = [frame_dict[idx] for idx in range(len(vreader))]
+            # video = torch.stack(imgs, 0).permute(3, 0, 1, 2)
+            video = torch.load(video_pre_path)
             frame_idxs: List[Any] = []
         else:
-            logger.debug("加载未处理的{}".format(video_path))
+            logger.info("加载未处理的{}".format(video_path))
             vreader = VideoReader(video_path)
             ## Read Original Frames
             ## Process Frames

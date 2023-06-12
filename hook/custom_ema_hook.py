@@ -67,18 +67,17 @@ class CustomEMAHook(Hook):
         self.enabled_by_epoch = self.begin_epoch > 0
 
     def before_run(self, runner) -> None:
-
         """Create an ema copy of the model.
 
         Args:
             runner (Runner): The runner of the training process.
         """
-        from copy import deepcopy
         model = runner.model
         if is_model_wrapper(model):
             model = model.module
         self.src_model = model
-        self.ema_model = deepcopy(model)
+        self.ema_model = MODELS.build(
+            self.ema_cfg, default_args=dict(model=self.src_model))
 
         if self.evaluator is None:
             evaluator = [
@@ -121,12 +120,13 @@ class CustomEMAHook(Hook):
                 Defaults to None.
             outputs (dict, optional): Outputs from model. Defaults to None.
         """
-        model_params = dict(self.src_model.named_parameters())
-        model_ema_params = dict(self.ema_model.named_parameters())
-        for k in model_params.keys():
-            model_ema_params[k].data.mul_(0.999).add_(
-                model_params[k].data, alpha=1 - 0.999
-            )
+        if self._ema_started(runner):
+            self.ema_model.update_parameters(self.src_model)
+        else:
+            ema_params = self.ema_model.module.state_dict()
+            src_params = self.src_model.state_dict()
+            for k, p in ema_params.items():
+                p.data.copy_(src_params[k].data)
 
     def before_val_epoch(self, runner) -> None:
         """We load parameter values from ema model to source model before
@@ -146,7 +146,8 @@ class CustomEMAHook(Hook):
         self.ema_model.eval()
 
         with torch.no_grad():
-            outputs = self.ema_model.val_step(data_batch)
+            outputs = self.ema_model(inputs=data_batch['inputs'].cuda(),
+                                     gt_label=data_batch['gt_label'].cuda(), mode='predict')
         self.evaluator.process(data_samples=outputs, data_batch=data_batch)
 
     def after_val_epoch(self,
