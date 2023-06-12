@@ -84,7 +84,7 @@ class DefaultDataset(Dataset):
             video_pre_path.insert(4, '{}'.format(num))
             video_pre_path = os.path.join('/', *video_pre_path)
         if os.path.exists(video_pre_path):
-            # logger.info("加载预处理的{}".format(video_pre_path))
+            logger.info("加载预处理的{}".format(video_pre_path))
             # vreader = VideoReader(video_pre_path)
             # frame_dict = {idx: vreader[idx] for idx in range(len(vreader))}
             # imgs = [frame_dict[idx] for idx in range(len(vreader))]

@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'faster_vqa/swin'
+work_dir = 'faster_vqa/fc'
 model = dict(
     type='FasterVQA',
     backbone_size='swin_tiny_grpb',
@@ -122,7 +122,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='Swin')
+            init_kwargs=dict(project='VQA', name='fc')
         ),
     ],
 )
