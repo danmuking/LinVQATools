@@ -33,10 +33,11 @@ class TestDefaultDataset(TestCase):
             aligned=8,
         )
         dataset = DefaultDataset(anno_reader='ODVVQAReader', split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
-                                 frame_sampler=frame_sampler, spatial_sampler=spatial_sampler)
+                                 frame_sampler=frame_sampler, spatial_sampler=spatial_sampler,prefix='fragment')
         dataloader = DataLoader(dataset, batch_size=6, num_workers=4)
-        for item in tqdm(dataloader):
-            print(item)
+        # for item in tqdm(dataloader):
+        #     print(item)
+        dataset[0]
 
     def test_save_video(self):
         os.chdir('../')
@@ -58,7 +59,7 @@ class TestDefaultDataset(TestCase):
             aligned=8,
         )
         dataset = DefaultDataset(anno_reader='ODVVQAReader', split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
-                                 frame_sampler=frame_sampler, spatial_sampler=spatial_sampler)
+                                 frame_sampler=frame_sampler, spatial_sampler=spatial_sampler,prefix='fragment',norm=False)
         data = dataset[0]
         # video = torch.from_numpy(np.load("temp.npy"))
         video = data['inputs']

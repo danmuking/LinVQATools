@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'faster_vqa/sphere'
+work_dir = 'faster_vqa/change'
 model = dict(
     type='FasterVQA',
     backbone_size='swin_tiny_grpb',
@@ -13,7 +13,7 @@ model = dict(
 train_dataloader = dict(
     dataset=dict(
         type='DefaultDataset',
-        prefix='sphere',
+        prefix='fragment',
         anno_reader='ODVVQAReader',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
         phase='train',
@@ -80,7 +80,7 @@ val_dataloader = dict(
     dataset=dict(
         type='DefaultDataset',
         anno_reader='ODVVQAReader',
-        prefix='sphere',
+        prefix='fragment',
         phase='test',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
         frame_sampler=dict(
@@ -122,7 +122,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='Sphere')
+            init_kwargs=dict(project='VQA', name='Change')
         ),
     ],
 )

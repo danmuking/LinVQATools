@@ -84,13 +84,18 @@ class DefaultDataset(Dataset):
             video_pre_path.insert(4, '{}'.format(num))
             video_pre_path = os.path.join('/', *video_pre_path)
         if os.path.exists(video_pre_path):
-            # logger.info("加载预处理的{}".format(video_pre_path))
+            logger.info("加载预处理的{}".format(video_pre_path))
             # vreader = VideoReader(video_pre_path)
             # frame_dict = {idx: vreader[idx] for idx in range(len(vreader))}
             # imgs = [frame_dict[idx] for idx in range(len(vreader))]
             # video = torch.stack(imgs, 0).permute(3, 0, 1, 2)
             video = torch.load(video_pre_path)
-
+            temp = video[:, :, :96, :].clone()
+            video[:, :, :96, :]= video[:, :, -96:, :]
+            video[:, :, -96:, :] = temp
+            temp = video[:, :, :, :96].clone()
+            video[:, :, :, :96] = video[:, :, :, -96:]
+            video[:, :, :, -96:] = temp
             frame_idxs: List[Any] = []
         else:
             logger.info("加载未处理的{}".format(video_path))
