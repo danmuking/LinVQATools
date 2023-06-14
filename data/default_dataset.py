@@ -90,6 +90,7 @@ class DefaultDataset(Dataset):
             # imgs = [frame_dict[idx] for idx in range(len(vreader))]
             # video = torch.stack(imgs, 0).permute(3, 0, 1, 2)
             video = torch.load(video_pre_path)
+
             frame_idxs: List[Any] = []
         else:
             logger.info("加载未处理的{}".format(video_path))
