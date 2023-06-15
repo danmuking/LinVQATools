@@ -102,27 +102,7 @@ class TestDefaultDataset(TestCase):
                                  split_file='/home/ly/code/LinVQATools/data/odv_vqa/tr_te_VQA_ODV.txt',
                                  frame_sampler=frame_sampler, spatial_sampler=spatial_sampler, phase='test',
                                  prefix=None, norm=False)
-        data = dataset[0]
-        # video = torch.from_numpy(np.load("temp.npy"))
-        video = data['inputs']
-        # print(data)
-        print(video.shape)
-        print(video)
-        fourcc = cv2.VideoWriter_fourcc(*'MJPG')
-        # 设置视频帧频
-        fps = 10
-        # 设置视频大小
-        size = video.shape[-2], video.shape[-1]
-        out = cv2.VideoWriter('./out.mp4', fourcc, fps, size)
-        for i in range(video.shape[1]):
-            fra = video[:, i, :, :]
-            fra = fra.permute(1, 2, 0)
-            fra = fra.numpy().astype(np.uint8)
-            fra = cv2.cvtColor(fra, cv2.COLOR_RGB2BGR)
-            out.write(fra)
-        out.release()
-        buffer = io.BytesIO()
-        torch.save(video.type(torch.uint8),buffer)
+        dataset.shuffler(video=None)
 
     def test_load(self):
         os.chdir('../')
