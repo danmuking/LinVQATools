@@ -72,7 +72,7 @@ param_scheduler = [
         by_epoch=True,
         begin=3,
         T_max=80,
-        eta_min=0.00003,
+        eta_min=0.00002,
         convert_to_iter_based=True
     )
 ]
@@ -139,7 +139,7 @@ randomness = dict(seed=42)
 # randomness = dict(seed=3407)
 # randomness = dict(seed=114514)
 env_cfg = dict(
-    cudnn_benchmark=False,
+    cudnn_benchmark=True,
     backend='nccl',
     mp_cfg=dict(mp_start_method='fork'))
 log_level = 'INFO'

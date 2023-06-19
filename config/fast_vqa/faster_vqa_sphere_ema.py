@@ -50,7 +50,7 @@ train_cfg = dict(
 optim_wrapper = dict(
     type='OptimWrapper',
     optimizer=dict(type='AdamW', lr=0.001, weight_decay=0.05),
-    accumulative_counts=4,
+    # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
             'model.fragments_backbone': dict(lr_mult=0.1),
