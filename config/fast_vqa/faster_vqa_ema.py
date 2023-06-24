@@ -44,12 +44,12 @@ train_dataloader = dict(
     num_workers=4)
 train_cfg = dict(
     by_epoch=True,
-    max_epochs=80,
+    max_epochs=300,
     val_begin=1,
     val_interval=1)
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.001, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
@@ -63,7 +63,7 @@ param_scheduler = [
         start_factor=0.001,
         by_epoch=True,
         begin=0,
-        end=3,
+        end=5,
         convert_to_iter_based=True
     ),
     # 在 [100, 900) 迭代时使用余弦学习率
@@ -71,8 +71,8 @@ param_scheduler = [
         type='CosineAnnealingLR',
         by_epoch=True,
         begin=3,
-        T_max=80,
-        eta_min=0.00002,
+        T_max=300,
+        # eta_min=0.00002,
         convert_to_iter_based=True
     )
 ]
@@ -122,7 +122,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='Change')
+            init_kwargs=dict(project='VQA', name='Change_mask')
         ),
     ],
 )
