@@ -66,6 +66,7 @@ class DefaultDataset(Dataset):
         self.std = torch.FloatTensor([58.395, 57.12, 57.375])
 
         # self.prefix = 'fragment'
+        self.count = 0
 
     def __getitem__(self, index):
         logger = MMLogger.get_instance('dataset')
@@ -78,7 +79,9 @@ class DefaultDataset(Dataset):
         # 含有预处理前缀,加载预处理数据
         if self.prefix is not None:
             # 直接读取视频
-            num = random.randint(0, 19)
+            num = random.randint(0, 39)
+            if self.phase == 'test':
+                num = 0
             # 预处理好的视频路径
             video_pre_path = video_path.split('/')
             video_pre_path.insert(3, self.prefix)
@@ -103,8 +106,9 @@ class DefaultDataset(Dataset):
                 video = self.spatial_sampler(video)
 
         if self.phase == 'train':
-            if random.random() > 0.5:
+            if random.random() < self.count / (300 * self.__len__()):
                 video = self.shuffler(video)
+            video = self.mark(video, 0.8 * self.count / (300 * self.__len__()))
         if self.norm:
             video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
         data = {
@@ -113,7 +117,7 @@ class DefaultDataset(Dataset):
             "gt_label": score,
             "name": osp.basename(video_path)
         }
-
+        self.count = self.count + 1
         return data
 
         # return None
@@ -147,13 +151,24 @@ class DefaultDataset(Dataset):
                                                                  :, t_so:t_eo, h_so:h_eo, w_so:w_eo
                                                                  ]
                     count = count + 1
-        for i in range(int(7*7*4*0.25)):
+        return target_video
+
+    def mark(self, video, radio):
+        martix = []
+        for i in range(7):
+            for j in range(7):
+                for k in range(4):
+                    martix.append((i, j, k))
+        random.shuffle(martix)
+        logger = MMLogger.get_instance('dataset')
+        logger.info("mark radio:{}".format(radio))
+        for i in range(int(7 * 7 * 4 * radio)):
             h_so, h_eo = martix[i][0] * 32, (martix[i][0] + 1) * 32
             w_so, w_eo = martix[i][1] * 32, (martix[i][1] + 1) * 32
             t_so, t_eo = martix[i][2] * 8, (martix[i][2] + 1) * 8
-            target_video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo] = \
-                torch.zeros_like(target_video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo])
-        return target_video
+            video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo] = \
+                torch.zeros_like(video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo])
+        return video
 
     def __len__(self):
         return len(self.data)
