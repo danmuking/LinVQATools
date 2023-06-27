@@ -23,15 +23,22 @@ class VQAHead(nn.Module):
         self.fc_hid = nn.Conv3d(self.in_channels, self.hidden_channels, (1, 1, 1))
         self.fc_last = nn.Conv3d(self.hidden_channels, 1, (1, 1, 1))
         self.gelu = nn.GELU()
+        self.norm1 = nn.BatchNorm3d(64)
+        self.norm2 = nn.BatchNorm3d(1)
 
         self.avg_pool = nn.AdaptiveAvgPool3d((1, 1, 1))
         self.fc = nn.Linear(16*7*7,1)
 
     def forward(self, x, rois=None):
         x = self.dropout(x)
-        qlt_score = self.fc_last(self.dropout(self.gelu(self.fc_hid(x))))
-        # qlt_score = self.gelu(qlt_score).reshape(qlt_score.shape[0],-1)
-        # qlt_score = self.fc(qlt_score)
+        qlt_score = self.fc_hid(x)
+        qlt_score = self.norm1(qlt_score)
+        qlt_score = self.gelu(qlt_score)
+        qlt_score = self.fc_last(self.dropout(qlt_score))
+        qlt_score = self.norm2(qlt_score)
+        qlt_score = self.gelu(qlt_score).reshape(qlt_score.shape[0],-1)
+        # qlt_score = self.dropout(qlt_score)
+        qlt_score = self.fc(qlt_score)
         return qlt_score
 
 

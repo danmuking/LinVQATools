@@ -4,6 +4,7 @@ from functools import reduce
 from unittest import TestCase
 
 import torch
+from torch import nn
 
 from models.faster_vqa import FasterVQA
 
@@ -11,7 +12,7 @@ from models.faster_vqa import FasterVQA
 class TestFasterVQA(TestCase):
     def test(self):
         os.chdir('../')
-        model = FasterVQA(backbone_size='swin_tiny_grpb',backbone={"fragments": dict(window_size=(4, 4, 4))},load_path="./pretrained_weights/FAST_VQA_3D_1_1.pth")
+        model = FasterVQA(backbone_size='swin_tiny_grpb', backbone={"fragments": dict(window_size=(4, 4, 4))})
         # print(model.state_dict())
         # i_state_dict = model.state_dict()
         # t_state_dict = OrderedDict()
@@ -22,9 +23,12 @@ class TestFasterVQA(TestCase):
         # model.load_state_dict(t_state_dict, strict=True)
         # print(model.state_dict())
         # model.eval()
-
+        # m = nn.BatchNorm3d(64)
+        # video = torch.zeros([2, 64, 16, 7, 7])
+        # output = m(video)
+        # print(output)
         video = torch.ones((2, 3, 32, 224, 224))
-        scores = model(inputs=video,mode="predict",gt_label=torch.tensor(1))
+        scores = model(inputs=video, mode="predict", gt_label=torch.tensor(1))
         print(scores)
         # if len(scores) > 1:
         #     y_pred = reduce(lambda x, y: x + y, scores)
