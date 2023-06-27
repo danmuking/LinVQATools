@@ -10,19 +10,16 @@ from torch.utils.data import Dataset
 from mmengine import DATASETS
 from decord import VideoReader
 import data.meta_reader as meta_reader
+from data.file_reader import ImgReader
 from data.meta_reader import AbstractReader
 from data.split.dataset_split import DatasetSplit
 import os.path as osp
 import data.sampler as sampler
+import data.file_reader as reader
 import decord
 
 decord.bridge.set_bridge("torch")
 
-
-# random.seed(42)
-# np.random.seed(42)
-# torch.manual_seed(42)
-# torch.cuda.manual_seed_all(42)
 
 @DATASETS.register_module()
 class DefaultDataset(Dataset):
@@ -50,7 +47,8 @@ class DefaultDataset(Dataset):
         self.spatial_sampler = None
         if 'spatial_sampler' in opt:
             self.spatial_sampler = getattr(sampler, opt['spatial_sampler']['name'])(**opt['spatial_sampler'])
-
+        # 加载预处理文件的加载器
+        self.file_reader: ImgReader = getattr(reader, 'ImgReader')(self.prefix)
         # 读取数据集声明文件
         self.anno_reader: AbstractReader = getattr(meta_reader, opt['anno_reader'])(anno_root)
 
@@ -65,8 +63,6 @@ class DefaultDataset(Dataset):
         self.mean = torch.FloatTensor([123.675, 116.28, 103.53])
         self.std = torch.FloatTensor([58.395, 57.12, 57.375])
 
-        # self.prefix = 'fragment'
-
     def __getitem__(self, index):
         logger = MMLogger.get_instance('dataset')
 
@@ -74,22 +70,14 @@ class DefaultDataset(Dataset):
         video_path = video_info["video_path"]
         score = video_info["score"]
 
-        video_pre_path = "/123"
         # 含有预处理前缀,加载预处理数据
-        if self.prefix is not None:
-            # 直接读取视频
-            num = random.randint(0, 39)
-            if self.phase == 'test':
-                num = 0
-            # 预处理好的视频路径
-            video_pre_path = video_path.split('/')
-            video_pre_path.insert(3, self.prefix)
-            video_pre_path.insert(4, '{}'.format(num))
-            video_pre_path = os.path.join('/', *video_pre_path)
-        if os.path.exists(video_pre_path):
-            logger.info("加载预处理的{}".format(video_pre_path))
-            video = torch.load(video_pre_path)
+        if self.phase == 'train':
+            video = self.file_reader.read(video_path)
         else:
+            video = self.file_reader.read(video_path, False)
+
+        # 预处理数据加载失败
+        if video is None:
             logger.info("加载未处理的{}".format(video_path))
             vreader = VideoReader(video_path)
             ## Read Original Frames
