@@ -6,6 +6,7 @@ import random
 
 import cv2
 import torch
+from mmengine import MMLogger
 
 
 class ImgReader:
@@ -29,10 +30,13 @@ class ImgReader:
         video_pre_path.insert(3, self.prefix)
         video_pre_path.insert(4, '{}'.format(num))
         video_pre_path = os.path.join('/', *video_pre_path)[:-4]
+        logger = MMLogger.get_instance('dataset')
+        logger.info("尝试加载{}".format(video_pre_path))
         video = []
         for i in range(32):
             img_path = os.path.join(video_pre_path, "{}.png".format(i))
             if not os.path.exists(img_path):
+                logger.info("加载失败")
                 return None
             img = cv2.imread(img_path)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)

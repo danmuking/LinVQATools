@@ -13,7 +13,7 @@ model = dict(
 train_dataloader = dict(
     dataset=dict(
         type='DefaultDataset',
-        prefix='fragment',
+        prefix='temp/fragment',
         anno_reader='ODVVQAReader',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
         phase='train',
@@ -49,7 +49,7 @@ train_cfg = dict(
     val_interval=1)
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=0.001, weight_decay=0.05),
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
@@ -63,14 +63,14 @@ param_scheduler = [
         start_factor=0.001,
         by_epoch=True,
         begin=0,
-        end=5,
+        end=10,
         convert_to_iter_based=True
     ),
     # 在 [100, 900) 迭代时使用余弦学习率
     dict(
         type='CosineAnnealingLR',
         by_epoch=True,
-        begin=3,
+        begin=10,
         T_max=300,
         # eta_min=0.00002,
         convert_to_iter_based=True
