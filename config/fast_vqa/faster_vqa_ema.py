@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'faster_vqa/change_fc1'
+work_dir = 'faster_vqa/change_fc'
 model = dict(
     type='FasterVQA',
     backbone_size='swin_tiny_grpb',
@@ -49,7 +49,7 @@ train_cfg = dict(
     val_interval=1)
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.001, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
@@ -80,7 +80,7 @@ val_dataloader = dict(
     dataset=dict(
         type='DefaultDataset',
         anno_reader='ODVVQAReader',
-        prefix='fragment',
+        prefix='temp/fragment',
         phase='test',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
         frame_sampler=dict(
