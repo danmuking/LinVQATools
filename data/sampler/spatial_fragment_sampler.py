@@ -219,6 +219,8 @@ class SphereSpatialFragmentSampler:
 
         for i, hs in enumerate(hgrids):
             for j, ws in enumerate(wgrids):
+                temp_a = random.random()*360
+                temp_b = (random.random()-0.5)*10
                 for t in range(dur_t):
                     t_s, t_e = t, (t + 1)
                     h_s, h_e = i * self.fsize_h, (i + 1) * self.fsize_h
@@ -228,7 +230,7 @@ class SphereSpatialFragmentSampler:
                     frames = frames.permute(1, 2, 0)
                     frames = frames.numpy()
                     equ = Equirectangular(frames)
-                    frames = equ.GetPerspective(1, -180 + (360 / 6) * j, 60 - (120 / 6) * i, 32, 32)
+                    frames = equ.GetPerspective(1, temp_a-180 + (360 / 6) * j, temp_b+60 - (120 / 6) * i, 32, 32)
                     frames = torch.from_numpy(frames)
                     frames = frames.permute(2, 0, 1)
                     frames = torch.unsqueeze(frames, dim=1)

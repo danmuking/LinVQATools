@@ -16,7 +16,6 @@ import os.path as osp
 import data.sampler as sampler
 import decord
 
-random.seed(42)
 decord.bridge.set_bridge("torch")
 
 
@@ -44,6 +43,7 @@ class DefaultDataset(Dataset):
         self.norm = opt.get('norm', True)
         # 预处理数据前缀
         self.prefix = opt.get('prefix', None)
+        self.shuffle = opt.get('shuffle', True)
         # 视频帧采样器
         self.frame_sampler = getattr(sampler, opt['frame_sampler']['name'])(**opt['frame_sampler'])
         # 空间采样器
@@ -65,6 +65,8 @@ class DefaultDataset(Dataset):
         self.mean = torch.FloatTensor([123.675, 116.28, 103.53])
         self.std = torch.FloatTensor([58.395, 57.12, 57.375])
 
+        # self.prefix = 'fragment'
+
     def __getitem__(self, index):
         logger = MMLogger.get_instance('dataset')
 
@@ -72,25 +74,24 @@ class DefaultDataset(Dataset):
         video_path = video_info["video_path"]
         score = video_info["score"]
 
-        video_pre_path = "/"
+        video_pre_path = "/123"
         # 含有预处理前缀,加载预处理数据
         if self.prefix is not None:
             # 直接读取视频
-            num = random.randint(0, 79)
+            num = random.randint(0, 39)
+            if self.phase == 'test':
+                num = 0
             # 预处理好的视频路径
             video_pre_path = video_path.split('/')
             video_pre_path.insert(3, self.prefix)
             video_pre_path.insert(4, '{}'.format(num))
             video_pre_path = os.path.join('/', *video_pre_path)
-        if os.path.exists(video_pre_path):
-            logger.debug("加载预处理的{}".format(video_pre_path))
-            vreader = VideoReader(video_pre_path)
-            frame_dict = {idx: vreader[idx] for idx in range(len(vreader))}
-            imgs = [frame_dict[idx] for idx in range(len(vreader))]
-            video = torch.stack(imgs, 0).permute(3, 0, 1, 2)
-            frame_idxs: List[Any] = []
+        # if os.path.exists(video_pre_path):
+        if False:
+            logger.info("加载预处理的{}".format(video_pre_path))
+            video = torch.load(video_pre_path)
         else:
-            logger.debug("加载未处理的{}".format(video_path))
+            logger.info("加载未处理的{}".format(video_path))
             vreader = VideoReader(video_path)
             ## Read Original Frames
             ## Process Frames
@@ -104,6 +105,9 @@ class DefaultDataset(Dataset):
             if self.spatial_sampler is not None:
                 video = self.spatial_sampler(video)
 
+        if self.phase == 'train':
+            if random.random() > 0.5:
+                video = self.shuffler(video)
         if self.norm:
             video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
         data = {
@@ -116,6 +120,43 @@ class DefaultDataset(Dataset):
         return data
 
         # return None
+
+    def shuffler(self, video):
+        """
+        打乱视频
+        :param video:
+        :return:
+        """
+        logger = MMLogger.get_instance('dataset')
+        logger.info("正在打乱视频")
+        martix = []
+        for i in range(7):
+            for j in range(7):
+                for k in range(4):
+                    martix.append((i, j, k))
+        random.shuffle(martix)
+        count = 0
+        target_video = torch.zeros_like(video)
+        for i in range(7):
+            for j in range(7):
+                for k in range(4):
+                    h_s, h_e = i * 32, (i + 1) * 32
+                    w_s, w_e = j * 32, (j + 1) * 32
+                    t_s, t_e = k * 8, (k + 1) * 8
+                    h_so, h_eo = martix[count][0] * 32, (martix[count][0] + 1) * 32
+                    w_so, w_eo = martix[count][1] * 32, (martix[count][1] + 1) * 32
+                    t_so, t_eo = martix[count][2] * 8, (martix[count][2] + 1) * 8
+                    target_video[:, t_s:t_e, h_s:h_e, w_s:w_e] = video[
+                                                                 :, t_so:t_eo, h_so:h_eo, w_so:w_eo
+                                                                 ]
+                    count = count + 1
+        for i in range(int(7 * 7 * 4 * 0.25)):
+            h_so, h_eo = martix[i][0] * 32, (martix[i][0] + 1) * 32
+            w_so, w_eo = martix[i][1] * 32, (martix[i][1] + 1) * 32
+            t_so, t_eo = martix[i][2] * 8, (martix[i][2] + 1) * 8
+            target_video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo] = \
+                torch.zeros_like(target_video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo])
+        return target_video
 
     def __len__(self):
         return len(self.data)

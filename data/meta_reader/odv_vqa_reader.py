@@ -31,7 +31,7 @@ class ODVVQAReader(AbstractReader):
         :return:
         """
         video_infos = []
-        with open(self.anno_file, "r") as fin:
+        with open(self.anno_file, "r", encoding='utf8') as fin:
             for line in fin:
                 line_split = line.strip().split()
                 scene_id, _, reference_path, impaired_path, score, _, _, _ = line_split
