@@ -43,7 +43,7 @@ train_dataloader = dict(
     num_workers=4)
 train_cfg = dict(
     by_epoch=True,
-    max_epochs=80,
+    max_epochs=300,
     val_begin=1,
     val_interval=1)
 optim_wrapper = dict(
@@ -61,15 +61,15 @@ param_scheduler = [
         start_factor=0.001,
         by_epoch=True,
         begin=0,
-        end=2,
+        end=5,
         convert_to_iter_based=True
     ),
     # 在 [100, 900) 迭代时使用余弦学习率
     dict(
         type='CosineAnnealingLR',
         by_epoch=True,
-        begin=2,
-        T_max=80,
+        begin=5,
+        T_max=300,
         convert_to_iter_based=True
     )
 ]
