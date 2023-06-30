@@ -51,7 +51,7 @@ optim_wrapper = dict(
     optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
     paramwise_cfg=dict(
         custom_keys={
-            'model.fragments_backbone': dict(lr_mult=1),
+            'model.fragments_backbone': dict(lr_mult=0.1),
         })
 )
 param_scheduler = [
@@ -119,7 +119,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='basic')
+            init_kwargs=dict(project='VQA', name='dover')
         ),
     ],
 )
@@ -130,7 +130,7 @@ custom_hooks = [
     # dict(type='EMAHook'),
     # dict(type='EmptyCacheHook', after_epoch=True)
     dict(type='TrainEvaluatorHook'),
-    dict(type='CustomEMAHook')
+    # dict(type='CustomEMAHook')
 ]
 randomness = dict(seed=42)
 launcher = 'none'
