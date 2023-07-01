@@ -1,7 +1,7 @@
 custom_imports = dict(
     imports=['dover', 'dover_dataset', 'srocc', 'rmse', 'plcc', 'krcc', 'train_evaluator_hook','custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'dover1/basic'
+work_dir = 'dover/aesthetic'
 model = dict(
     type='DoverWrapper',
     backbone_size='swin_tiny_grpb',
@@ -38,42 +38,9 @@ train_dataloader = dict(
         type='DefaultSampler',
         shuffle=True),
     collate_fn=dict(type='default_collate'),
-    batch_size=2,
+    batch_size=5,
     pin_memory=True,
     num_workers=4)
-train_cfg = dict(
-    by_epoch=True,
-    max_epochs=300,
-    val_begin=1,
-    val_interval=1)
-optim_wrapper = dict(
-    type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
-    paramwise_cfg=dict(
-        custom_keys={
-            'model.technical_backbone': dict(lr_mult=0.1),
-            'model.aesthetic_backbone': dict(lr_mult=0.1),
-        })
-)
-param_scheduler = [
-    # 在 [0, 100) 迭代时使用线性学习率
-    dict(
-        type='LinearLR',
-        start_factor=0.001,
-        by_epoch=True,
-        begin=0,
-        end=5,
-        convert_to_iter_based=True
-    ),
-    # 在 [100, 900) 迭代时使用余弦学习率
-    dict(
-        type='CosineAnnealingLR',
-        by_epoch=True,
-        begin=5,
-        T_max=300,
-        convert_to_iter_based=True
-    )
-]
 val_dataloader = dict(
     dataset=dict(
         type='DoverDataset',
@@ -104,9 +71,42 @@ val_dataloader = dict(
         shuffle=False
     ),
     collate_fn=dict(type='default_collate'),
-    batch_size=2,
+    batch_size=5,
     pin_memory=True,
     num_workers=4)
+train_cfg = dict(
+    by_epoch=True,
+    max_epochs=300,
+    val_begin=1,
+    val_interval=1)
+optim_wrapper = dict(
+    type='OptimWrapper',
+    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
+    paramwise_cfg=dict(
+        custom_keys={
+            # 'model.technical_backbone': dict(lr_mult=0.1),
+            'model.aesthetic_backbone': dict(lr_mult=0.1),
+        })
+)
+param_scheduler = [
+    # 在 [0, 100) 迭代时使用线性学习率
+    dict(
+        type='LinearLR',
+        start_factor=0.001,
+        by_epoch=True,
+        begin=0,
+        end=5,
+        convert_to_iter_based=True
+    ),
+    # 在 [100, 900) 迭代时使用余弦学习率
+    dict(
+        type='CosineAnnealingLR',
+        by_epoch=True,
+        begin=5,
+        T_max=300,
+        convert_to_iter_based=True
+    )
+]
 val_cfg = dict()
 val_evaluator = [
     dict(type='SROCC'),
@@ -120,7 +120,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='dover')
+            init_kwargs=dict(project='VQA', name='dover_aesthetic')
         ),
     ],
 )

@@ -79,35 +79,35 @@ class DoverDataset(Dataset):
         video_path = video_info["video_path"]
         score = video_info["score"]
 
-        # ----------------------------实现technical----------------------------------------
-        # 含有预处理前缀,加载预处理数据
-        if self.phase == 'train':
-            video = self.file_reader.read(video_path)
-        else:
-            video = self.file_reader.read(video_path, False)
-
-        # 预处理数据加载失败
-        if video is None:
-            logger.info("加载未处理的{}".format(video_path))
-            vreader = VideoReader(video_path)
-            ## Read Original Frames
-            ## Process Frames
-            frame_idxs = self.frame_sampler(len(vreader))
-
-            ### Each frame is only decoded one time!!!
-            all_frame_inds = frame_idxs
-            frame_dict = {idx: vreader[idx] for idx in np.unique(all_frame_inds)}
-            imgs = [frame_dict[idx] for idx in all_frame_inds]
-            video = torch.stack(imgs, 0).permute(3, 0, 1, 2)
-            if self.spatial_sampler is not None:
-                video = self.spatial_sampler(video)
-
-        if self.phase == 'train':
-            if random.random() > 0.5:
-                video = self.shuffler(video)
-        if self.norm:
-            video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
-        # ----------------------------------------------------------------------------------------
+        # # ----------------------------实现technical----------------------------------------
+        # # 含有预处理前缀,加载预处理数据
+        # if self.phase == 'train':
+        #     video = self.file_reader.read(video_path)
+        # else:
+        #     video = self.file_reader.read(video_path, False)
+        #
+        # # 预处理数据加载失败
+        # if video is None:
+        #     logger.info("加载未处理的{}".format(video_path))
+        #     vreader = VideoReader(video_path)
+        #     ## Read Original Frames
+        #     ## Process Frames
+        #     frame_idxs = self.frame_sampler(len(vreader))
+        #
+        #     ### Each frame is only decoded one time!!!
+        #     all_frame_inds = frame_idxs
+        #     frame_dict = {idx: vreader[idx] for idx in np.unique(all_frame_inds)}
+        #     imgs = [frame_dict[idx] for idx in all_frame_inds]
+        #     video = torch.stack(imgs, 0).permute(3, 0, 1, 2)
+        #     if self.spatial_sampler is not None:
+        #         video = self.spatial_sampler(video)
+        #
+        # if self.phase == 'train':
+        #     if random.random() > 0.5:
+        #         video = self.shuffler(video)
+        # if self.norm:
+        #     video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
+        # # ----------------------------------------------------------------------------------------
 
         # ----------------------------实现aesthetic----------------------------------------
         # video = self.video_reader()
@@ -126,7 +126,7 @@ class DoverDataset(Dataset):
             )
         # -------------------------------------------------------------------------------------------
 
-        views['technical'] = video
+        # views['technical'] = video
         data = {
             "inputs": views, "num_clips": {},
             # "frame_inds": frame_idxs,
