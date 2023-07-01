@@ -109,23 +109,23 @@ class DoverDataset(Dataset):
             video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
         # ----------------------------------------------------------------------------------------
 
-        # ----------------------------实现aesthetic----------------------------------------
-        # video = self.video_reader()
-        temporal_samplers = dict()
-        temporal_samplers['aesthetic'] = UnifiedFrameSampler(
-            1, 32, 2, 1
-        )
-        views, _ = spatial_temporal_view_decomposition(
-            video_path, {'aesthetic': {'size_h': 224, 'size_w': 224, 'clip_len': 32, 'frame_interval': 2, 't_frag': 32,
-                                       'num_clips': 1}}, temporal_samplers
-        )
-        for k, v in views.items():
-            views[k] = (
-                ((v.permute(1, 2, 3, 0) - self.mean) / self.std)
-                .permute(3, 0, 1, 2)
-            )
-        # -------------------------------------------------------------------------------------------
-
+        # # ----------------------------实现aesthetic----------------------------------------
+        # # video = self.video_reader()
+        # temporal_samplers = dict()
+        # temporal_samplers['aesthetic'] = UnifiedFrameSampler(
+        #     1, 32, 2, 1
+        # )
+        # views, _ = spatial_temporal_view_decomposition(
+        #     video_path, {'aesthetic': {'size_h': 224, 'size_w': 224, 'clip_len': 32, 'frame_interval': 2, 't_frag': 32,
+        #                                'num_clips': 1}}, temporal_samplers
+        # )
+        # for k, v in views.items():
+        #     views[k] = (
+        #         ((v.permute(1, 2, 3, 0) - self.mean) / self.std)
+        #         .permute(3, 0, 1, 2)
+        #     )
+        # # -------------------------------------------------------------------------------------------
+        views = {}
         views['technical'] = video
         data = {
             "inputs": views, "num_clips": {},

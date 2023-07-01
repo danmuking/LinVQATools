@@ -155,8 +155,7 @@ class DoverWrapper(BaseModel):
             vqa_head=dict(in_channels=768),
     ):
         super().__init__()
-        args = {'backbone': {'technical': {'type': 'swin_tiny_grpb', 'checkpoint': True, 'pretrained': None},
-                             'aesthetic': {'type': 'conv_tiny'}}, 'backbone_preserve_keys': 'technical,aesthetic',
+        args = {'backbone': {'technical': {'type': 'swin_tiny_grpb', 'checkpoint': True, 'pretrained': None}}, 'backbone_preserve_keys': 'technical',
                 'divide_head': True, 'vqa_head': {'in_channels': 768, 'hidden_channels': 64}}
         self.model = DOVER(**args)
         load_path = '/home/ly/code/LinVQATools/pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth'
@@ -172,22 +171,22 @@ class DoverWrapper(BaseModel):
         if mode == 'loss':
             scores = self.model(inputs, inference=False,
                                 reduce_scores=False)
+            # print(scores)
             if len(scores) > 1:
                 y_pred = reduce(lambda x, y: x + y, scores)
             else:
                 y_pred = scores[0]
-            y_pred = y_pred.mean((-3, -2, -1))
+            # print(y_pred.shape)
+            y_pred = y_pred.mean((-4, -3, -2, -1))
+            # print(y_pred.shape)
             loss = 0
-            p_loss_a = plcc_loss(scores[0].mean((-3, -2, -1)), y)
-            p_loss_b = plcc_loss(scores[1].mean((-3, -2, -1)), y)
-            r_loss_a = rank_loss(scores[0].mean((-3, -2, -1)), y)
-            r_loss_b = rank_loss(scores[1].mean((-3, -2, -1)), y)
+            p_loss = plcc_loss(scores[0].mean((-3, -2, -1)), y)
+            r_loss = rank_loss(scores[0].mean((-3, -2, -1)), y)
             loss += (
-                    p_loss_a + p_loss_b + 0.3 * r_loss_a + 0.3 * r_loss_b
+                    p_loss + 0.3 * r_loss
             )
 
-            return {'loss': loss, 'p_loss_a': p_loss_a, 'r_loss_a': r_loss_a, 'p_loss_b': p_loss_b,
-                    'r_loss_b': r_loss_b, 'result': [y_pred, y]}
+            return {'loss': loss, 'p_loss': p_loss, 'r_loss': r_loss, 'result': [y_pred, y]}
         elif mode == 'predict':
             scores = self.model(inputs, inference=True,
                                 reduce_scores=True)
@@ -196,7 +195,7 @@ class DoverWrapper(BaseModel):
             #     y_pred = reduce(lambda x, y: x + y, scores)
             # else:
             #     y_pred = scores[0]
-            y_pred = scores.mean((-3, -2, -1))
+            y_pred = scores.mean((-4, -3, -2, -1))
             return y_pred, y
 
     def train_step(self, data: Union[dict, tuple, list],
@@ -237,9 +236,7 @@ class DoverWrapper(BaseModel):
         recorder.iter_y_pre = result[0]
         recorder.iter_y = result[1]
 
-        losses = {'loss': losses['loss'], 'p_loss_a': losses['p_loss_a'], 'r_loss_a': losses['r_loss_a'],
-                  'p_loss_b': losses['p_loss_b'],
-                  'r_loss_b': losses['r_loss_b']}
+        losses = {'loss': losses['loss'], 'p_loss': losses['p_loss'], 'r_loss': losses['r_loss']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
         optim_wrapper.update_params(parsed_losses)
         return log_vars

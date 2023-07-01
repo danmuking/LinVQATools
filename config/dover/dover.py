@@ -1,7 +1,7 @@
 custom_imports = dict(
     imports=['dover', 'dover_dataset', 'srocc', 'rmse', 'plcc', 'krcc', 'train_evaluator_hook','custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'dover1/basic'
+work_dir = 'dover/technical'
 model = dict(
     type='DoverWrapper',
     backbone_size='swin_tiny_grpb',
@@ -38,7 +38,7 @@ train_dataloader = dict(
         type='DefaultSampler',
         shuffle=True),
     collate_fn=dict(type='default_collate'),
-    batch_size=2,
+    batch_size=5,
     pin_memory=True,
     num_workers=4)
 train_cfg = dict(
@@ -52,7 +52,7 @@ optim_wrapper = dict(
     paramwise_cfg=dict(
         custom_keys={
             'model.technical_backbone': dict(lr_mult=0.1),
-            'model.aesthetic_backbone': dict(lr_mult=0.1),
+            # 'model.aesthetic_backbone': dict(lr_mult=0.1),
         })
 )
 param_scheduler = [
@@ -104,7 +104,7 @@ val_dataloader = dict(
         shuffle=False
     ),
     collate_fn=dict(type='default_collate'),
-    batch_size=2,
+    batch_size=5,
     pin_memory=True,
     num_workers=4)
 val_cfg = dict()
@@ -120,7 +120,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='dover')
+            init_kwargs=dict(project='VQA', name='dover_technical')
         ),
     ],
 )
