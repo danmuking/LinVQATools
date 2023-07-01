@@ -162,7 +162,6 @@ class DoverWrapper(BaseModel):
         load_path = '/home/ly/code/LinVQATools/pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth'
         # 加载预训练权重
         if load_path is not None:
-            # self.logger.info("加载{}权重".format(load_path))
             self._load_weight(load_path)
 
     def forward(self, inputs: torch.Tensor, data_samples: Optional[list] = None, mode: str = 'tensor', **kargs) -> \
@@ -246,6 +245,7 @@ class DoverWrapper(BaseModel):
         return log_vars
 
     def _load_weight(self, load_path):
+        logger.info("加载{}权重".format(load_path))
         # 加载预训练参数
         state_dict = torch.load(load_path, map_location='cpu')
 
@@ -258,17 +258,13 @@ class DoverWrapper(BaseModel):
             for key in state_dict.keys():
                 if "head" in key:
                     continue
-                if "cls" in key:
-                    tkey = key.replace("cls", "vqa")
                 elif "backbone" in key:
-                    i_state_dict[key] = state_dict[key]
-                    i_state_dict["fragments_" + key] = state_dict[key]
-                    i_state_dict["resize_" + key] = state_dict[key]
+                    i_state_dict[key[9:]] = state_dict[key]
                 else:
                     i_state_dict[key] = state_dict[key]
             t_state_dict = self.model.state_dict()
             for key, value in t_state_dict.items():
                 if key in i_state_dict and i_state_dict[key].shape != value.shape:
                     i_state_dict.pop(key)
-            self.model.load_state_dict(i_state_dict, strict=False)
-            # self.logger.info(self.model.load_state_dict(i_state_dict, strict=False))
+            missing_weight = self.model.technical_backbone.load_state_dict(i_state_dict, strict=False)
+            logger.info("missing_weight:{}".format(missing_weight))
