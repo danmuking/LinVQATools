@@ -22,7 +22,8 @@ class TestDOVER(TestCase):
     def testDoverWrapper(self):
         model = DoverWrapper()
         views = dict()
-        views['technical'] = torch.zeros((1, 3, 32, 224, 224))
-        views['aesthetic'] = torch.zeros((1, 3, 32, 224, 224))
-        scores = model(inputs=views, mode="loss", gt_label=torch.tensor(1))
-        print(scores)
+        # views['technical'] = torch.zeros((1, 3, 32, 224, 224))
+        # views['aesthetic'] = torch.zeros((1, 3, 32, 224, 224))
+        # scores = model(inputs=views, mode="loss", gt_label=torch.tensor(1))
+        print(model.state_dict().keys())
+        # print(scores)

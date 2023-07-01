@@ -205,7 +205,7 @@ def spatial_temporal_view_decomposition(
         img = cv2.imread(img_path)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         imgs.append(torch.tensor(img))
-    if video is not None:
+    if imgs is not None:
         logger.info("aesthetic:加载预处理的{}".format(video_path))
         video = torch.stack(imgs, dim=0).permute(3, 0, 1, 2)
         sampled_video = {'aesthetic': video}

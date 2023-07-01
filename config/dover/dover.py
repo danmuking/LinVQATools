@@ -1,7 +1,7 @@
 custom_imports = dict(
     imports=['dover', 'dover_dataset', 'srocc', 'rmse', 'plcc', 'krcc', 'train_evaluator_hook','custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'dover/basic'
+work_dir = 'dover1/basic'
 model = dict(
     type='DoverWrapper',
     backbone_size='swin_tiny_grpb',
@@ -51,7 +51,8 @@ optim_wrapper = dict(
     optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
     paramwise_cfg=dict(
         custom_keys={
-            'model.fragments_backbone': dict(lr_mult=0.1),
+            'model.technical_backbone': dict(lr_mult=0.1),
+            'model.aesthetic_backbone': dict(lr_mult=0.1),
         })
 )
 param_scheduler = [
