@@ -1,7 +1,7 @@
 custom_imports = dict(
     imports=['dover', 'dover_dataset', 'srocc', 'rmse', 'plcc', 'krcc', 'train_evaluator_hook','custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'dover1/basic'
+work_dir = 'dover/fuse'
 model = dict(
     type='DoverWrapper',
     backbone_size='swin_tiny_grpb',
@@ -62,14 +62,14 @@ param_scheduler = [
         start_factor=0.001,
         by_epoch=True,
         begin=0,
-        end=5,
+        end=10,
         convert_to_iter_based=True
     ),
     # 在 [100, 900) 迭代时使用余弦学习率
     dict(
         type='CosineAnnealingLR',
         by_epoch=True,
-        begin=5,
+        begin=10,
         T_max=300,
         convert_to_iter_based=True
     )
@@ -120,7 +120,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='dover')
+            init_kwargs=dict(project='VQA', name='dover_fuse')
         ),
     ],
 )

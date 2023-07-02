@@ -22,15 +22,19 @@ class VQAHead(nn.Module):
             self.dropout = nn.Dropout(p=self.dropout_ratio)
         else:
             self.dropout = None
-        self.fc_hid = nn.Conv3d(self.in_channels, self.hidden_channels, (1, 1, 1))
-        self.fc_last = nn.Conv3d(self.hidden_channels, 1, (1, 1, 1))
+        self.fc_hid1 = nn.Conv3d(1536, 768, (1, 1, 1))
+        self.fc_hid2 = nn.Conv3d(768, 64, (1, 1, 1))
+        self.fc_last = nn.Conv3d(64, 1, (1, 1, 1))
         self.gelu = nn.GELU()
+        self.fc = nn.Linear(784, 1)
 
-        self.avg_pool = nn.AdaptiveAvgPool3d((1, 1, 1))
-
-    def forward(self, x, rois=None):
-        if self.pre_pool:
-            x = self.avg_pool(x)
+    def forward(self, x):
         x = self.dropout(x)
-        qlt_score = self.fc_last(self.dropout(self.gelu(self.fc_hid(x))))
+        x = self.gelu(self.fc_hid1(x))
+        x = self.dropout(x)
+        x = self.gelu(self.fc_hid2(x))
+        x = self.dropout(x)
+        qlt_score = self.fc_last(self.dropout(x))
+        qlt_score = qlt_score.view(qlt_score.shape[0],-1)
+        qlt_score = self.fc(self.dropout(qlt_score))
         return qlt_score

@@ -33,49 +33,9 @@ class DOVER(nn.Module):
         self.multi = multi
         self.layer = layer
         super().__init__()
-        for key, hypers in backbone.items():
-            print(backbone_size)
-            if key not in self.backbone_preserve_keys:
-                continue
-            if backbone_size == "divided":
-                t_backbone_size = hypers["type"]
-            else:
-                t_backbone_size = backbone_size
-            if t_backbone_size == "swin_tiny":
-                b = swin_3d_tiny(**backbone[key])
-            elif t_backbone_size == "swin_tiny_grpb":
-                # to reproduce fast-vqa
-                b = VideoBackbone()
-            elif t_backbone_size == "swin_tiny_grpb_m":
-                # to reproduce fast-vqa-m
-                b = VideoBackbone(window_size=(4, 4, 4), frag_biases=[0, 0, 0, 0])
-            elif t_backbone_size == "swin_small":
-                b = swin_3d_small(**backbone[key])
-            elif t_backbone_size == "conv_tiny":
-                b = convnext_3d_tiny(pretrained=True)
-            elif t_backbone_size == "conv_small":
-                b = convnext_3d_small(pretrained=True)
-            elif t_backbone_size == "conv_femto":
-                b = convnextv2_3d_femto(pretrained=True)
-            elif t_backbone_size == "conv_pico":
-                b = convnextv2_3d_pico(pretrained=True)
-            elif t_backbone_size == "xclip":
-                raise NotImplementedError
-                # b = build_x_clip_model(**backbone[key])
-            else:
-                raise NotImplementedError
-            print("Setting backbone:", key + "_backbone")
-            setattr(self, key + "_backbone", b)
-        if divide_head:
-            for key in backbone:
-                pre_pool = False  # if key == "technical" else True
-                if key not in self.backbone_preserve_keys:
-                    continue
-                b = VQAHead(pre_pool=pre_pool, **vqa_head)
-                print("Setting head:", key + "_head")
-                setattr(self, key + "_head", b)
-        else:
-            self.vqa_head = VQAHead(**vqa_head)
+        self.technical_backbone = VideoBackbone()
+        self.aesthetic_backbone = convnext_3d_tiny(pretrained=True)
+        self.vqa_head = VQAHead(**vqa_head)
 
     def forward(
             self,
@@ -95,22 +55,10 @@ class DOVER(nn.Module):
                     feat = getattr(self, key.split("_")[0] + "_backbone")(
                         vclips[key], multi=self.multi, layer=self.layer, **kwargs
                     )
-                    if hasattr(self, key.split("_")[0] + "_head"):
-                        scores += [getattr(self, key.split("_")[0] + "_head")(feat)]
-                    else:
-                        scores += [getattr(self, "vqa_head")(feat)]
-                    if return_pooled_feats:
-                        feats[key] = feat.mean((-3, -2, -1))
-                if reduce_scores:
-                    if len(scores) > 1:
-                        scores = reduce(lambda x, y: x + y, scores)
-                    else:
-                        scores = scores[0]
-                    if pooled:
-                        scores = torch.mean(scores, (1, 2, 3, 4))
+                    scores += [feat]
+                scores = torch.cat((scores[0], scores[1]), 1)
+                scores = self.vqa_head(scores)
             self.train()
-            if return_pooled_feats:
-                return scores, feats
             return scores
         else:
             self.train()
@@ -120,24 +68,9 @@ class DOVER(nn.Module):
                 feat = getattr(self, key.split("_")[0] + "_backbone")(
                     vclips[key], multi=self.multi, layer=self.layer, **kwargs
                 )
-                if hasattr(self, key.split("_")[0] + "_head"):
-                    scores += [getattr(self, key.split("_")[0] + "_head")(feat)]
-                else:
-                    scores += [getattr(self, "vqa_head")(feat)]
-                if return_pooled_feats:
-                    feats[key] = feat.mean((-3, -2, -1))
-            if reduce_scores:
-                if len(scores) > 1:
-                    scores = reduce(lambda x, y: x + y, scores)
-                else:
-                    scores = scores[0]
-                if pooled:
-                    print(scores.shape)
-                    scores = torch.mean(scores, (1, 2, 3, 4))
-                    print(scores.shape)
-
-            if return_pooled_feats:
-                return scores, feats
+                scores += [feat]
+            scores = torch.cat((scores[0], scores[1]), 1)
+            scores = self.vqa_head(scores)
             return scores
 
 
@@ -168,35 +101,20 @@ class DoverWrapper(BaseModel):
             Union[
                 Dict[str, torch.Tensor], list]:
         y = kargs['gt_label'].float().unsqueeze(-1)
-        # print(y.shape)
         if mode == 'loss':
-            scores = self.model(inputs, inference=False,
+            y_pred = self.model(inputs, inference=False,
                                 reduce_scores=False)
-            if len(scores) > 1:
-                y_pred = reduce(lambda x, y: x + y, scores)
-            else:
-                y_pred = scores[0]
-            y_pred = y_pred.mean((-3, -2, -1))
             loss = 0
-            p_loss_a = plcc_loss(scores[0].mean((-3, -2, -1)), y)
-            p_loss_b = plcc_loss(scores[1].mean((-3, -2, -1)), y)
-            r_loss_a = rank_loss(scores[0].mean((-3, -2, -1)), y)
-            r_loss_b = rank_loss(scores[1].mean((-3, -2, -1)), y)
+            p_loss = plcc_loss(y_pred, y)
+            r_loss = rank_loss(y_pred, y)
             loss += (
-                    p_loss_a + p_loss_b + 0.3 * r_loss_a + 0.3 * r_loss_b
+                    p_loss + 0.3 * r_loss
             )
 
-            return {'loss': loss, 'p_loss_a': p_loss_a, 'r_loss_a': r_loss_a, 'p_loss_b': p_loss_b,
-                    'r_loss_b': r_loss_b, 'result': [y_pred, y]}
+            return {'loss': loss, 'p_loss': p_loss, 'r_loss': r_loss, 'result': [y_pred, y]}
         elif mode == 'predict':
-            scores = self.model(inputs, inference=True,
-                                reduce_scores=True)
-            # print(scores)
-            # if len(scores) > 1:
-            #     y_pred = reduce(lambda x, y: x + y, scores)
-            # else:
-            #     y_pred = scores[0]
-            y_pred = scores.mean((-3, -2, -1))
+            y_pred = self.model(inputs, inference=True,
+                                reduce_scores=False)
             return y_pred, y
 
     def train_step(self, data: Union[dict, tuple, list],
@@ -237,9 +155,7 @@ class DoverWrapper(BaseModel):
         recorder.iter_y_pre = result[0]
         recorder.iter_y = result[1]
 
-        losses = {'loss': losses['loss'], 'p_loss_a': losses['p_loss_a'], 'r_loss_a': losses['r_loss_a'],
-                  'p_loss_b': losses['p_loss_b'],
-                  'r_loss_b': losses['r_loss_b']}
+        losses = {'loss': losses['loss'], 'p_loss': losses['p_loss'], 'r_loss': losses['r_loss']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
         optim_wrapper.update_params(parsed_losses)
         return log_vars

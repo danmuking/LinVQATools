@@ -3,8 +3,9 @@ from unittest import TestCase
 
 import torch
 
+from models.backbone.conv_backbone import convnext_3d_tiny
 from models.dover import DOVER, DoverWrapper
-
+from models.backbone.swin_backbone import SwinTransformer3D as VideoBackbone
 
 class TestDOVER(TestCase):
     def testDover(self):
@@ -20,10 +21,19 @@ class TestDOVER(TestCase):
         print(result)
 
     def testDoverWrapper(self):
-        model = DoverWrapper()
+        # model =
         views = dict()
-        # views['technical'] = torch.zeros((1, 3, 32, 224, 224))
-        # views['aesthetic'] = torch.zeros((1, 3, 32, 224, 224))
-        # scores = model(inputs=views, mode="loss", gt_label=torch.tensor(1))
+        model = DoverWrapper()
+        views['technical'] = torch.zeros((2, 3, 32, 224, 224))
+        views['aesthetic'] = torch.zeros((2, 3, 32, 224, 224))
+        scores = model(inputs=views, mode="predict", gt_label=torch.tensor(1))
+        # x = torch.zeros((1, 3, 32, 224, 224))
+        # a = model(x)
+        # print(a.shape)
+        # model = convnext_3d_tiny(pretrained=True)
+        # b = torch.zeros((1, 3, 32, 224, 224))
+        # b = model(x)
+        # print(b.shape)
+        # print(torch.cat((a,b),dim=1).shape)
         # print(model.state_dict().keys())
-        # print(scores)
+        print(scores)
