@@ -36,6 +36,6 @@ spatial_sampler = dict(
 dataset = GenerateDataset(anno_reader='ODVVQAReader',
                           split_file='/home/ly/code/LinVQATools/data/odv_vqa/tr_te_VQA_ODV.txt',
                           frame_sampler=frame_sampler, spatial_sampler=spatial_sampler, phase='train')
-dataloader = DataLoader(dataset, batch_size=1, num_workers=2, shuffle=False)
+dataloader = DataLoader(dataset, batch_size=1, num_workers=1, shuffle=False)
 for item in tqdm(dataloader):
     pass

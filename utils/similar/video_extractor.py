@@ -19,10 +19,10 @@ class VideoExtractor:
     def extract(video_path):
         vreader = VideoReader(video_path)
         shape = vreader[0].shape
-        video = np.zeros((len(vreader) // 2, *shape), dtype=np.uint8)
+        video_list = []
         for i in range(0, len(vreader), 2):
-            video[i // 2] = vreader[i]
-        # print(video.shape)
+            video_list.append(vreader[i])
+        video = np.stack(video_list, axis=0, dtype=np.uint8)
         video_list = []
         h_num = 28
         w_num = 56
@@ -49,8 +49,8 @@ class VideoExtractor:
         unique_list = [video_list[0]]
         for video1 in video_list:
             result = False
-            for i in range(w_num*3):
-                video2 = unique_list[len(unique_list)-i-1 if len(unique_list)-i-1>0 else len(unique_list)-1]
+            for i in range(w_num * 3):
+                video2 = unique_list[len(unique_list) - i - 1 if len(unique_list) - i - 1 > 0 else len(unique_list) - 1]
                 result = VideoSimilator.compare(video1, video2)
                 if result:
                     break
@@ -58,15 +58,16 @@ class VideoExtractor:
                 unique_list.append(video1)
         print(len(unique_list))
         video_path = video_path.split("/")
-        video_path.insert(3,'unique')
-        video_path = os.path.join('/',*video_path)[:-4]
+        video_path.insert(3, 'unique')
+        video_path = os.path.join('/', *video_path)[:-4]
         print(video_path)
-        for i,video in enumerate(unique_list):
+        for i, video in enumerate(unique_list):
             for j in range(len(video)):
-                img_path = video_path+'/{}/{}.png'.format(i,j)
+                img_path = video_path + '/{}/{}.png'.format(i, j)
                 makedir(img_path)
-                img = cv2.cvtColor(video[j],cv2.COLOR_RGB2BGR)
-                cv2.imwrite(img_path,img)
+                img = cv2.cvtColor(video[j], cv2.COLOR_RGB2BGR)
+                cv2.imwrite(img_path, img)
+
 
 def makedir(path: str):
     dir_path = os.path.dirname(path)
