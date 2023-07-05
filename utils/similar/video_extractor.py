@@ -45,6 +45,7 @@ class VideoExtractor:
                         temp.append(video_cube)
                 # print(len(temp))
                 video_list += temp
+        print(len(video_list))
         unique_list = [video_list[0]]
         for video1 in video_list:
             result = False
@@ -64,7 +65,7 @@ class VideoExtractor:
             for j in range(len(video)):
                 img_path = video_path+'/{}/{}.png'.format(i,j)
                 makedir(img_path)
-                img = cv2.cvtColor(video[i],cv2.COLOR_RGB2BGR)
+                img = cv2.cvtColor(video[j],cv2.COLOR_RGB2BGR)
                 cv2.imwrite(img_path,img)
 
 def makedir(path: str):
