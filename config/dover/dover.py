@@ -38,7 +38,7 @@ train_dataloader = dict(
         type='DefaultSampler',
         shuffle=True),
     collate_fn=dict(type='default_collate'),
-    batch_size=2,
+    batch_size=3,
     pin_memory=True,
     num_workers=4)
 train_cfg = dict(
@@ -47,8 +47,9 @@ train_cfg = dict(
     val_begin=1,
     val_interval=1)
 optim_wrapper = dict(
-    type='OptimWrapper',
+    type='AmpOptimWrapper',
     optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
+    accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
             'model.technical_backbone': dict(lr_mult=0.1),
@@ -104,7 +105,7 @@ val_dataloader = dict(
         shuffle=False
     ),
     collate_fn=dict(type='default_collate'),
-    batch_size=2,
+    batch_size=3,
     pin_memory=True,
     num_workers=4)
 val_cfg = dict()
@@ -120,7 +121,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='dover_fuse')
+            init_kwargs=dict(project='VQA', name='dover_fuse_恢复训练')
         ),
     ],
 )
@@ -140,5 +141,5 @@ env_cfg = dict(
     backend='nccl',
     mp_cfg=dict(mp_start_method='fork'))
 log_level = 'INFO'
-load_from = None
-resume = False
+load_from = '/home/ly/code/LinVQATools/dover/fuse/epoch_13.pth'
+resume = True

@@ -31,12 +31,12 @@ class VQAHead(nn.Module):
 
     def forward(self, x):
         x = self.batch_norm(x)
-        # x = self.dropout(x)
+        x = self.dropout(x)
         x = self.gelu(self.fc_hid1(x))
-        # x = self.dropout(x)
+        x = self.dropout(x)
         x = self.gelu(self.fc_hid2(x))
         # x = self.dropout(x)
         qlt_score = self.fc_last(self.dropout(x))
         qlt_score = qlt_score.view(qlt_score.shape[0],-1)
-        qlt_score = self.fc(self.dropout(qlt_score))
+        qlt_score = self.fc(qlt_score)
         return qlt_score
