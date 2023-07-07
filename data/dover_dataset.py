@@ -79,54 +79,55 @@ class DoverDataset(Dataset):
         video_path = video_info["video_path"]
         score = video_info["score"]
 
-        # # ----------------------------实现technical----------------------------------------
-        # # 含有预处理前缀,加载预处理数据
-        # if self.phase == 'train':
-        #     video = self.file_reader.read(video_path)
-        # else:
-        #     video = self.file_reader.read(video_path, False)
-        #
-        # # 预处理数据加载失败
-        # if video is None:
-        #     logger.info("加载未处理的{}".format(video_path))
-        #     vreader = VideoReader(video_path)
-        #     ## Read Original Frames
-        #     ## Process Frames
-        #     frame_idxs = self.frame_sampler(len(vreader))
-        #
-        #     ### Each frame is only decoded one time!!!
-        #     all_frame_inds = frame_idxs
-        #     frame_dict = {idx: vreader[idx] for idx in np.unique(all_frame_inds)}
-        #     imgs = [frame_dict[idx] for idx in all_frame_inds]
-        #     video = torch.stack(imgs, 0).permute(3, 0, 1, 2)
-        #     if self.spatial_sampler is not None:
-        #         video = self.spatial_sampler(video)
-        #
-        # if self.phase == 'train':
-        #     if random.random() > 0.5:
-        #         video = self.shuffler(video)
-        # if self.norm:
-        #     video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
-        # # ----------------------------------------------------------------------------------------
+        # ----------------------------实现technical----------------------------------------
+        logger.info("加载technical分支视频")
+        # 含有预处理前缀,加载预处理数据
+        if self.phase == 'train':
+            video = self.file_reader.read(video_path)
+        else:
+            video = self.file_reader.read(video_path, False)
 
-        # ----------------------------实现aesthetic----------------------------------------
-        # video = self.video_reader()
-        temporal_samplers = dict()
-        temporal_samplers['aesthetic'] = UnifiedFrameSampler(
-            1, 32, 2, 1
-        )
-        views, _ = spatial_temporal_view_decomposition(
-            video_path, {'aesthetic': {'size_h': 224, 'size_w': 224, 'clip_len': 32, 'frame_interval': 2, 't_frag': 32,
-                                       'num_clips': 1}}, temporal_samplers
-        )
-        for k, v in views.items():
-            views[k] = (
-                ((v.permute(1, 2, 3, 0) - self.mean) / self.std)
-                .permute(3, 0, 1, 2)
-            )
-        # -------------------------------------------------------------------------------------------
+        # 预处理数据加载失败
+        if video is None:
+            logger.info("加载未处理的{}".format(video_path))
+            vreader = VideoReader(video_path)
+            ## Read Original Frames
+            ## Process Frames
+            frame_idxs = self.frame_sampler(len(vreader))
 
-        # views['technical'] = video
+            ### Each frame is only decoded one time!!!
+            all_frame_inds = frame_idxs
+            frame_dict = {idx: vreader[idx] for idx in np.unique(all_frame_inds)}
+            imgs = [frame_dict[idx] for idx in all_frame_inds]
+            video = torch.stack(imgs, 0).permute(3, 0, 1, 2)
+            if self.spatial_sampler is not None:
+                video = self.spatial_sampler(video)
+
+        if self.phase == 'train':
+            if random.random() > 0.5:
+                video = self.shuffler(video)
+        video = video.view((3, 32, 7, 32, 7, 32)).permute(0, 2, 4, 1, 3, 5).reshape(3, 32 * 7 * 7, 32, 32)
+        if self.norm:
+            video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
+        # ----------------------------------------------------------------------------------------
+
+        # # ----------------------------实现aesthetic----------------------------------------
+        # # video = self.video_reader()
+        # temporal_samplers = dict()
+        # temporal_samplers['aesthetic'] = UnifiedFrameSampler(
+        #     1, 32, 2, 1
+        # )
+        # views, _ = spatial_temporal_view_decomposition(
+        #     video_path, {'aesthetic': {'size_h': 224, 'size_w': 224, 'clip_len': 32, 'frame_interval': 2, 't_frag': 32,
+        #                                'num_clips': 1}}, temporal_samplers
+        # )
+        # for k, v in views.items():
+        #     views[k] = (
+        #         ((v.permute(1, 2, 3, 0) - self.mean) / self.std)
+        #         .permute(3, 0, 1, 2)
+        #     )
+        # # -------------------------------------------------------------------------------------------
+        views = {'aesthetic': video}
         data = {
             "inputs": views, "num_clips": {},
             # "frame_inds": frame_idxs,
@@ -166,12 +167,12 @@ class DoverDataset(Dataset):
                                                                  :, t_so:t_eo, h_so:h_eo, w_so:w_eo
                                                                  ]
                     count = count + 1
-        for i in range(int(7 * 7 * 4 * 0.25)):
-            h_so, h_eo = martix[i][0] * 32, (martix[i][0] + 1) * 32
-            w_so, w_eo = martix[i][1] * 32, (martix[i][1] + 1) * 32
-            t_so, t_eo = martix[i][2] * 8, (martix[i][2] + 1) * 8
-            target_video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo] = \
-                torch.zeros_like(target_video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo])
+        # for i in range(int(7 * 7 * 4 * 0.25)):
+        #     h_so, h_eo = martix[i][0] * 32, (martix[i][0] + 1) * 32
+        #     w_so, w_eo = martix[i][1] * 32, (martix[i][1] + 1) * 32
+        #     t_so, t_eo = martix[i][2] * 8, (martix[i][2] + 1) * 8
+        #     target_video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo] = \
+        #         torch.zeros_like(target_video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo])
         return target_video
 
     def __len__(self):

@@ -90,19 +90,19 @@ optim_wrapper = dict(
 )
 param_scheduler = [
     # 在 [0, 100) 迭代时使用线性学习率
-    dict(
-        type='LinearLR',
-        start_factor=0.001,
-        by_epoch=True,
-        begin=0,
-        end=5,
-        convert_to_iter_based=True
-    ),
+    # dict(
+    #     type='LinearLR',
+    #     start_factor=0.001,
+    #     by_epoch=True,
+    #     begin=0,
+    #     end=5,
+    #     convert_to_iter_based=True
+    # ),
     # 在 [100, 900) 迭代时使用余弦学习率
     dict(
         type='CosineAnnealingLR',
         by_epoch=True,
-        begin=5,
+        begin=0,
         T_max=300,
         convert_to_iter_based=True
     )
@@ -120,7 +120,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='dover_aesthetic')
+            init_kwargs=dict(project='VQA', name='dover_改变数据_恢复训练')
         ),
     ],
 )
@@ -136,9 +136,9 @@ custom_hooks = [
 randomness = dict(seed=42)
 launcher = 'none'
 env_cfg = dict(
-    cudnn_benchmark=False,
+    cudnn_benchmark=True,
     backend='nccl',
     mp_cfg=dict(mp_start_method='fork'))
 log_level = 'INFO'
-load_from = None
-resume = False
+load_from = '/home/ly/code/LinVQATools/dover/aesthetic/epoch_149.pth'
+resume = True
