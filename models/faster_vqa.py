@@ -5,6 +5,7 @@ from typing import Optional, Union, Dict
 
 from mmengine.model import BaseModel
 from mmengine.optim import OptimWrapper
+from torch import nn
 
 from global_class.train_recorder import TrainResultRecorder
 from models.evaluators import DiViDeAddEvaluator
@@ -70,10 +71,13 @@ class FasterVQA(BaseModel):
             # else:
             #     y_pred = scores[0]
             # y_pred = y_pred.mean((-3, -2, -1))
+
+            criterion = nn.MSELoss()
+            mse_loss = criterion(y_pred, y)
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
-            loss = p_loss + 3 * r_loss
-            return {'loss': loss, 'p_loss': p_loss, 'r_loss': r_loss, 'result': [y_pred, y]}
+            loss = mse_loss + p_loss + 3 * r_loss
+            return {'loss': loss,'mse_loss':mse_loss,'p_loss': p_loss, 'r_loss': r_loss, 'result': [y_pred, y]}
         elif mode == 'predict':
             scores = self.model(inputs, inference=True,
                                 reduce_scores=False)
