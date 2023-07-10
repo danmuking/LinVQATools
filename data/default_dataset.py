@@ -48,7 +48,7 @@ class DefaultDataset(Dataset):
         if 'spatial_sampler' in opt:
             self.spatial_sampler = getattr(sampler, opt['spatial_sampler']['name'])(**opt['spatial_sampler'])
         # 加载预处理文件的加载器
-        self.file_reader: ImgReader = getattr(reader, 'ImgReader')(self.prefix)
+        self.file_reader: ImgReader = getattr(reader, 'ClipReader')(self.prefix)
         # 读取数据集声明文件
         self.anno_reader: AbstractReader = getattr(meta_reader, opt['anno_reader'])(anno_root)
 
@@ -137,12 +137,12 @@ class DefaultDataset(Dataset):
                                                                  :, t_so:t_eo, h_so:h_eo, w_so:w_eo
                                                                  ]
                     count = count + 1
-        for i in range(int(7 * 7 * 4 * 0.25)):
-            h_so, h_eo = martix[i][0] * 32, (martix[i][0] + 1) * 32
-            w_so, w_eo = martix[i][1] * 32, (martix[i][1] + 1) * 32
-            t_so, t_eo = martix[i][2] * 8, (martix[i][2] + 1) * 8
-            target_video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo] = \
-                torch.zeros_like(target_video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo])
+        # for i in range(int(7 * 7 * 4 * 0.25)):
+        #     h_so, h_eo = martix[i][0] * 32, (martix[i][0] + 1) * 32
+        #     w_so, w_eo = martix[i][1] * 32, (martix[i][1] + 1) * 32
+        #     t_so, t_eo = martix[i][2] * 8, (martix[i][2] + 1) * 8
+        #     target_video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo] = \
+        #         torch.zeros_like(target_video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo])
         return target_video
 
     def __len__(self):

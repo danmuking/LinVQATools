@@ -65,6 +65,7 @@ class TestDefaultDataset(TestCase):
         video = data['inputs']
         # print(data)
         print(video.shape)
+        print(data['name'])
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         # 设置视频帧频
         fps = 10
