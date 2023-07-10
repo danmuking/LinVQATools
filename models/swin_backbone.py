@@ -791,6 +791,7 @@ class SwinTransformer3D(nn.Module):
         self.pos_drop = nn.Dropout(p=drop_rate)
 
         # stochastic depth
+        # 随机深度
         dpr = [
             x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))
         ]  # stochastic depth decay rule
@@ -1039,8 +1040,10 @@ class SwinTransformer3D(nn.Module):
         else:
             resized_window_size = None
 
+        # patch编码
         x = self.patch_embed(x)
 
+        # 直接给输入dropout
         x = self.pos_drop(x)
         feats = [x]
 
