@@ -37,5 +37,5 @@ dataset = GenerateDataset(anno_reader='ODVVQAReader',
                           split_file='/home/ly/code/LinVQATools/data/odv_vqa/tr_te_VQA_ODV.txt',
                           frame_sampler=frame_sampler, spatial_sampler=spatial_sampler, phase='test')
 # dataloader = DataLoader(dataset, batch_size=1, num_workers=1, shuffle=False)
-for item in tqdm(range(259,len(dataset))):
+for item in tqdm(range(0,len(dataset))):
     var = dataset[item]
