@@ -92,7 +92,7 @@ class DefaultDataset(Dataset):
             if self.spatial_sampler is not None:
                 video = self.spatial_sampler(video)
 
-        if self.phase == 'train':
+        if True:
             if True:
                 video = self.shuffler(video)
         if self.norm:

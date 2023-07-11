@@ -127,7 +127,7 @@ class FasterVQA(BaseModel):
         recorder.iter_y_pre = result[0]
         recorder.iter_y = result[1]
 
-        losses = {'loss': losses['loss'], 'p_loss': losses['p_loss'], 'r_loss': losses['r_loss']}
+        losses = {'loss': losses['loss'],'mse_loss':losses['mse_loss'], 'p_loss': losses['p_loss'], 'r_loss': losses['r_loss']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
         optim_wrapper.update_params(parsed_losses)
         return log_vars
