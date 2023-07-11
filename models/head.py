@@ -23,13 +23,16 @@ class VQAHead(nn.Module):
         self.fc_hid = nn.Conv3d(self.in_channels, self.hidden_channels, (1, 1, 1))
         self.fc_last = nn.Conv3d(self.hidden_channels, 1, (1, 1, 1))
         self.gelu = nn.GELU()
-        self.fc = nn.Linear(16 * 7 * 7, 1)
+        self.fc = nn.Linear(8 * 7 * 7, 1)
 
     def forward(self, x):
+        print(x.shape)
         x = self.dropout(x)
         qlt_score = self.fc_hid(x)
+        print(x.shape)
         qlt_score = self.gelu(qlt_score)
         qlt_score = self.fc_last(self.dropout(qlt_score))
+        print(x.shape)
         qlt_score = self.gelu(qlt_score).reshape(qlt_score.shape[0], -1)
         qlt_score = self.dropout(qlt_score)
         qlt_score = self.fc(qlt_score)

@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'faster_vqa/change_fc_loss'
+work_dir = 'faster_vqa/reduce_input'
 model = dict(
     type='FasterVQA',
     backbone_size='swin_tiny_grpb',
@@ -39,7 +39,7 @@ train_dataloader = dict(
         type='DefaultSampler',
         shuffle=True),
     collate_fn=dict(type='default_collate'),
-    batch_size=4,
+    batch_size=12,
     pin_memory=True,
     num_workers=4)
 train_cfg = dict(
@@ -106,7 +106,7 @@ val_dataloader = dict(
         shuffle=False
     ),
     collate_fn=dict(type='default_collate'),
-    batch_size=4,
+    batch_size=12,
     pin_memory=True,
     num_workers=4)
 val_cfg = dict()
@@ -122,7 +122,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='Change_fc_loss')
+            init_kwargs=dict(project='VQA', name='reduce_input')
         ),
     ],
 )
