@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'faster_vqa/change'
+work_dir = 'faster_vqa/similar'
 model = dict(
     type='FasterVQA',
     backbone_size='swin_tiny_grpb',
@@ -122,7 +122,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='Change_mask')
+            init_kwargs=dict(project='VQA', name='similar')
         ),
     ],
 )
@@ -131,7 +131,7 @@ default_hooks = dict(
     checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=10, save_best='SROCC', rule='greater'))
 custom_hooks = [
     dict(type='TrainEvaluatorHook'),
-    dict(type='CustomEMAHook',momentum=0.01)
+    # dict(type='CustomEMAHook',momentum=0.01)
     # dict(type='EmptyCacheHook', after_epoch=True)
 ]
 launcher = 'none'
