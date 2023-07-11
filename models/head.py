@@ -1,5 +1,7 @@
 import torch.nn as nn
+from mmengine import MMLogger
 
+logger = MMLogger.get_instance('model', log_level='INFO')
 
 class VQAHead(nn.Module):
     """MLP Regression Head for VQA.
@@ -26,13 +28,14 @@ class VQAHead(nn.Module):
         self.fc = nn.Linear(8 * 7 * 7, 1)
 
     def forward(self, x):
-        print(x.shape)
+        logger.debug("head模块的维度变化：")
+        logger.debug(x.shape)
         x = self.dropout(x)
         qlt_score = self.fc_hid(x)
-        print(x.shape)
+        logger.debug(x.shape)
         qlt_score = self.gelu(qlt_score)
         qlt_score = self.fc_last(self.dropout(qlt_score))
-        print(x.shape)
+        logger.debug(x.shape)
         qlt_score = self.gelu(qlt_score).reshape(qlt_score.shape[0], -1)
         qlt_score = self.dropout(qlt_score)
         qlt_score = self.fc(qlt_score)
