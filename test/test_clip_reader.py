@@ -12,7 +12,7 @@ class TestClipReader(TestCase):
         reader.read('/data/ly/VQA_ODV/Group10/Reference/G10PandaBaseChengdu_7680x3840_fps29.97.mp4')
     def test_save(self):
         reader = ClipReader()
-        video = reader.read('/data/ly/VQA_ODV/Group10/Reference/G10PandaBaseChengdu_7680x3840_fps29.97.mp4')
+        video = reader.read('/data/ly/VQA_ODV/Group9/G9FootballMatch_ERP_4096x2048_fps30_qp42_288k.mp4')
         print(video.shape)
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         # 设置视频帧频

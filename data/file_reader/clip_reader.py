@@ -33,7 +33,9 @@ class ClipReader:
         for i in range(7):
             for j in range(7):
                 for k in range(4):
-                    num = i*28+j*4+k
+                    num = (i*28+j*4+k) % len(video_cube_list)
+                    if num == len(video_cube_list)-1:
+                        random.shuffle(video_cube_list)
                     video_cube_path = os.path.join(video_pre_path,str(video_cube_list[num]))
                     video_cube = []
                     for x in range(8):
