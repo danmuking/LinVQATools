@@ -123,10 +123,10 @@ class DefaultDataset(Dataset):
                     martix.append((i, j, k))
         random.shuffle(martix)
         count = 0
-        target_video = torch.zeros((3, 16, 224, 224))
+        target_video = torch.zeros((3, 8, 224, 224))
         for i in range(7):
             for j in range(7):
-                for k in range(2):
+                for k in range(1):
                     h_s, h_e = i * 32, (i + 1) * 32
                     w_s, w_e = j * 32, (j + 1) * 32
                     t_s, t_e = k * 8, (k + 1) * 8
