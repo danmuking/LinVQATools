@@ -32,8 +32,11 @@ class TestDefaultDataset(TestCase):
             fsize_w=32,
             aligned=8,
         )
+        shuffler = dict(
+            name='FragmentShuffler',
+        )
         dataset = DefaultDataset(anno_reader='ODVVQAReader', split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
-                                 frame_sampler=frame_sampler, spatial_sampler=spatial_sampler,prefix='fragment')
+                                 frame_sampler=frame_sampler, spatial_sampler=spatial_sampler,prefix='temp/fragment',shuffler=shuffler)
         dataloader = DataLoader(dataset, batch_size=6, num_workers=4)
         # for item in tqdm(dataloader):
         #     print(item)
