@@ -1,6 +1,7 @@
 import random
 
 import torch
+from data import logger
 
 
 class PostProcessSampler:
@@ -18,6 +19,7 @@ class PostProcessSampler:
         self.num = num
 
     def __call__(self, video, *args, **kwargs):
+        logger.debug("进行数据后处理")
         c, t, h, w = video.shape
         assert t % self.frame_cube == 0, '视频帧数无法被frame_cube整除,T:{} frame_cube:{}'.format(t, self.frame_cube)
         num_cube = t//self.frame_cube
