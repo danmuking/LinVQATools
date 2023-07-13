@@ -92,8 +92,8 @@ class DefaultDataset(Dataset):
             if self.spatial_sampler is not None:
                 video = self.spatial_sampler(video)
 
-        if self.phase == 'train':
-            if random.random() > 0.5:
+        if True:
+            if True:
                 video = self.shuffler(video)
         if self.norm:
             video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
@@ -123,10 +123,10 @@ class DefaultDataset(Dataset):
                     martix.append((i, j, k))
         random.shuffle(martix)
         count = 0
-        target_video = torch.zeros_like(video)
+        target_video = torch.zeros((3, 8, 224, 224))
         for i in range(7):
             for j in range(7):
-                for k in range(4):
+                for k in range(1):
                     h_s, h_e = i * 32, (i + 1) * 32
                     w_s, w_e = j * 32, (j + 1) * 32
                     t_s, t_e = k * 8, (k + 1) * 8
@@ -137,12 +137,6 @@ class DefaultDataset(Dataset):
                                                                  :, t_so:t_eo, h_so:h_eo, w_so:w_eo
                                                                  ]
                     count = count + 1
-        # for i in range(int(7 * 7 * 4 * 0.25)):
-        #     h_so, h_eo = martix[i][0] * 32, (martix[i][0] + 1) * 32
-        #     w_so, w_eo = martix[i][1] * 32, (martix[i][1] + 1) * 32
-        #     t_so, t_eo = martix[i][2] * 8, (martix[i][2] + 1) * 8
-        #     target_video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo] = \
-        #         torch.zeros_like(target_video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo])
         return target_video
 
     def __len__(self):

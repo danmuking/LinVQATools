@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'faster_vqa/change_fc_loss'
+work_dir = 'faster_vqa/reduce_input'
 model = dict(
     type='FasterVQA',
     backbone_size='swin_tiny_grpb',
@@ -39,17 +39,17 @@ train_dataloader = dict(
         type='DefaultSampler',
         shuffle=True),
     collate_fn=dict(type='default_collate'),
-    batch_size=4,
+    batch_size=32,
     pin_memory=True,
     num_workers=4)
 train_cfg = dict(
     by_epoch=True,
-    max_epochs=300,
+    max_epochs=600,
     val_begin=1,
     val_interval=1)
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=0.001, weight_decay=0.05),
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
@@ -71,7 +71,7 @@ param_scheduler = [
         type='CosineAnnealingLR',
         by_epoch=True,
         begin=10,
-        T_max=300,
+        T_max=600,
         # eta_min=0.00002,
         convert_to_iter_based=True
     )
@@ -106,7 +106,7 @@ val_dataloader = dict(
         shuffle=False
     ),
     collate_fn=dict(type='default_collate'),
-    batch_size=4,
+    batch_size=32,
     pin_memory=True,
     num_workers=4)
 val_cfg = dict()
@@ -122,7 +122,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='Change_fc_loss')
+            init_kwargs=dict(project='VQA', name='reduce_input')
         ),
     ],
 )

@@ -27,7 +27,7 @@ class TestFasterVQA(TestCase):
         # video = torch.zeros([2, 64, 16, 7, 7])
         # output = m(video)
         # print(output)
-        video = torch.ones((2, 3, 32, 224, 224))
+        video = torch.ones((2, 3, 8, 224, 224))
         scores = model(inputs=video, mode="predict", gt_label=torch.tensor(1))
         print(scores)
         # if len(scores) > 1:
