@@ -9,7 +9,8 @@ class FragmentShuffler(BaseShuffler):
     """
     从fragment cube上打乱数据
     """
-    def __init__(self,fragment_size:int=32, frame_cube: int = 8,**kargs):
+    def __init__(self, fragment_size: int = 32, frame_cube: int = 8, **kargs):
+        super().__init__(**kargs)
         self.fragment_size = fragment_size
         self.frame_cube = frame_cube
     def shuffle(self, video: torch.Tensor):
