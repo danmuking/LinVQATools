@@ -67,8 +67,16 @@ class TestDefaultDataset(TestCase):
             fsize_w=32,
             aligned=8,
         )
+        shuffler = dict(
+            name='BaseShuffler',
+        )
+        post_sampler = dict(
+            name='PostProcessSampler',
+            num=2
+        )
         dataset = DefaultDataset(anno_reader='ODVVQAReader', split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
-                                 frame_sampler=frame_sampler, spatial_sampler=spatial_sampler,prefix='temp/fragment',norm=False)
+                                 frame_sampler=frame_sampler, spatial_sampler=spatial_sampler, prefix='temp/fragment',
+                                 shuffler=shuffler, post_sampler=post_sampler,norm=False)
         data = dataset[0]
         # video = torch.from_numpy(np.load("temp.npy"))
         video = data['inputs']

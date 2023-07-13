@@ -33,23 +33,30 @@ train_dataloader = dict(
             fsize_h=32,
             fsize_w=32,
             aligned=8,
-        )
+        ),
+        shuffler = dict(
+                    name='BaseShuffler',
+                ),
+        post_sampler = dict(
+            name='PostProcessSampler',
+            num=2
+        ),
     ),
     sampler=dict(
         type='DefaultSampler',
         shuffle=True),
     collate_fn=dict(type='default_collate'),
-    batch_size=32,
+    batch_size=12,
     pin_memory=True,
     num_workers=4)
 train_cfg = dict(
     by_epoch=True,
-    max_epochs=600,
+    max_epochs=300,
     val_begin=1,
     val_interval=1)
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.001, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
@@ -71,7 +78,7 @@ param_scheduler = [
         type='CosineAnnealingLR',
         by_epoch=True,
         begin=10,
-        T_max=600,
+        T_max=300,
         # eta_min=0.00002,
         convert_to_iter_based=True
     )
@@ -99,14 +106,21 @@ val_dataloader = dict(
             fsize_h=32,
             fsize_w=32,
             aligned=8,
-        )
+        ),
+        shuffler = dict(
+                            name='BaseShuffler',
+                        ),
+        post_sampler = dict(
+            name='PostProcessSampler',
+            num=2
+        ),
     ),
     sampler=dict(
         type='DefaultSampler',
         shuffle=False
     ),
     collate_fn=dict(type='default_collate'),
-    batch_size=32,
+    batch_size=12,
     pin_memory=True,
     num_workers=4)
 val_cfg = dict()
