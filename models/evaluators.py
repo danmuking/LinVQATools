@@ -1,20 +1,20 @@
 import torch
 import torch.nn as nn
-from functools import partial, reduce
-from .swin_backbone import SwinTransformer3D as VideoBackbone
-from .swin_backbone import swin_3d_tiny, swin_3d_small
+from functools import reduce
+from models.backbones.swin_backbone import SwinTransformer3D as VideoBackbone
+from models.backbones.swin_backbone import swin_3d_tiny, swin_3d_small
+from .backbones.mvit import MViT
 from .head import VQAHead
-from mmengine import MODELS
 
 
 class DiViDeAddEvaluator(nn.Module):
     def __init__(
             self,
             backbone_size="divided",
-            backbone_preserve_keys='fragments,resize',
+            backbone_preserve_keys='fragments',
             multi=False,
             layer=-1,
-            backbone=dict(resize={"window_size": (4, 4, 4)}, fragments={"window_size": (4, 4, 4)}),
+            backbone=dict(fragments={"window_size": (4, 4, 4)}),
             divide_head=False,
             vqa_head=dict(in_channels=768),
     ):
@@ -40,6 +40,9 @@ class DiViDeAddEvaluator(nn.Module):
                 b = VideoBackbone(window_size=(4, 4, 4), frag_biases=[0, 0, 0, 0])
             elif t_backbone_size == 'swin_small':
                 b = swin_3d_small(**backbone[key])
+            elif t_backbone_size =='mvit':
+                b = MViT(arch='tiny',drop_path_rate=0.2)
+                b.init_weights()
             else:
                 raise NotImplementedError
             print("Setting backbone:", key + "_backbone")

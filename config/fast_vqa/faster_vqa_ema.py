@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'faster_vqa/reduce_input'
+work_dir = 'faster_vqa/mvit'
 model = dict(
     type='FasterVQA',
-    backbone_size='swin_tiny_grpb',
+    backbone_size='mvit',
     backbone={"fragments": dict(window_size=(4, 4, 4))},
     backbone_preserve_keys='fragments',
-    load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
+    load_path="./pretrained_weights/mvit-small-p244_16x4x1_kinetics400-rgb_20221021-9ebaaeed.pth"
 )
 train_dataloader = dict(
     dataset=dict(
@@ -39,7 +39,7 @@ train_dataloader = dict(
         type='DefaultSampler',
         shuffle=True),
     collate_fn=dict(type='default_collate'),
-    batch_size=32,
+    batch_size=6,
     pin_memory=True,
     num_workers=4)
 train_cfg = dict(
@@ -106,7 +106,7 @@ val_dataloader = dict(
         shuffle=False
     ),
     collate_fn=dict(type='default_collate'),
-    batch_size=32,
+    batch_size=6,
     pin_memory=True,
     num_workers=4)
 val_cfg = dict()
@@ -122,7 +122,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='reduce_input')
+            init_kwargs=dict(project='VQA', name='mvit')
         ),
     ],
 )

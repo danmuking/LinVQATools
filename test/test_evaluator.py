@@ -11,7 +11,7 @@ class TestDiViDeAddEvaluator(TestCase):
     def test1(self):
         os.chdir('../')
         model = DiViDeAddEvaluator(backbone_size='swin_tiny_grpb',backbone={"fragments": dict(window_size=(4, 4, 4))})
-        video = torch.randn((1,3,32,224,224))
+        video = torch.randn((1,3,16,224,224))
         video = dict(fragments=video)
         scores = model(video)
         if len(scores) > 1:

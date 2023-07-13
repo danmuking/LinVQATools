@@ -25,9 +25,10 @@ class VQAHead(nn.Module):
         self.fc_hid = nn.Conv3d(self.in_channels, self.hidden_channels, (1, 1, 1))
         self.fc_last = nn.Conv3d(self.hidden_channels, 1, (1, 1, 1))
         self.gelu = nn.GELU()
-        self.fc = nn.Linear(4 * 7 * 7, 1)
+        self.fc = nn.Linear(8 * 7 * 7, 1)
 
     def forward(self, x):
+        x = x[0][0]
         logger.debug("head模块的维度变化：")
         logger.debug(x.shape)
         x = self.dropout(x)

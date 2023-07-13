@@ -12,8 +12,8 @@ from models.faster_vqa import FasterVQA
 class TestFasterVQA(TestCase):
     def test(self):
         os.chdir('../')
-        model = FasterVQA(backbone_size='swin_tiny_grpb', backbone={"fragments": dict(window_size=(4, 4, 4))})
-        # print(model.state_dict())
+        model = FasterVQA(backbone_size='mvit')
+        # print(model.state_dict().keys())
         # i_state_dict = model.state_dict()
         # t_state_dict = OrderedDict()
         # for key, value in i_state_dict.items():
@@ -27,7 +27,7 @@ class TestFasterVQA(TestCase):
         # video = torch.zeros([2, 64, 16, 7, 7])
         # output = m(video)
         # print(output)
-        video = torch.ones((2, 3, 8, 224, 224))
+        video = torch.ones((2, 3, 16, 224, 224))
         scores = model(inputs=video, mode="predict", gt_label=torch.tensor(1))
         print(scores)
         # if len(scores) > 1:
