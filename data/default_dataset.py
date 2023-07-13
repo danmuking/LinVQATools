@@ -12,19 +12,20 @@ from decord import VideoReader
 import data.meta_reader as meta_reader
 from data.file_reader import ImgReader
 from data.meta_reader import AbstractReader
+from data.shuffler import BaseShuffler
 from data.split.dataset_split import DatasetSplit
 import os.path as osp
 import data.sampler as sampler
 import data.file_reader as reader
+import data.shuffler as shuffler
 import decord
-
+from data import logger
 decord.bridge.set_bridge("torch")
 
 
 @DATASETS.register_module()
 class DefaultDataset(Dataset):
     def __init__(self, **opt):
-        logger = MMLogger.get_instance('dataset', log_level='INFO')
 
         # 数据集声明文件根路径
         if 'anno_root' not in opt:
@@ -49,6 +50,12 @@ class DefaultDataset(Dataset):
             self.spatial_sampler = getattr(sampler, opt['spatial_sampler']['name'])(**opt['spatial_sampler'])
         # 加载预处理文件的加载器
         self.file_reader: ImgReader = getattr(reader, 'ImgReader')(self.prefix)
+        self.post_sampler = None
+        if 'post_sampler' in opt:
+            self.post_sampler = getattr(sampler, opt['post_sampler']['name'])(**opt['post_sampler'])
+
+        self.shuffler:BaseShuffler = getattr(shuffler, opt['shuffler']['name'])(**opt['shuffler'])
+
         # 读取数据集声明文件
         self.anno_reader: AbstractReader = getattr(meta_reader, opt['anno_reader'])(anno_root)
 
@@ -64,8 +71,6 @@ class DefaultDataset(Dataset):
         self.std = torch.FloatTensor([58.395, 57.12, 57.375])
 
     def __getitem__(self, index):
-        logger = MMLogger.get_instance('dataset')
-
         video_info = self.data[index]
         video_path = video_info["video_path"]
         score = video_info["score"]
@@ -75,7 +80,8 @@ class DefaultDataset(Dataset):
             video = self.file_reader.read(video_path)
         else:
             video = self.file_reader.read(video_path, False)
-
+        if self.post_sampler is not None:
+            video = self.post_sampler(video)
         # 预处理数据加载失败
         if video is None:
             logger.info("加载未处理的{}".format(video_path))
@@ -92,9 +98,7 @@ class DefaultDataset(Dataset):
             if self.spatial_sampler is not None:
                 video = self.spatial_sampler(video)
 
-        if True:
-            if True:
-                video = self.shuffler(video)
+            video = self.shuffler.shuffle(video)
         if self.norm:
             video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
         data = {
@@ -108,36 +112,42 @@ class DefaultDataset(Dataset):
 
         # return None
 
-    def shuffler(self, video):
-        """
-        打乱视频
-        :param video:
-        :return:
-        """
-        logger = MMLogger.get_instance('dataset')
-        logger.info("正在打乱视频")
-        martix = []
-        for i in range(7):
-            for j in range(7):
-                for k in range(4):
-                    martix.append((i, j, k))
-        random.shuffle(martix)
-        count = 0
-        target_video = torch.zeros((3, 8, 224, 224))
-        for i in range(7):
-            for j in range(7):
-                for k in range(1):
-                    h_s, h_e = i * 32, (i + 1) * 32
-                    w_s, w_e = j * 32, (j + 1) * 32
-                    t_s, t_e = k * 8, (k + 1) * 8
-                    h_so, h_eo = martix[count][0] * 32, (martix[count][0] + 1) * 32
-                    w_so, w_eo = martix[count][1] * 32, (martix[count][1] + 1) * 32
-                    t_so, t_eo = martix[count][2] * 8, (martix[count][2] + 1) * 8
-                    target_video[:, t_s:t_e, h_s:h_e, w_s:w_e] = video[
-                                                                 :, t_so:t_eo, h_so:h_eo, w_so:w_eo
-                                                                 ]
-                    count = count + 1
-        return target_video
+    # def shuffler(self, video):
+    #     """
+    #     打乱视频
+    #     :param video:
+    #     :return:
+    #     """
+    #     logger = MMLogger.get_instance('dataset')
+    #     logger.info("正在打乱视频")
+    #     martix = []
+    #     for i in range(7):
+    #         for j in range(7):
+    #             for k in range(4):
+    #                 martix.append((i, j, k))
+    #     random.shuffle(martix)
+    #     count = 0
+    #     target_video = torch.zeros_like(video)
+    #     for i in range(7):
+    #         for j in range(7):
+    #             for k in range(4):
+    #                 h_s, h_e = i * 32, (i + 1) * 32
+    #                 w_s, w_e = j * 32, (j + 1) * 32
+    #                 t_s, t_e = k * 8, (k + 1) * 8
+    #                 h_so, h_eo = martix[count][0] * 32, (martix[count][0] + 1) * 32
+    #                 w_so, w_eo = martix[count][1] * 32, (martix[count][1] + 1) * 32
+    #                 t_so, t_eo = martix[count][2] * 8, (martix[count][2] + 1) * 8
+    #                 target_video[:, t_s:t_e, h_s:h_e, w_s:w_e] = video[
+    #                                                              :, t_so:t_eo, h_so:h_eo, w_so:w_eo
+    #                                                              ]
+    #                 count = count + 1
+    #     for i in range(int(7 * 7 * 4 * 0.25)):
+    #         h_so, h_eo = martix[i][0] * 32, (martix[i][0] + 1) * 32
+    #         w_so, w_eo = martix[i][1] * 32, (martix[i][1] + 1) * 32
+    #         t_so, t_eo = martix[i][2] * 8, (martix[i][2] + 1) * 8
+    #         target_video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo] = \
+    #             torch.zeros_like(target_video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo])
+    #     return target_video
 
     def __len__(self):
         return len(self.data)
