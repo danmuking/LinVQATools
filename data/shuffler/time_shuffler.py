@@ -5,7 +5,8 @@ import torch
 from .base_shuffler import BaseShuffler
 from data import logger
 class TimeShuffler(BaseShuffler):
-    def __int__(self, frame_cube: int = 8,**kargs):
+    def __init__(self, frame_cube: int = 8, **kargs):
+        super().__init__(**kargs)
         self.frame_cube = frame_cube
     def shuffle(self, video: torch.Tensor):
         """

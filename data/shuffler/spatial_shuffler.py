@@ -9,7 +9,8 @@ class SpatialShuffler(BaseShuffler):
     """
     实现数据空间维度上的打乱
     """
-    def __init__(self,fragment_size:int=32,**kargs):
+    def __init__(self, fragment_size: int = 32, **kargs):
+        super().__init__(**kargs)
         self.fragment_size = fragment_size
 
     def shuffle(self,video:torch.Tensor):
