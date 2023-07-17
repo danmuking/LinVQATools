@@ -110,44 +110,5 @@ class DefaultDataset(Dataset):
 
         return data
 
-        # return None
-
-    # def shuffler(self, video):
-    #     """
-    #     打乱视频
-    #     :param video:
-    #     :return:
-    #     """
-    #     logger = MMLogger.get_instance('dataset')
-    #     logger.info("正在打乱视频")
-    #     martix = []
-    #     for i in range(7):
-    #         for j in range(7):
-    #             for k in range(4):
-    #                 martix.append((i, j, k))
-    #     random.shuffle(martix)
-    #     count = 0
-    #     target_video = torch.zeros_like(video)
-    #     for i in range(7):
-    #         for j in range(7):
-    #             for k in range(4):
-    #                 h_s, h_e = i * 32, (i + 1) * 32
-    #                 w_s, w_e = j * 32, (j + 1) * 32
-    #                 t_s, t_e = k * 8, (k + 1) * 8
-    #                 h_so, h_eo = martix[count][0] * 32, (martix[count][0] + 1) * 32
-    #                 w_so, w_eo = martix[count][1] * 32, (martix[count][1] + 1) * 32
-    #                 t_so, t_eo = martix[count][2] * 8, (martix[count][2] + 1) * 8
-    #                 target_video[:, t_s:t_e, h_s:h_e, w_s:w_e] = video[
-    #                                                              :, t_so:t_eo, h_so:h_eo, w_so:w_eo
-    #                                                              ]
-    #                 count = count + 1
-    #     for i in range(int(7 * 7 * 4 * 0.25)):
-    #         h_so, h_eo = martix[i][0] * 32, (martix[i][0] + 1) * 32
-    #         w_so, w_eo = martix[i][1] * 32, (martix[i][1] + 1) * 32
-    #         t_so, t_eo = martix[i][2] * 8, (martix[i][2] + 1) * 8
-    #         target_video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo] = \
-    #             torch.zeros_like(target_video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo])
-    #     return target_video
-
     def __len__(self):
         return len(self.data)
