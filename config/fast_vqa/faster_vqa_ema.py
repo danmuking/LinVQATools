@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'faster_vqa/mvit'
+work_dir = 'faster_vqa/mvit_no_change'
 model = dict(
     type='FasterVQA',
     backbone_size='mvit',
@@ -33,13 +33,20 @@ train_dataloader = dict(
             fsize_h=32,
             fsize_w=32,
             aligned=8,
-        )
+        ),
+        shuffler = dict(
+                    name='BaseShuffler',
+                ),
+        post_sampler = dict(
+            name='PostProcessSampler',
+            num=2
+        ),
     ),
     sampler=dict(
         type='DefaultSampler',
         shuffle=True),
     collate_fn=dict(type='default_collate'),
-    batch_size=6,
+    batch_size=3,
     pin_memory=True,
     num_workers=4)
 train_cfg = dict(
@@ -49,7 +56,7 @@ train_cfg = dict(
     val_interval=1)
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.001, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
@@ -99,14 +106,21 @@ val_dataloader = dict(
             fsize_h=32,
             fsize_w=32,
             aligned=8,
-        )
+        ),
+        shuffler = dict(
+                    name='BaseShuffler',
+                ),
+        post_sampler = dict(
+            name='PostProcessSampler',
+            num=2
+        ),
     ),
     sampler=dict(
         type='DefaultSampler',
         shuffle=False
     ),
     collate_fn=dict(type='default_collate'),
-    batch_size=6,
+    batch_size=3,
     pin_memory=True,
     num_workers=4)
 val_cfg = dict()
@@ -122,7 +136,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='mvit')
+            init_kwargs=dict(project='VQA', name='mvit_no_change')
         ),
     ],
 )
