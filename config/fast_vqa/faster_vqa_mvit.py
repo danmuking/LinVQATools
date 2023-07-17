@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'faster_vqa/mvit_no_change'
+work_dir = 'faster_vqa/mvit_reduce_input'
 model = dict(
     type='FasterVQA',
     backbone_size='mvit',
@@ -136,7 +136,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='mvit_no_change')
+            init_kwargs=dict(project='VQA', name='mvit_reduce_input')
         ),
     ],
 )
