@@ -12,8 +12,8 @@ from models.faster_vqa import FasterVQA
 class TestFasterVQA(TestCase):
     def test(self):
         os.chdir('../')
-        model = FasterVQA(backbone_size='swin_tiny_grpb', backbone={"fragments": dict(window_size=(4, 4, 4))})
-        # print(model.state_dict())
+        model = FasterVQA(backbone_size='mvit')
+        # print(model.state_dict().keys())
         # i_state_dict = model.state_dict()
         # t_state_dict = OrderedDict()
         # for key, value in i_state_dict.items():

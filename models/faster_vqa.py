@@ -1,5 +1,6 @@
 from functools import reduce
 
+import mmengine
 import torch
 from typing import Optional, Union, Dict
 
@@ -9,9 +10,9 @@ from torch import nn
 
 from global_class.train_recorder import TrainResultRecorder
 from models.evaluators import DiViDeAddEvaluator
-from mmengine import MODELS
+from mmengine import MODELS, MMLogger
 
-
+logger = MMLogger.get_instance('model')
 def rank_loss(y_pred, y):
     ranking_loss = torch.nn.functional.relu(
         (y_pred - y_pred.t()) * torch.sign((y.t() - y))
@@ -42,7 +43,7 @@ class FasterVQA(BaseModel):
             backbone_preserve_keys='fragments,resize',
             multi=False,
             layer=-1,
-            backbone=dict(resize={"window_size": (4, 4, 4)}, fragments={"window_size": (4, 4, 4)}),
+            backbone=dict(fragments={"window_size": (4, 4, 4)}),
             divide_head=False,
             vqa_head=dict(in_channels=768),
     ):
@@ -54,7 +55,7 @@ class FasterVQA(BaseModel):
         # self.logger = MMLogger.get_instance('mmengine', log_level='INFO')
         # 加载预训练权重
         if load_path is not None:
-            # self.logger.info("加载{}权重".format(load_path))
+            logger.info("加载预训练权重：{}".format(load_path))
             self._load_weight(load_path)
 
     def forward(self, inputs: torch.Tensor, data_samples: Optional[list] = None, mode: str = 'tensor', **kargs) -> \
@@ -148,14 +149,15 @@ class FasterVQA(BaseModel):
                 if "cls" in key:
                     tkey = key.replace("cls", "vqa")
                 elif "backbone" in key:
-                    i_state_dict[key] = state_dict[key]
+                    # i_state_dict[key] = state_dict[key]
                     i_state_dict["fragments_" + key] = state_dict[key]
-                    i_state_dict["resize_" + key] = state_dict[key]
+                    # i_state_dict["resize_" + key] = state_dict[key]
                 else:
                     i_state_dict[key] = state_dict[key]
             t_state_dict = self.model.state_dict()
             for key, value in t_state_dict.items():
                 if key in i_state_dict and i_state_dict[key].shape != value.shape:
                     i_state_dict.pop(key)
-            self.model.load_state_dict(i_state_dict, strict=False)
+            info = self.model.load_state_dict(i_state_dict, strict=False)
+            logger.info("权重加载完成,info:{}".format(info))
             # self.logger.info(self.model.load_state_dict(i_state_dict, strict=False))

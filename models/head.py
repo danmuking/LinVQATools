@@ -28,6 +28,7 @@ class VQAHead(nn.Module):
         self.fc = nn.Linear(8 * 7 * 7, 1)
 
     def forward(self, x):
+        x = x[0][0]
         logger.debug("head模块的维度变化：")
         logger.debug(x.shape)
         x = self.dropout(x)
