@@ -798,6 +798,8 @@ class SwinTransformer3D(nn.Module):
         # build layers
         self.layers = nn.ModuleList()
         for i_layer in range(self.num_layers):
+            print(i_layer)
+            print(embed_dim * 2 ** i_layer)
             layer = BasicLayer(
                 dim=int(embed_dim * 2 ** i_layer),
                 depth=depths[i_layer],
@@ -1031,7 +1033,7 @@ class SwinTransformer3D(nn.Module):
         else:
             raise TypeError("pretrained must be a str or None")
 
-    def forward(self, x, multi=False, layer=-1, adaptive_window_size=True):
+    def forward(self, x, multi=False, layer=-1, adaptive_window_size=True,feature=True):
 
         """Forward function."""
         if adaptive_window_size:
@@ -1043,15 +1045,19 @@ class SwinTransformer3D(nn.Module):
 
         x = self.pos_drop(x)
         feats = [x]
+        print(x.shape)
 
         for l, mlayer in enumerate(self.layers):
             x = mlayer(x.contiguous(), resized_window_size)
+            print(x.shape)
             feats += [x]
 
         x = rearrange(x, "n c d h w -> n d h w c")
         x = self.norm(x)
         x = rearrange(x, "n d h w c -> n c d h w")
 
+        if feature:
+            return feats
         if multi:
             shape = x.shape[2:]
             return torch.cat([F.interpolate(xi, size=shape, mode="trilinear") for xi in feats[:-1]], 1)

@@ -452,7 +452,7 @@ class ConvNeXtV23D(nn.Module):
         self.depths = depths
         self.downsample_layers = nn.ModuleList() # stem and 3 intermediate downsampling conv layers
         stem = nn.Sequential(
-            nn.Conv3d(in_chans, dims[0], kernel_size=(2,4,4), stride=(2,4,4)),
+            nn.Conv3d(in_chans, dims[0], kernel_size=(1,4,4), stride=(1,4,4)),
             LayerNorm(dims[0], eps=1e-6, data_format="channels_first")
         )
         self.downsample_layers.append(stem)
@@ -501,7 +501,7 @@ class ConvNeXtV23D(nn.Module):
             trunc_normal_(m.weight, std=.02)
             nn.init.constant_(m.bias, 0)
 
-    def forward_features(self, x, return_spatial=False, multi=False, layer=-1):
+    def forward_features(self, x, return_spatial=False, multi=False, layer=-1,feature=True):
         if multi:
             xs = []
         for i in range(4):
@@ -510,16 +510,18 @@ class ConvNeXtV23D(nn.Module):
             if multi:
                 xs.append(x)
         if return_spatial:
-            if multi:
-                shape = xs[-1].shape[2:]
-                return torch.cat([F.interpolate(x,size=shape, mode="trilinear") for x in xs[:-1]], 1) #+ [self.norm(x.permute(0, 2, 3, 4, 1)).permute(0, 4, 1, 2, 3)], 1)
+            # if multi:
+            #     shape = xs[-1].shape[2:]
+            #     return torch.cat([F.interpolate(x,size=shape, mode="trilinear") for x in xs[:-1]], 1) #+ [self.norm(x.permute(0, 2, 3, 4, 1)).permute(0, 4, 1, 2, 3)], 1)
+            if feature:
+                return xs
             elif layer > -1:
                 return xs[layer]
             else:
                 return self.norm(x.permute(0, 2, 3, 4, 1)).permute(0, 4, 1, 2, 3)
         return self.norm(x.mean([-3, -2, -1])) # global average pooling, (N, C, T, H, W) -> (N, C)
 
-    def forward(self, x, multi=False, layer=-1):
+    def forward(self, x, multi=True, layer=-1):
         x = self.forward_features(x, True, multi=multi, layer=layer)
         return x
 

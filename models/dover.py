@@ -2,15 +2,15 @@ from mmengine import MMLogger, MODELS
 from mmengine.model import BaseModel
 from mmengine.optim import OptimWrapper
 import torch
-from functools import partial, reduce
+from functools import reduce
 from typing import Optional, Union, Dict
 from torch import nn
 from global_class.train_recorder import TrainResultRecorder
-from models.backbone.conv_backbone import convnext_3d_small, convnext_3d_tiny, convnextv2_3d_pico, convnextv2_3d_femto
+from models.backbones.conv_backbone import convnext_3d_small, convnext_3d_tiny, convnextv2_3d_pico, convnextv2_3d_femto
 from models.faster_vqa import plcc_loss, rank_loss
 from models.heads.head import VQAHead
-from models.backbone.swin_backbone import SwinTransformer3D as VideoBackbone
-from models.backbone.swin_backbone import swin_3d_small, swin_3d_tiny
+from models.backbones.swin_backbone import SwinTransformer3D as VideoBackbone
+from models.backbones.swin_backbone import swin_3d_small, swin_3d_tiny
 
 logger = MMLogger.get_instance('mmengine', log_level='INFO')
 
