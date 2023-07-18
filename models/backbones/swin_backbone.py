@@ -798,8 +798,6 @@ class SwinTransformer3D(nn.Module):
         # build layers
         self.layers = nn.ModuleList()
         for i_layer in range(self.num_layers):
-            print(i_layer)
-            print(embed_dim * 2 ** i_layer)
             layer = BasicLayer(
                 dim=int(embed_dim * 2 ** i_layer),
                 depth=depths[i_layer],
