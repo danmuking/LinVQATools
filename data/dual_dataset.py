@@ -4,6 +4,7 @@
 import os
 from typing import Dict, List
 
+from mmengine import DATASETS
 from torch.utils.data import Dataset
 from data import loader as loader
 from data import logger
@@ -12,6 +13,7 @@ from data.split.dataset_split import DatasetSplit
 import data.meta_reader as meta_reader
 
 
+@DATASETS.register_module()
 class DualDataset(Dataset):
     """
     双分支网络数据集加载器
