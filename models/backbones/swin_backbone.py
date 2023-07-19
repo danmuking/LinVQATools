@@ -10,6 +10,8 @@ from functools import reduce, lru_cache
 from operator import mul
 from einops import rearrange
 
+from models import logger
+
 
 def fragment_infos(D, H, W, fragments=7, device="cuda"):
     m = torch.arange(fragments).unsqueeze(-1).float()
@@ -1043,11 +1045,9 @@ class SwinTransformer3D(nn.Module):
 
         x = self.pos_drop(x)
         feats = [x]
-        print(x.shape)
 
         for l, mlayer in enumerate(self.layers):
             x = mlayer(x.contiguous(), resized_window_size)
-            print(x.shape)
             feats += [x]
 
         x = rearrange(x, "n c d h w -> n d h w c")
@@ -1069,6 +1069,39 @@ class SwinTransformer3D(nn.Module):
         """Convert the model into training mode while keep layers freezed."""
         super(SwinTransformer3D, self).train(mode)
         self._freeze_stages()
+
+    def load_weight(self,path='/home/ly/code/LinVQATools/pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth'):
+        """
+        加载权重
+        Args:
+            path:
+
+        Returns:
+
+        """
+        load_path = path
+        state_dict = torch.load(load_path, map_location='cpu')
+        if "state_dict" in state_dict:
+            ### migrate training weights from mmaction
+            state_dict = state_dict["state_dict"]
+            from collections import OrderedDict
+
+            i_state_dict = OrderedDict()
+            for key in state_dict.keys():
+                if "head" in key:
+                    continue
+                if "cls" in key:
+                    tkey = key.replace("cls", "vqa")
+                elif "backbone" in key:
+                    i_state_dict[key[9:]] = state_dict[key]
+                else:
+                    i_state_dict[key] = state_dict[key]
+            t_state_dict = self.state_dict()
+            for key, value in t_state_dict.items():
+                if key in i_state_dict and i_state_dict[key].shape != value.shape:
+                    i_state_dict.pop(key)
+            info = self.load_state_dict(i_state_dict, strict=False)
+            logger.info("SwinTransformer3D权重加载完成,info:{}".format(info))
 
 
 def swin_3d_tiny(**kwargs):

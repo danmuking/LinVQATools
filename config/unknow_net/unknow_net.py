@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['unknown_net', 'dual_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook'],
     allow_failed_imports=False)
-work_dir = 'faster_vqa/reduce_input'
+work_dir = 'unknown_net'
 model = dict(
     type='UnknownNet',
     # load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
@@ -39,16 +39,17 @@ loader1 = dict(
     spatial_sampler=spatial_sampler,
     shuffler=shuffler,
     post_sampler=post_sampler,
-    norm=False,
+    norm=True,
     prefix=prefix,
 )
 loader2 = dict(
     name='RandomImgLoader',
     shuffler=shuffler,
-    norm=False,
+    norm=True,
     prefix='resize'
 )
 split_file = './data/odv_vqa/tr_te_VQA_ODV.txt'
+batch_size = 8
 train_dataloader = dict(
     dataset=dict(
         type='DualDataset',
@@ -62,7 +63,7 @@ train_dataloader = dict(
         type='DefaultSampler',
         shuffle=True),
     collate_fn=dict(type='default_collate'),
-    batch_size=1,
+    batch_size=batch_size,
     pin_memory=True,
     num_workers=4)
 val_dataloader = dict(
@@ -79,7 +80,7 @@ val_dataloader = dict(
         shuffle=False
     ),
     collate_fn=dict(type='default_collate'),
-    batch_size=1,
+    batch_size=batch_size,
     pin_memory=True,
     num_workers=4)
 
@@ -132,7 +133,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='reduce_input')
+            init_kwargs=dict(project='VQA', name='unknown_net')
         ),
     ],
 )

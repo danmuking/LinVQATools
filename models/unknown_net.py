@@ -38,6 +38,19 @@ class UnknownNet(BaseModel):
         super().__init__()
         self.backbone = UnKnownBackbone()
         self.head = VQAHead()
+        self.backbone.net1.load_weight()
+        self.backbone.net2.load_weight()
+
+    def _load_weight(self,path1,path2):
+        """
+        加载预训练权重
+        Args:
+            path1: 网络1权重
+            path2: 网络2权重
+
+        Returns:
+        """
+        pass
 
     def forward(self,
                 inputs: torch.Tensor,

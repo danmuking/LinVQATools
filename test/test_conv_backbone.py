@@ -11,3 +11,7 @@ class TestConvNeXtV23D(TestCase):
         x = torch.zeros(1, 3, 3, 224, 224,)
         feature = model(x)
         print([f.shape for f in feature])
+    def test_load_weight(self):
+        model = convnextv2_tiny()
+        path = '/home/ly/code/LinVQATools/pretrained_weights/convnextv2_tiny_22k_224_ema.pt'
+        model.load_weight(path)

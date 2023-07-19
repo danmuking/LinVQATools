@@ -9,8 +9,11 @@ class TestUnknownNet(TestCase):
     def test(self):
         model = UnknownNet()
         r1 = torch.zeros([2, 3, 16, 224, 224])
-        r2 = torch.zeros([2, 3, 4, 224, 224])
+        r2 = torch.zeros([2, 3, 3, 224, 224])
         x = [r1, r2]
-        print(model.state_dict().keys())
+        # print(model.state_dict().keys())
         ans = model(inputs=x, mode='loss',gt_label=torch.tensor([1,1]))
         print(ans)
+
+    def test_load_weight(self):
+        model = UnknownNet()

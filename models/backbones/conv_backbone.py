@@ -3,6 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 from timm.models.layers import trunc_normal_, DropPath
 
+from models import logger
+
+
 class GRN(nn.Module):
     """ GRN (Global Response Normalization) layer
     """
@@ -494,7 +497,8 @@ class ConvNeXtV23D(nn.Module):
                 print(t_state_dict[key].shape, s_state_dict[key].shape)
                 t = t_state_dict[key].shape[2]
                 s_state_dict[key] = s_state_dict[key].unsqueeze(2).repeat(1,1,t,1,1) / t
-        self.load_state_dict(s_state_dict, strict=False)
+        info = self.load_state_dict(s_state_dict, strict=False)
+        return info
 
     def _init_weights(self, m):
         if isinstance(m, (nn.Conv3d, nn.Linear)):
@@ -505,6 +509,7 @@ class ConvNeXtV23D(nn.Module):
         if multi:
             xs = []
         for i in range(4):
+            # print(x)
             x = self.downsample_layers[i](x)
             x = self.stages[i](x)
             if multi:
@@ -524,6 +529,21 @@ class ConvNeXtV23D(nn.Module):
     def forward(self, x, multi=True, layer=-1):
         x = self.forward_features(x, True, multi=multi, layer=layer)
         return x
+
+    def load_weight(self,path='/home/ly/code/LinVQATools/pretrained_weights/convnextv2_tiny_22k_224_ema.pt'):
+        """
+                加载权重
+                Args:
+                    path:
+
+                Returns:
+
+                """
+        load_path = path
+        info =self.inflate_weights(load_path)
+
+        # info = self.load_state_dict(state_dict, strict=False)
+        logger.info("ConvNeXtV23D权重加载完成,info:{}".format(info))
 
 
 model_urls = {
