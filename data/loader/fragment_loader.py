@@ -51,7 +51,7 @@ class FragmentLoader(BaseLoader):
         if self.phase == 'train':
             video = self.file_reader.read(video_path)
         else:
-            video = self.file_reader.read(video_path, False)
+            video = self.file_reader.read(video_path, is_train=False)
         logger.debug("加载视频数据维度为:{}".format(video.size()))
 
         # 预处理数据加载失败
