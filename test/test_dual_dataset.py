@@ -43,7 +43,6 @@ class TestDualDataset(TestCase):
             post_sampler=post_sampler,
             norm=False,
             prefix=prefix,
-            phase='train'
         )
         loader2 = dict(
             name='RandomImgLoader',
@@ -53,7 +52,7 @@ class TestDualDataset(TestCase):
         )
         split_file = './data/odv_vqa/tr_te_VQA_ODV.txt'
         dataset = DualDataset(anno_reader='ODVVQAReader', split_file=split_file,
-                              loader1=loader1,loader2=loader2)
+                              loader1=loader1,loader2=loader2,phase='test')
         data = dataset[0]
         video = data['inputs'][1]
         fourcc = cv2.VideoWriter_fourcc(*'XVID')

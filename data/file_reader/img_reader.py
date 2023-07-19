@@ -15,7 +15,7 @@ class ImgReader(BaseReader):
         super().__init__()
         self.prefix = prefix
 
-    def read(self, video_path: str, cube_num=4, is_train: bool = True) -> None:
+    def read(self, video_path: str, cube_num:int=4, is_train: bool = True) -> None:
         """
         读取视频
         Args:

@@ -45,7 +45,7 @@ class DualDataset(Dataset):
         # 训练集测试集划分文件路径
         split_file = opt.get("split_file", None)
 
-        self.loader1 = getattr(loader, loader1['name'])(**loader1)
+        self.loader1 = getattr(loader, loader1['name'])(phase=self.phase,**loader1)
         self.loader2 = getattr(loader, loader2['name'])(**loader2)
 
     def __getitem__(self, index):
