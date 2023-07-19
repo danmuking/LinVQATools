@@ -63,3 +63,6 @@ class DualDataset(Dataset):
             "name": os.path.basename(video_path)
         }
         return data
+
+    def __len__(self):
+        return len(self.data)
