@@ -6,15 +6,14 @@ import cv2
 import numpy as np
 import torch
 
-from data.sampler.spatial_fragment_sampler import PlaneSpatialFragmentSampler, SphereSpatialFragmentSampler, \
-    FastPlaneSpatialFragmentSampler
+from data.sampler.spatial_fragment_sampler import PlaneSpatialFragmentSampler, SphereSpatialFragmentSampler
 
 
 class TestPlaneSpatialFragmentSampler(TestCase):
     def test_plane_patial_fragment_sampler(self):
         os.chdir('../')
         video = torch.randn((3, 32, 1920, 1080))
-        sampler = PlaneSpatialFragmentSampler(aligned=8)
+        sampler = PlaneSpatialFragmentSampler(aligned=8,fragments_h=1,fragments_w=1,fsize_h=224,fsize_w=224)
         start_time = time.time()
         sampler(video)
         print(time.time() - start_time)

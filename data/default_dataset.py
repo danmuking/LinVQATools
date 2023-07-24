@@ -80,8 +80,7 @@ class DefaultDataset(Dataset):
             video = self.file_reader.read(video_path)
         else:
             video = self.file_reader.read(video_path, False)
-        if self.post_sampler is not None:
-            video = self.post_sampler(video)
+
         # 预处理数据加载失败
         if video is None:
             logger.info("加载未处理的{}".format(video_path))
@@ -97,8 +96,9 @@ class DefaultDataset(Dataset):
             video = torch.stack(imgs, 0).permute(3, 0, 1, 2)
             if self.spatial_sampler is not None:
                 video = self.spatial_sampler(video)
-
-            video = self.shuffler.shuffle(video)
+        if self.post_sampler is not None:
+            video = self.post_sampler(video)
+        video = self.shuffler.shuffle(video)
         if self.norm:
             video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
         data = {
