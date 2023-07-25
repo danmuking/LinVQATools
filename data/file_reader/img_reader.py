@@ -52,6 +52,7 @@ class ImgReader(BaseReader):
             if not os.path.exists(img_path):
                 logger.info("加载{}失败".format(img_path))
                 return None
+            # print(img_path)
             img = cv2.imread(img_path)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             video.append(torch.tensor(img))

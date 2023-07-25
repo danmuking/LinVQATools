@@ -25,9 +25,6 @@ spatial_sampler = dict(
     fsize_w=32,
     aligned=8,
 )
-shuffler = dict(
-    name='BaseShuffler',
-)
 post_sampler = dict(
     name='PostProcessSampler',
     num=2
@@ -37,14 +34,18 @@ loader1 = dict(
     name='FragmentLoader',
     frame_sampler=frame_sampler,
     spatial_sampler=spatial_sampler,
-    shuffler=shuffler,
+    shuffler=dict(
+        name='FragmentShuffler',
+    ),
     post_sampler=post_sampler,
     norm=True,
     prefix=prefix,
 )
 loader2 = dict(
     name='RandomImgLoader',
-    shuffler=shuffler,
+    shuffler=dict(
+        name='BaseShuffler',
+    ),
     norm=True,
     prefix='resize'
 )
@@ -133,7 +134,9 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='unknown_net')
+            init_kwargs=dict(project='VQA', name='unknown_net_change'
+                                                 ''
+                                                 '')
         ),
     ],
 )

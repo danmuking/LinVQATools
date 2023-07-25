@@ -40,8 +40,8 @@ class RandomImgLoader(BaseLoader):
         video = self.file_reader.read(video_path)
         logger.debug("加载视频数据维度为:{}".format(video.size()))
 
-        # 预处理数据加载失败
-        pass
+        # # 预处理数据加载失败
+        # pass
 
         # 后处理
         if self.post_sampler is not None:

@@ -39,22 +39,26 @@ class TestDualDataset(TestCase):
             name='FragmentLoader',
             frame_sampler=frame_sampler,
             spatial_sampler=spatial_sampler,
-            shuffler=shuffler,
+            shuffler=dict(
+                name='FragmentShuffler',
+            ),
             post_sampler=post_sampler,
             norm=False,
             prefix=prefix,
         )
         loader2 = dict(
             name='RandomImgLoader',
-            shuffler=shuffler,
-            norm=False,
+            shuffler=dict(
+                name='BaseShuffler',
+            ),
+            norm=True,
             prefix='resize'
         )
         split_file = './data/odv_vqa/tr_te_VQA_ODV.txt'
         dataset = DualDataset(anno_reader='ODVVQAReader', split_file=split_file,
                               loader1=loader1,loader2=loader2,phase='test')
         data = dataset[0]
-        video = data['inputs'][1]
+        video = data['inputs'][0]
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
         # 设置视频帧频
         fps = 10
