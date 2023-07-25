@@ -75,7 +75,7 @@ class TestDefaultDataset(TestCase):
             num=2
         )
         dataset = DefaultDataset(anno_reader='ODVVQAReader', split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
-                                 frame_sampler=frame_sampler, spatial_sampler=spatial_sampler, prefix='temp/fragment',
+                                 frame_sampler=frame_sampler, spatial_sampler=spatial_sampler, prefix='crop',
                                  shuffler=shuffler, post_sampler=post_sampler,norm=False)
         data = dataset[0]
         # video = torch.from_numpy(np.load("temp.npy"))

@@ -79,7 +79,7 @@ class DefaultDataset(Dataset):
         if self.phase == 'train':
             video = self.file_reader.read(video_path)
         else:
-            video = self.file_reader.read(video_path, False)
+            video = self.file_reader.read(video_path, is_train=False)
         if self.post_sampler is not None:
             video = self.post_sampler(video)
         # 预处理数据加载失败
@@ -98,7 +98,7 @@ class DefaultDataset(Dataset):
             if self.spatial_sampler is not None:
                 video = self.spatial_sampler(video)
 
-            video = self.shuffler.shuffle(video)
+            # video = self.shuffler.shuffle(video)
         if self.norm:
             video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
         data = {

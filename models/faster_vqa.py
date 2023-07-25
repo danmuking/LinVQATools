@@ -1,6 +1,3 @@
-from functools import reduce
-
-import mmengine
 import torch
 from typing import Optional, Union, Dict
 
@@ -10,9 +7,9 @@ from torch import nn
 
 from global_class.train_recorder import TrainResultRecorder
 from models.evaluators import DiViDeAddEvaluator
-from mmengine import MODELS, MMLogger
+from mmengine import MODELS
 
-logger = MMLogger.get_instance('model')
+
 def rank_loss(y_pred, y):
     ranking_loss = torch.nn.functional.relu(
         (y_pred - y_pred.t()) * torch.sign((y.t() - y))
@@ -39,23 +36,24 @@ class FasterVQA(BaseModel):
     def __init__(
             self,
             load_path=None,
-            backbone_size="divided",
-            backbone_preserve_keys='fragments,resize',
             multi=False,
             layer=-1,
-            backbone=dict(fragments={"window_size": (4, 4, 4)}),
-            divide_head=False,
+            backbone='faster_vqa',
+            base_x_size=(32, 224, 224),
             vqa_head=dict(in_channels=768),
     ):
         super().__init__()
         self.model = DiViDeAddEvaluator(
-            backbone=backbone, backbone_size=backbone_size,
-            backbone_preserve_keys=backbone_preserve_keys, divide_head=divide_head,
-            vqa_head=vqa_head, multi=multi, layer=layer)
+            base_x_size=base_x_size,
+            vqa_head=vqa_head,
+            multi=multi,
+            layer=layer,
+            backbone=backbone
+        )
         # self.logger = MMLogger.get_instance('mmengine', log_level='INFO')
         # 加载预训练权重
         if load_path is not None:
-            logger.info("加载预训练权重：{}".format(load_path))
+            # self.logger.info("加载{}权重".format(load_path))
             self._load_weight(load_path)
 
     def forward(self, inputs: torch.Tensor, data_samples: Optional[list] = None, mode: str = 'tensor', **kargs) -> \
@@ -67,27 +65,16 @@ class FasterVQA(BaseModel):
             scores = self.model(inputs, inference=False,
                                 reduce_scores=False)
             y_pred = scores[0]
-            # if len(scores) > 1:
-            #     y_pred = reduce(lambda x, y: x + y, scores)
-            # else:
-            #     y_pred = scores[0]
-            # y_pred = y_pred.mean((-3, -2, -1))
-
             criterion = nn.MSELoss()
             mse_loss = criterion(y_pred, y)
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
             loss = mse_loss + p_loss + 3 * r_loss
-            return {'loss': loss,'mse_loss':mse_loss,'p_loss': p_loss, 'r_loss': r_loss, 'result': [y_pred, y]}
+            return {'loss': loss, 'mse_loss': mse_loss, 'p_loss': p_loss, 'r_loss': r_loss, 'result': [y_pred, y]}
         elif mode == 'predict':
             scores = self.model(inputs, inference=True,
                                 reduce_scores=False)
             y_pred = scores[0]
-            # if len(scores) > 1:
-            #     y_pred = reduce(lambda x, y: x + y, scores)
-            # else:
-            #     y_pred = scores[0]
-            # y_pred = y_pred.mean((-3, -2, -1))
             return y_pred, y
 
     def train_step(self, data: Union[dict, tuple, list],
@@ -128,7 +115,8 @@ class FasterVQA(BaseModel):
         recorder.iter_y_pre = result[0]
         recorder.iter_y = result[1]
 
-        losses = {'loss': losses['loss'],'mse_loss':losses['mse_loss'], 'p_loss': losses['p_loss'], 'r_loss': losses['r_loss']}
+        losses = {'loss': losses['loss'], 'mse_loss': losses['mse_loss'], 'p_loss': losses['p_loss'],
+                  'r_loss': losses['r_loss']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
         optim_wrapper.update_params(parsed_losses)
         return log_vars
@@ -149,15 +137,14 @@ class FasterVQA(BaseModel):
                 if "cls" in key:
                     tkey = key.replace("cls", "vqa")
                 elif "backbone" in key:
-                    # i_state_dict[key] = state_dict[key]
+                    i_state_dict[key] = state_dict[key]
                     i_state_dict["fragments_" + key] = state_dict[key]
-                    # i_state_dict["resize_" + key] = state_dict[key]
+                    i_state_dict["resize_" + key] = state_dict[key]
                 else:
                     i_state_dict[key] = state_dict[key]
             t_state_dict = self.model.state_dict()
             for key, value in t_state_dict.items():
                 if key in i_state_dict and i_state_dict[key].shape != value.shape:
                     i_state_dict.pop(key)
-            info = self.model.load_state_dict(i_state_dict, strict=False)
-            logger.info("权重加载完成,info:{}".format(info))
+            self.model.load_state_dict(i_state_dict, strict=False)
             # self.logger.info(self.model.load_state_dict(i_state_dict, strict=False))

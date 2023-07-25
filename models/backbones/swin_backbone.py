@@ -10,8 +10,6 @@ from functools import reduce, lru_cache
 from operator import mul
 from einops import rearrange
 
-from models import logger
-
 
 def fragment_infos(D, H, W, fragments=7, device="cuda"):
     m = torch.arange(fragments).unsqueeze(-1).float()
@@ -768,7 +766,7 @@ class SwinTransformer3D(nn.Module):
             use_checkpoint=True,
             jump_attention=[False, False, False, False],
             frag_biases=[True, True, True, False],
-            base_x_size=(16, 224, 224),
+            base_x_size=(32, 224, 224),
     ):
         super().__init__()
 
@@ -1033,7 +1031,7 @@ class SwinTransformer3D(nn.Module):
         else:
             raise TypeError("pretrained must be a str or None")
 
-    def forward(self, x, multi=False, layer=-1, adaptive_window_size=True,feature=True):
+    def forward(self, x, multi=False, layer=-1, adaptive_window_size=True):
 
         """Forward function."""
         if adaptive_window_size:
@@ -1054,8 +1052,6 @@ class SwinTransformer3D(nn.Module):
         x = self.norm(x)
         x = rearrange(x, "n d h w c -> n c d h w")
 
-        if feature:
-            return feats
         if multi:
             shape = x.shape[2:]
             return torch.cat([F.interpolate(xi, size=shape, mode="trilinear") for xi in feats[:-1]], 1)
@@ -1069,39 +1065,6 @@ class SwinTransformer3D(nn.Module):
         """Convert the model into training mode while keep layers freezed."""
         super(SwinTransformer3D, self).train(mode)
         self._freeze_stages()
-
-    def load_weight(self,path='/home/ly/code/LinVQATools/pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth'):
-        """
-        加载权重
-        Args:
-            path:
-
-        Returns:
-
-        """
-        load_path = path
-        state_dict = torch.load(load_path, map_location='cpu')
-        if "state_dict" in state_dict:
-            ### migrate training weights from mmaction
-            state_dict = state_dict["state_dict"]
-            from collections import OrderedDict
-
-            i_state_dict = OrderedDict()
-            for key in state_dict.keys():
-                if "head" in key:
-                    continue
-                if "cls" in key:
-                    tkey = key.replace("cls", "vqa")
-                elif "backbone" in key:
-                    i_state_dict[key[9:]] = state_dict[key]
-                else:
-                    i_state_dict[key] = state_dict[key]
-            t_state_dict = self.state_dict()
-            for key, value in t_state_dict.items():
-                if key in i_state_dict and i_state_dict[key].shape != value.shape:
-                    i_state_dict.pop(key)
-            info = self.load_state_dict(i_state_dict, strict=False)
-            logger.info("SwinTransformer3D权重加载完成,info:{}".format(info))
 
 
 def swin_3d_tiny(**kwargs):

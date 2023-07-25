@@ -12,8 +12,13 @@ from models.faster_vqa import FasterVQA
 class TestFasterVQA(TestCase):
     def test(self):
         os.chdir('../')
-        model = FasterVQA(backbone_size='mvit')
-        # print(model.state_dict().keys())
+        model = FasterVQA(
+            backbone='faster_vqa',
+            base_x_size=(16, 224, 224),
+            vqa_head=dict(in_channels=768),
+            load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
+        )
+        # print(model.state_dict())
         # i_state_dict = model.state_dict()
         # t_state_dict = OrderedDict()
         # for key, value in i_state_dict.items():
