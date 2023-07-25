@@ -50,7 +50,7 @@ post_sampler = dict(
 dataset = DefaultDataset(anno_reader='ODVVQAReader',
                          split_file='/home/ly/code/LinVQATools/data/odv_vqa/tr_te_VQA_ODV.txt',
                          frame_sampler=frame_sampler, spatial_sampler=spatial_sampler, prefix='',
-                         shuffler=shuffler, post_sampler=post_sampler, norm=False)
+                         shuffler=shuffler, post_sampler=post_sampler, norm=False,phase='test')
 dataloader = DataLoader(dataset, batch_size=1, num_workers=4, shuffle=False)
 for j in range(40):
     index = 0

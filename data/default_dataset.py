@@ -79,7 +79,7 @@ class DefaultDataset(Dataset):
         if self.phase == 'train':
             video = self.file_reader.read(video_path)
         else:
-            video = self.file_reader.read(video_path, False)
+            video = self.file_reader.read(video_path,4, False)
 
         # 预处理数据加载失败
         if video is None:
