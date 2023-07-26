@@ -36,7 +36,7 @@ class ImgReader:
         for i in range(32):
             img_path = os.path.join(video_pre_path, "{}.png".format(i))
             if not os.path.exists(img_path):
-                logger.info("加载失败")
+                logger.error("{}加载失败".format(img_path))
                 return None
             img = cv2.imread(img_path)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)

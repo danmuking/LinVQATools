@@ -3,6 +3,7 @@
 # Copyright (c) 2022 OpenGVLab
 # Licensed under The MIT License [see LICENSE for details]
 # --------------------------------------------------------
+import os
 
 import torch
 import torch.nn as nn
@@ -10,6 +11,8 @@ import torch.utils.checkpoint as checkpoint
 from timm.models.layers import trunc_normal_, DropPath
 from models.backbones.intern_image.ops_dcnv3 import modules as opsm
 import torch.nn.functional as F
+
+from models import logger
 
 
 class to_channels_first(nn.Module):
@@ -575,6 +578,7 @@ class InternImage(nn.Module):
                  res_post_norm=False,  # for InternImage-H/G
                  center_feature_scale=False,  # for InternImage-H/G
                  remove_center=False,  # for InternImage-H/G
+                 load_path=None,
                  **kwargs):
         super().__init__()
         self.core_op = core_op
@@ -589,14 +593,14 @@ class InternImage(nn.Module):
         self.level2_post_norm_block_ids = level2_post_norm_block_ids
         self.remove_center = remove_center
 
-        print(f'using core type: {core_op}')
-        print(f'using activation layer: {act_layer}')
-        print(f'using main norm layer: {norm_layer}')
-        print(f'using dpr: {drop_path_type}, {drop_path_rate}')
-        print(f"level2_post_norm: {level2_post_norm}")
-        print(f"level2_post_norm_block_ids: {level2_post_norm_block_ids}")
-        print(f"res_post_norm: {res_post_norm}")
-        print(f"remove_center: {remove_center}")
+        logger.info(f'using core type: {core_op}')
+        logger.info(f'using activation layer: {act_layer}')
+        logger.info(f'using main norm layer: {norm_layer}')
+        logger.info(f'using dpr: {drop_path_type}, {drop_path_rate}')
+        logger.info(f"level2_post_norm: {level2_post_norm}")
+        logger.info(f"level2_post_norm_block_ids: {level2_post_norm_block_ids}")
+        logger.info(f"res_post_norm: {res_post_norm}")
+        logger.info(f"remove_center: {remove_center}")
 
         in_chans = 3
         self.patch_embed = StemLayer(in_chans=in_chans,
@@ -676,6 +680,30 @@ class InternImage(nn.Module):
         self.num_layers = len(depths)
         self.apply(self._init_weights)
         self.apply(self._init_deform_weights)
+
+        if load_path is not None:
+            if not os.path.exists(load_path):
+                logger.error("intern_image权重文件{}不存在,将不使用预训练权重".format(load_path))
+                return
+            logger.info('intern_image加载{}预训练权重'.format(load_path))
+            s_dict = torch.load(load_path, map_location='cpu')['model']
+
+            from collections import OrderedDict
+
+            i_state_dict = OrderedDict()
+            for key in s_dict.keys():
+                if "head" in key:
+                    continue
+                else:
+                    i_state_dict[key] = s_dict[key]
+
+            t_state_dict = self.state_dict()
+            for key, value in t_state_dict.items():
+                if key in i_state_dict and i_state_dict[key].shape != value.shape:
+                    i_state_dict.pop(key)
+
+            info = self.load_state_dict(i_state_dict,strict=False)
+            logger.info('intern_image权重加载信息:{}'.format(info))
 
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
