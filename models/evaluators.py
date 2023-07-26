@@ -16,6 +16,7 @@ class DiViDeAddEvaluator(nn.Module):
             backbone='faster_vqa',
             base_x_size=(32, 224, 224),
             vqa_head=dict(in_channels=768),
+            drop_path_rate=0.2
     ):
         super().__init__()
         self.multi = multi
@@ -25,7 +26,7 @@ class DiViDeAddEvaluator(nn.Module):
                 base_x_size=base_x_size
             )
         elif backbone == 'mvit':
-            b = MViT(arch='tiny', drop_path_rate=0.2)
+            b = MViT(arch='tiny', drop_path_rate=drop_path_rate)
             b.init_weights()
         print("Setting backbone:", 'fragments' + "_backbone")
         setattr(self, 'fragments' + "_backbone", b)

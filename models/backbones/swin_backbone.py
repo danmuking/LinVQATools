@@ -1059,7 +1059,7 @@ class SwinTransformer3D(nn.Module):
             print("something", len(feats))
             return feats[layer]
         else:
-            return tuple([x])
+            return tuple([[x]])
 
     def train(self, mode=True):
         """Convert the model into training mode while keep layers freezed."""
