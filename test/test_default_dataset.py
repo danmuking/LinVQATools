@@ -36,12 +36,12 @@ class TestDefaultDataset(TestCase):
             name='BaseShuffler',
         )
         post_sampler = dict(
-            name = 'PostProcessSampler',
+            name='PostProcessSampler',
             num=2
         )
         dataset = DefaultDataset(anno_reader='ODVVQAReader', split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
-                                 frame_sampler=frame_sampler, spatial_sampler=spatial_sampler,prefix='temp/fragment',
-                                 shuffler=shuffler,post_sampler=post_sampler)
+                                 frame_sampler=frame_sampler, spatial_sampler=spatial_sampler, prefix='temp/fragment',
+                                 shuffler=shuffler, post_sampler=post_sampler)
         dataloader = DataLoader(dataset, batch_size=6, num_workers=4)
         # for item in tqdm(dataloader):
         #     print(item)
@@ -72,11 +72,11 @@ class TestDefaultDataset(TestCase):
         )
         post_sampler = dict(
             name='PostProcessSampler',
-            num=2
+            num=4
         )
         dataset = DefaultDataset(anno_reader='ODVVQAReader', split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
-                                 frame_sampler=frame_sampler, spatial_sampler=spatial_sampler, prefix='crop',
-                                 shuffler=shuffler, post_sampler=post_sampler,norm=False)
+                                 frame_sampler=frame_sampler, spatial_sampler=spatial_sampler, prefix='temp/fragment',
+                                 shuffler=shuffler, post_sampler=post_sampler, norm=False)
         data = dataset[0]
         # video = torch.from_numpy(np.load("temp.npy"))
         video = data['inputs']

@@ -6,27 +6,23 @@ import random
 
 import cv2
 import torch
-from data import logger
-from data.file_reader.base_reader import BaseReader
+from mmengine import MMLogger
 
 
-class ImgReader(BaseReader):
+class ImgReader:
     def __init__(self, prefix):
-        super().__init__()
         self.prefix = prefix
 
-    def read(self, video_path: str, cube_num:int=4, is_train: bool = True) -> None:
+    def read(self, video_path: str, is_train: bool = True) -> torch.Tensor:
         """
         读取视频
-        Args:
-            cube_num: 抽取时间块的数量
-            video_path: 原始视频路径
-            is_train: 是否为训练模式
-            return: 成功返回视频，失败返回none
+        :param video_path: 原始视频路径
+        :param is_train: 是否为训练模式
+        :return: 成功返回视频，失败返回none
         """
         # 直接读取视频
         if is_train:
-            num = random.randint(0, 39)
+            num = random.randint(0, 150)
         else:
             num = 0
         # 预处理好的视频路径
@@ -34,28 +30,16 @@ class ImgReader(BaseReader):
         video_pre_path.insert(3, self.prefix)
         video_pre_path.insert(4, '{}'.format(num))
         video_pre_path = os.path.join('/', *video_pre_path)[:-4]
+        logger = MMLogger.get_instance('dataset')
+        logger.info("尝试加载{}".format(video_pre_path))
         video = []
-
-        # 确定要抽取的帧
-        random_list = [i for i in range(4)]
-        random_list = random.sample(random_list, cube_num)
-        random_list.sort()
-        frame_list = []
-        # 每个cube包含8帧
-        cube_frame = 8
-        for i in random_list:
-            for j in range(cube_frame):
-                frame_list.append(cube_frame*i+j)
-
-        for i in frame_list:
+        for i in range(32):
             img_path = os.path.join(video_pre_path, "{}.png".format(i))
             if not os.path.exists(img_path):
-                logger.info("加载{}失败".format(img_path))
+                logger.error("{}加载失败".format(img_path))
                 return None
-            # print(img_path)
             img = cv2.imread(img_path)
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             video.append(torch.tensor(img))
         video = torch.stack(video, dim=0).permute(3, 0, 1, 2)
-        logger.info("加载{}成功".format(video_pre_path))
         return video
