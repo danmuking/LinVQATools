@@ -5,15 +5,17 @@ custom_imports = dict(
 work_dir = 'faster_vqa/reduce_input'
 model = dict(
     type='FasterVQA',
-    backbone_size='swin_tiny_grpb',
-    backbone={"fragments": dict(window_size=(4, 4, 4))},
-    backbone_preserve_keys='fragments',
+    backbone='faster_vqa',
+    base_x_size=(16,224,224),
     load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
 )
+batch_size = 7
+num_workers = 14
+prefix = 'temp/fragment'
 train_dataloader = dict(
     dataset=dict(
         type='DefaultDataset',
-        prefix='temp/fragment',
+        prefix=prefix,
         anno_reader='ODVVQAReader',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
         phase='train',
@@ -34,10 +36,10 @@ train_dataloader = dict(
             fsize_w=32,
             aligned=8,
         ),
-        shuffler = dict(
-                    name='BaseShuffler',
-                ),
-        post_sampler = dict(
+        shuffler=dict(
+            name='BaseShuffler',
+        ),
+        post_sampler=dict(
             name='PostProcessSampler',
             num=2
         ),
@@ -46,9 +48,9 @@ train_dataloader = dict(
         type='DefaultSampler',
         shuffle=True),
     collate_fn=dict(type='default_collate'),
-    batch_size=12,
+    batch_size=batch_size,
     pin_memory=True,
-    num_workers=4)
+    num_workers=num_workers)
 train_cfg = dict(
     by_epoch=True,
     max_epochs=300,
@@ -87,7 +89,7 @@ val_dataloader = dict(
     dataset=dict(
         type='DefaultDataset',
         anno_reader='ODVVQAReader',
-        prefix='temp/fragment',
+        prefix=prefix,
         phase='test',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
         frame_sampler=dict(
@@ -107,10 +109,10 @@ val_dataloader = dict(
             fsize_w=32,
             aligned=8,
         ),
-        shuffler = dict(
-                            name='BaseShuffler',
-                        ),
-        post_sampler = dict(
+        shuffler=dict(
+            name='BaseShuffler',
+        ),
+        post_sampler=dict(
             name='PostProcessSampler',
             num=2
         ),
@@ -120,9 +122,9 @@ val_dataloader = dict(
         shuffle=False
     ),
     collate_fn=dict(type='default_collate'),
-    batch_size=12,
+    batch_size=batch_size,
     pin_memory=True,
-    num_workers=4)
+    num_workers=num_workers)
 val_cfg = dict()
 val_evaluator = [
     dict(type='SROCC'),

@@ -29,7 +29,7 @@ class DefaultDataset(Dataset):
 
         # 数据集声明文件根路径
         if 'anno_root' not in opt:
-            anno_root = '/home/ly/code/LinVQATools/data/odv_vqa'
+            anno_root = './data/odv_vqa'
             logger.warning("anno_root参数未找到，默认为/home/ly/code/LinVQATools/data/odv_vqa")
         else:
             anno_root = opt['anno_root']

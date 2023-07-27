@@ -1,16 +1,19 @@
 custom_imports = dict(
     imports=['intern_image', 'default_dataset', 'srocc', 'rmse',
-             'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
+             'plcc', 'krcc', 'train_evaluator_hook'],
     allow_failed_imports=False)
 work_dir = 'intern_image/base'
 model = dict(
     type='InternImage',
-    load_path='/home/ly/code/LinVQATools/pretrained_weights/internimage_t_1k_224.pth'
+    load_path='./pretrained_weights/internimage_t_1k_224.pth',
+
 )
+batch_size = 4
+num_workers = 10
 train_dataloader = dict(
     dataset=dict(
         type='DefaultDataset',
-        prefix='temp/fragment',
+        prefix='resize',
         anno_reader='ODVVQAReader',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
         phase='train',
@@ -36,16 +39,16 @@ train_dataloader = dict(
         ),
         post_sampler=dict(
             name='PostProcessSampler',
-            num=2
+            num=1
         ),
     ),
     sampler=dict(
         type='DefaultSampler',
         shuffle=True),
     collate_fn=dict(type='default_collate'),
-    batch_size=2,
+    batch_size=batch_size,
     pin_memory=True,
-    num_workers=4)
+    num_workers=num_workers)
 train_cfg = dict(
     by_epoch=True,
     max_epochs=300,
@@ -84,7 +87,7 @@ val_dataloader = dict(
     dataset=dict(
         type='DefaultDataset',
         anno_reader='ODVVQAReader',
-        prefix='temp/fragment',
+        prefix='resize',
         phase='test',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
         frame_sampler=dict(
@@ -109,7 +112,7 @@ val_dataloader = dict(
         ),
         post_sampler=dict(
             name='PostProcessSampler',
-            num=2
+            num=1
         ),
     ),
     sampler=dict(
@@ -117,9 +120,9 @@ val_dataloader = dict(
         shuffle=False
     ),
     collate_fn=dict(type='default_collate'),
-    batch_size=2,
+    batch_size=batch_size,
     pin_memory=True,
-    num_workers=4)
+    num_workers=num_workers)
 val_cfg = dict()
 val_evaluator = [
     dict(type='SROCC'),
@@ -142,8 +145,6 @@ default_hooks = dict(
     checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=10, save_best='SROCC', rule='greater'))
 custom_hooks = [
     dict(type='TrainEvaluatorHook'),
-    # dict(type='CustomEMAHook',momentum=0.01)
-    # dict(type='EmptyCacheHook', after_epoch=True)
 ]
 launcher = 'none'
 randomness = dict(seed=42)
