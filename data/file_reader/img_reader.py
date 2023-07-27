@@ -6,8 +6,7 @@ import random
 
 import cv2
 import torch
-from mmengine import MMLogger
-
+from data import logger
 
 class ImgReader:
     def __init__(self, prefix):
@@ -30,8 +29,7 @@ class ImgReader:
         video_pre_path.insert(3, self.prefix)
         video_pre_path.insert(4, '{}'.format(num))
         video_pre_path = os.path.join('/', *video_pre_path)[:-4]
-        logger = MMLogger.get_instance('dataset')
-        logger.info("尝试加载{}".format(video_pre_path))
+        logger.debug("尝试加载{}".format(video_pre_path))
         video = []
         for i in range(32):
             img_path = os.path.join(video_pre_path, "{}.png".format(i))

@@ -72,7 +72,7 @@ class TestDefaultDataset(TestCase):
         )
         post_sampler = dict(
             name='PostProcessSampler',
-            num=4
+            num=2
         )
         dataset = DefaultDataset(anno_reader='ODVVQAReader', split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
                                  frame_sampler=frame_sampler, spatial_sampler=spatial_sampler, prefix='temp/fragment',

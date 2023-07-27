@@ -56,6 +56,16 @@ def get_adaptive_window_size(
         input_x_size,
         base_x_size,
 ):
+    """
+    自适应窗口,根据基准窗口形状和基准输入形状计算窗口形状
+    Args:
+        base_window_size: 基准窗口形状
+        input_x_size: 输入形状
+        base_x_size: 基准输入形状
+
+    Returns:自适应窗口形状
+
+    """
     tw, hw, ww = base_window_size
     tx_, hx_, wx_ = input_x_size
     tx, hx, wx = base_x_size
@@ -145,6 +155,16 @@ def window_reverse(windows, window_size, B, D, H, W):
 
 
 def get_window_size(x_size, window_size, shift_size=None):
+    """
+    获取窗口大小
+    Args:
+        x_size: 输入的维度
+        window_size: 窗口维度
+        shift_size: 进行shift操作的维度
+
+    Returns:窗口大小,shift操作的大小
+
+    """
     use_window_size = list(window_size)
     if shift_size is not None:
         use_shift_size = list(shift_size)
@@ -773,11 +793,14 @@ class SwinTransformer3D(nn.Module):
         self.pretrained = pretrained
         self.pretrained2d = pretrained2d
         self.num_layers = len(depths)
+        # 编码维度
         self.embed_dim = embed_dim
+        # patch是否使用norm
         self.patch_norm = patch_norm
         self.frozen_stages = frozen_stages
         self.window_size = window_size
         self.patch_size = patch_size
+        # 输入维度
         self.base_x_size = base_x_size
 
         # split image into non-overlapping patches
@@ -1039,6 +1062,7 @@ class SwinTransformer3D(nn.Module):
         else:
             resized_window_size = None
 
+        # 将视频划分为不重叠的patch
         x = self.patch_embed(x)
 
         x = self.pos_drop(x)
