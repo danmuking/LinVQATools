@@ -65,4 +65,8 @@ class TestFasterVQA(TestCase):
                 ):
                     img_mask[:, d, h, w, :] = cnt
                     cnt += 1
-        print(img_mask.view(D, H, W))
+        x = [i for i in range(4)]
+        test = slice(-window_size[0])
+        print(test.start,test.stop,test.step)
+        print(x[test])
+        # print(img_mask.view(D, H, W))

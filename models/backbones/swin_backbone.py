@@ -565,6 +565,20 @@ class PatchMerging(nn.Module):
 # cache each stage results
 @lru_cache()
 def compute_mask(D, H, W, window_size, shift_size, device):
+    """
+    计算mask矩阵
+    Args:
+        D: 时间维度
+        H: 高度
+        W: 宽度
+        window_size: 窗口大小
+        shift_size: shift操作大小
+        device: cpu or gpu
+
+    Returns:
+        mask矩阵
+
+    """
     img_mask = torch.zeros((1, D, H, W, 1), device=device)  # 1 Dp Hp Wp 1
     cnt = 0
     for d in (
@@ -630,6 +644,7 @@ class BasicLayer(nn.Module):
             frag_bias=False,
     ):
         super().__init__()
+        # 8,7,7
         self.window_size = window_size
         self.shift_size = tuple(i // 2 for i in window_size)
         self.depth = depth
@@ -673,6 +688,8 @@ class BasicLayer(nn.Module):
         # calculate attention mask for SW-MSA
         B, C, D, H, W = x.shape
 
+        # window_size 8,7,7
+        # shift_size 0,3,3
         window_size, shift_size = get_window_size(
             (D, H, W),
             self.window_size if resized_window_size is None else resized_window_size,
@@ -1057,7 +1074,9 @@ class SwinTransformer3D(nn.Module):
     def forward(self, x, multi=False, layer=-1, adaptive_window_size=True):
 
         """Forward function."""
+        # 生成自适应窗口大小
         if adaptive_window_size:
+            # 8,7,7
             resized_window_size = get_adaptive_window_size(self.window_size, x.shape[2:], self.base_x_size)
         else:
             resized_window_size = None
@@ -1065,6 +1084,7 @@ class SwinTransformer3D(nn.Module):
         # 将视频划分为不重叠的patch
         x = self.patch_embed(x)
 
+        # dropout
         x = self.pos_drop(x)
         feats = [x]
 

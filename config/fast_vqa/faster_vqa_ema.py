@@ -37,7 +37,7 @@ train_dataloader = dict(
             aligned=8,
         ),
         shuffler=dict(
-            name='BaseShuffler',
+            name='FragmentShuffler',
         ),
         post_sampler=dict(
             name='PostProcessSampler',
@@ -53,7 +53,7 @@ train_dataloader = dict(
     num_workers=num_workers)
 train_cfg = dict(
     by_epoch=True,
-    max_epochs=300,
+    max_epochs=600,
     val_begin=1,
     val_interval=1)
 optim_wrapper = dict(
@@ -80,7 +80,7 @@ param_scheduler = [
         type='CosineAnnealingLR',
         by_epoch=True,
         begin=10,
-        T_max=300,
+        T_max=600,
         # eta_min=0.00002,
         convert_to_iter_based=True
     )
@@ -110,7 +110,7 @@ val_dataloader = dict(
             aligned=8,
         ),
         shuffler=dict(
-            name='BaseShuffler',
+            name='FragmentShuffler',
         ),
         post_sampler=dict(
             name='PostProcessSampler',

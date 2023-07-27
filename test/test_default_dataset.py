@@ -33,7 +33,7 @@ class TestDefaultDataset(TestCase):
             aligned=8,
         )
         shuffler = dict(
-            name='BaseShuffler',
+            name='FragmentShuffler',
         )
         post_sampler = dict(
             name='PostProcessSampler',
@@ -68,7 +68,7 @@ class TestDefaultDataset(TestCase):
             aligned=8,
         )
         shuffler = dict(
-            name='BaseShuffler',
+            name='FragmentShuffler',
         )
         post_sampler = dict(
             name='PostProcessSampler',
