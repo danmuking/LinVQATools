@@ -41,10 +41,12 @@ class FasterVQA(BaseModel):
             backbone='faster_vqa',
             base_x_size=(32, 224, 224),
             vqa_head=dict(in_channels=768),
+            window_size=(8, 7, 7),
             **kwargs
     ):
         super().__init__()
         self.model = DiViDeAddEvaluator(
+            window_size=window_size,
             base_x_size=base_x_size,
             vqa_head=vqa_head,
             multi=multi,

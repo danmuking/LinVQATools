@@ -7,6 +7,7 @@ model = dict(
     type='FasterVQA',
     backbone='faster_vqa',
     base_x_size=(16,224,224),
+    window_size=(4,7,7),
     load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
 )
 batch_size = 7
