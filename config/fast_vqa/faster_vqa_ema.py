@@ -38,7 +38,7 @@ train_dataloader = dict(
             aligned=8,
         ),
         shuffler=dict(
-            name='FragmentShuffler',
+            name='BaseShuffler',
         ),
         post_sampler=dict(
             name='PostProcessSampler',
@@ -111,7 +111,7 @@ val_dataloader = dict(
             aligned=8,
         ),
         shuffler=dict(
-            name='FragmentShuffler',
+            name='BaseShuffler',
         ),
         post_sampler=dict(
             name='PostProcessSampler',
@@ -139,7 +139,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='reduce_input')
+            init_kwargs=dict(project='VQA', name='reduce_input_o_change')
         ),
     ],
 )
