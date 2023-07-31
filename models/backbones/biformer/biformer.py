@@ -26,6 +26,7 @@ from timm.models.vision_transformer import _cfg
 from .ops.bra_legacy import BiLevelRoutingAttention, BiLevelRoutingAttention3D
 
 from .common import Attention, AttentionLePE, DWConv
+from ... import logger
 
 
 # from positional_encodings import PositionalEncodingPermute2D, Summer
@@ -134,6 +135,7 @@ class Block(nn.Module):
         x = x.permute(0, 3, 1, 2)  # (N, H, W, C) -> (N, C, H, W)
         return x
 
+
 class Block3D(nn.Module):
     def __init__(self, dim, drop_path=0., layer_scale_init_value=-1,
                  num_heads=8, n_win=7, qk_dim=None, qk_scale=None,
@@ -152,14 +154,15 @@ class Block3D(nn.Module):
         self.norm1 = nn.LayerNorm(dim, eps=1e-6)  # important to avoid attention collapsing
         if topk > 0:
             self.attn = BiLevelRoutingAttention3D(dim=dim, num_heads=num_heads, n_win=n_win, qk_dim=qk_dim,
-                                                qk_scale=qk_scale, kv_per_win=kv_per_win,
-                                                kv_downsample_ratio=kv_downsample_ratio,
-                                                kv_downsample_kernel=kv_downsample_kernel,
-                                                kv_downsample_mode=kv_downsample_mode,
-                                                topk=topk, param_attention=param_attention, param_routing=param_routing,
-                                                diff_routing=diff_routing, soft_routing=soft_routing,
-                                                side_dwconv=side_dwconv,
-                                                auto_pad=auto_pad)
+                                                  qk_scale=qk_scale, kv_per_win=kv_per_win,
+                                                  kv_downsample_ratio=kv_downsample_ratio,
+                                                  kv_downsample_kernel=kv_downsample_kernel,
+                                                  kv_downsample_mode=kv_downsample_mode,
+                                                  topk=topk, param_attention=param_attention,
+                                                  param_routing=param_routing,
+                                                  diff_routing=diff_routing, soft_routing=soft_routing,
+                                                  side_dwconv=side_dwconv,
+                                                  auto_pad=auto_pad)
         elif topk == -1:
             self.attn = Attention(dim=dim)
         elif topk == -2:
@@ -193,10 +196,10 @@ class Block3D(nn.Module):
         x: NCHW tensor
         """
         # conv pos embedding
-        print(self.pos_embed(x).shape)
+        # print(self.pos_embed(x).shape)
         x = x + self.pos_embed(x)
         # permute to NHWC tensor for attention & mlp
-        x = x.permute(0, 2, 3,4, 1)  # (N, C, H, W) -> (N, H, W, C)
+        x = x.permute(0, 2, 3, 4, 1)  # (N, C, H, W) -> (N, H, W, C)
 
         # attention & mlp
         if self.pre_norm:
@@ -215,8 +218,9 @@ class Block3D(nn.Module):
                 x = self.norm2(x + self.drop_path(self.mlp(x)))  # (N, H, W, C)
 
         # permute back
-        x = x.permute(0, 4, 1, 2,3)  # (N, H, W, C) -> (N, C, H, W)
+        x = x.permute(0, 4, 1, 2, 3)  # (N, H, W, C) -> (N, C, H, W)
         return x
+
 
 class BiFormer(nn.Module):
     def __init__(self, depth=[3, 4, 8, 3], in_chans=3, num_classes=1000,
@@ -379,7 +383,7 @@ class BiFormer(nn.Module):
 
 
 class BiFormer3D(nn.Module):
-    def __init__(self, depth=[3, 4, 8, 3], in_chans=3, num_classes=1000,
+    def __init__(self, depth=[3, 4, 8, 3], in_chans=3,
                  embed_dim=[64, 128, 320, 512],
                  head_dim=64, qk_scale=None, representation_size=None,
                  drop_path_rate=0., drop_rate=0.,
@@ -403,13 +407,14 @@ class BiFormer3D(nn.Module):
                  kv_downsample_ratios=[4, 2, 1, 1],  # -> kv_per_win = [2, 2, 2, 1]
                  mlp_ratios=[4, 4, 4, 4],
                  param_attention='qkvo',
-                 mlp_dwconv=False):
+                 mlp_dwconv=False,
+                 load_path=None
+                 ):
         """
         Args:
             depth (list): depth of each stage
             img_size (int, tuple): input image size
             in_chans (int): number of input channels
-            num_classes (int): number of classes for classification head
             embed_dim (list): embedding dimension of each stage
             head_dim (int): head dimension
             mlp_ratio (int): ratio of mlp hidden dim to embedding dim
@@ -423,7 +428,6 @@ class BiFormer3D(nn.Module):
             conv_stem (bool): whether use overlapped patch stem
         """
         super().__init__()
-        self.num_classes = num_classes
         self.num_features = self.embed_dim = embed_dim  # num_features for consistency with other models
 
         ############ downsample layers (patch embeddings) ######################
@@ -461,26 +465,26 @@ class BiFormer3D(nn.Module):
         for i in range(4):
             stage = nn.Sequential(
                 *[Block3D(dim=embed_dim[i], drop_path=dp_rates[cur + j],
-                        layer_scale_init_value=layer_scale_init_value,
-                        topk=topks[i],
-                        num_heads=nheads[i],
-                        n_win=n_win,
-                        qk_dim=qk_dims[i],
-                        qk_scale=qk_scale,
-                        kv_per_win=kv_per_wins[i],
-                        kv_downsample_ratio=kv_downsample_ratios[i],
-                        kv_downsample_kernel=kv_downsample_kernels[i],
-                        kv_downsample_mode=kv_downsample_mode,
-                        param_attention=param_attention,
-                        param_routing=param_routing,
-                        diff_routing=diff_routing,
-                        soft_routing=soft_routing,
-                        mlp_ratio=mlp_ratios[i],
-                        mlp_dwconv=mlp_dwconv,
-                        side_dwconv=side_dwconv,
-                        before_attn_dwconv=before_attn_dwconv,
-                        pre_norm=pre_norm,
-                        auto_pad=auto_pad) for j in range(depth[i])],
+                          layer_scale_init_value=layer_scale_init_value,
+                          topk=topks[i],
+                          num_heads=nheads[i],
+                          n_win=n_win,
+                          qk_dim=qk_dims[i],
+                          qk_scale=qk_scale,
+                          kv_per_win=kv_per_wins[i],
+                          kv_downsample_ratio=kv_downsample_ratios[i],
+                          kv_downsample_kernel=kv_downsample_kernels[i],
+                          kv_downsample_mode=kv_downsample_mode,
+                          param_attention=param_attention,
+                          param_routing=param_routing,
+                          diff_routing=diff_routing,
+                          soft_routing=soft_routing,
+                          mlp_ratio=mlp_ratios[i],
+                          mlp_dwconv=mlp_dwconv,
+                          side_dwconv=side_dwconv,
+                          before_attn_dwconv=before_attn_dwconv,
+                          pre_norm=pre_norm,
+                          auto_pad=auto_pad) for j in range(depth[i])],
             )
             if i in use_checkpoint_stages:
                 stage = checkpoint_wrapper(stage)
@@ -500,8 +504,10 @@ class BiFormer3D(nn.Module):
             self.pre_logits = nn.Identity()
 
         # Classifier head
-        self.head = nn.Linear(embed_dim[-1], num_classes) if num_classes > 0 else nn.Identity()
+        # self.head = nn.Linear(embed_dim[-1], num_classes) if num_classes > 0 else nn.Identity()
         self.apply(self._init_weights)
+        if load_path is not None:
+            self.inflate_weights(load_path)
 
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
@@ -519,10 +525,6 @@ class BiFormer3D(nn.Module):
     def get_classifier(self):
         return self.head
 
-    def reset_classifier(self, num_classes, global_pool=''):
-        self.num_classes = num_classes
-        self.head = nn.Linear(self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
-
     def forward_features(self, x):
         for i in range(4):
             x = self.downsample_layers[i](x)  # res = (56, 28, 14, 7), wins = (64, 16, 4, 1)
@@ -534,8 +536,24 @@ class BiFormer3D(nn.Module):
     def forward(self, x):
         x = self.forward_features(x)
         x = x.flatten(2).mean(-1)
-        x = self.head(x)
-        return x
+        # x = self.head(x)
+        return [[x]]
+
+    def inflate_weights(self, pretrained_path):
+        logger.info("biformer加载{}预训练权重".format(pretrained_path))
+        t_state_dict = self.state_dict()
+        s_state_dict = torch.load(pretrained_path,map_location=torch.device('cpu'))["model"]
+        logger.info("biformer展开2维权重")
+        from collections import OrderedDict
+        for key in t_state_dict.keys():
+            if key not in s_state_dict:
+                continue
+            if t_state_dict[key].shape != s_state_dict[key].shape:
+                logger.info('biformer.py:{}由{}展开为{}'.format(key, s_state_dict[key].shape, t_state_dict[key].shape))
+                t = t_state_dict[key].shape[2]
+                s_state_dict[key] = s_state_dict[key].unsqueeze(2).repeat(1, 1, t, 1, 1) / t
+        info = self.load_state_dict(s_state_dict, strict=False)
+        return info
 
 
 #################### model variants #######################
