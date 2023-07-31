@@ -20,6 +20,7 @@ class SROCC(BaseMetric):
 
     def compute_metrics(self, results):
         gt_labels = [i['gt'] for i in self.results]
+        print(len(gt_labels))
         temp = []
         for i in gt_labels:
             temp.extend(i)
@@ -31,6 +32,7 @@ class SROCC(BaseMetric):
             temp.extend(i)
         pr_labels = temp
         pr_labels = np.array(pr_labels).flatten()
+        print(len(pr_labels))
         s = spearmanr(gt_labels, pr_labels)[0]
         # 返回保存有评测指标结果的字典，其中键为指标名称
         return dict(SROCC=s)
