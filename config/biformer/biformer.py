@@ -8,7 +8,7 @@ model = dict(
     load_path="./pretrained_weights/biformer_tiny_best.pth"
 )
 batch_size = 4
-num_workers = 14
+num_workers = 4
 prefix = 'temp/fragment'
 shuffler = dict(
     name='TimeShuffler',

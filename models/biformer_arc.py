@@ -74,7 +74,8 @@ class BiFormerArc(BaseModel):
         if mode == 'loss':
             scores = self.backbone(x=inputs)
             scores = self.head(scores)
-            y_pred = scores[0]
+            y_pred = scores
+            # print(y_pred)
             criterion = nn.MSELoss()
             mse_loss = criterion(y_pred, y)
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
@@ -85,7 +86,7 @@ class BiFormerArc(BaseModel):
             scores = self.backbone(x=inputs)
             # print(scores.shape)
             scores = self.head(scores)
-            y_pred = scores[0]
+            y_pred = scores
             return y_pred, y
 
     def train_step(self, data: Union[dict, tuple, list],
