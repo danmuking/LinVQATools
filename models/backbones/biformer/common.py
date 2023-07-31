@@ -80,7 +80,7 @@ class AttentionLePE(nn.Module):
         self.attn_drop = nn.Dropout(attn_drop)
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)
-        self.lepe = nn.Conv2d(dim, dim, kernel_size=side_dwconv, stride=1, padding=side_dwconv // 2,
+        self.lepe = nn.Conv3d(dim, dim, kernel_size=side_dwconv, stride=1, padding=side_dwconv // 2,
                               groups=dim) if side_dwconv > 0 else \
             lambda x: torch.zeros_like(x)
 
@@ -91,16 +91,16 @@ class AttentionLePE(nn.Module):
         return:
             NHWC tensor
         """
-        _, H, W, _ = x.size()
-        x = rearrange(x, 'n h w c -> n (h w) c')
+        _, T,H, W, _ = x.size()
+        x = rearrange(x, 'n t h w c -> n (t h w) c')
 
         #######################################
         B, N, C = x.shape
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]  # make torchscript happy (cannot use tensor as tuple)
 
-        lepe = self.lepe(rearrange(x, 'n (h w) c -> n c h w', h=H, w=W))
-        lepe = rearrange(lepe, 'n c h w -> n (h w) c')
+        lepe = self.lepe(rearrange(x, 'n (t h w) c -> n c t h w',t=T, h=H, w=W))
+        lepe = rearrange(lepe, 'n c t h w -> n (t h w) c')
 
         attn = (q @ k.transpose(-2, -1)) * self.scale
         attn = attn.softmax(dim=-1)
@@ -113,7 +113,7 @@ class AttentionLePE(nn.Module):
         x = self.proj_drop(x)
         #######################################
 
-        x = rearrange(x, 'n (h w) c -> n h w c', h=H, w=W)
+        x = rearrange(x, 'n (t h w) c -> n t h w c',t=T, h=H, w=W)
         return x
 
 
