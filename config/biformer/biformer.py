@@ -5,7 +5,8 @@ custom_imports = dict(
 work_dir = 'work_dir/biformer/base'
 model = dict(
     type='BiFormerArc',
-    load_path="./pretrained_weights/biformer_tiny_best.pth"
+    load_path="./pretrained_weights/biformer_tiny_best.pth",
+    vqa_head=dict(in_channels=512*8*7*7)
 )
 batch_size = 4
 num_workers = 4
@@ -15,7 +16,7 @@ shuffler = dict(
 )
 post_sampler = dict(
     name='PostProcessSampler',
-    num=4
+    num=2
 )
 train_dataloader = dict(
     dataset=dict(

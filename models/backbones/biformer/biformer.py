@@ -437,7 +437,7 @@ class BiFormer3D(nn.Module):
             nn.Conv3d(in_chans, embed_dim[0] // 2, kernel_size=(2, 3, 3), stride=(2, 2, 2), padding=(0, 1, 1)),
             nn.BatchNorm3d(embed_dim[0] // 2),
             nn.GELU(),
-            nn.Conv3d(embed_dim[0] // 2, embed_dim[0], kernel_size=(2, 3, 3), stride=(2, 2, 2), padding=(0, 1, 1)),
+            nn.Conv3d(embed_dim[0] // 2, embed_dim[0], kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1)),
             nn.BatchNorm3d(embed_dim[0]),
         )
         if (pe is not None) and 0 in pe_stages:
@@ -448,7 +448,7 @@ class BiFormer3D(nn.Module):
 
         for i in range(3):
             downsample_layer = nn.Sequential(
-                nn.Conv3d(embed_dim[i], embed_dim[i + 1], kernel_size=(2, 3, 3), stride=(2, 2, 2), padding=(0, 1, 1)),
+                nn.Conv3d(embed_dim[i], embed_dim[i + 1], kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1)),
                 nn.BatchNorm3d(embed_dim[i + 1])
             )
             if (pe is not None) and i + 1 in pe_stages:
@@ -535,7 +535,8 @@ class BiFormer3D(nn.Module):
 
     def forward(self, x):
         x = self.forward_features(x)
-        x = x.flatten(2).mean(-1)
+        print(x.shape)
+        # x = x.flatten(2).mean(-1)
         # x = self.head(x)
         return [[x]]
 
