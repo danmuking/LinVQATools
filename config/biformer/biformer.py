@@ -8,7 +8,7 @@ model = dict(
     load_path="./pretrained_weights/biformer_tiny_best.pth",
     vqa_head=dict(in_channels=512*8*7*7)
 )
-batch_size = 4
+batch_size = 5
 num_workers = 4
 prefix = 'temp/fragment'
 shuffler = dict(
