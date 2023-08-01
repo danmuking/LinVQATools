@@ -68,7 +68,7 @@ class TestDefaultDataset(TestCase):
             aligned=8,
         )
         shuffler = dict(
-            name='FragmentShuffler',
+            name='TimeShuffler',
         )
         post_sampler = dict(
             name='PostProcessSampler',
@@ -87,7 +87,7 @@ class TestDefaultDataset(TestCase):
         fps = 10
         # 设置视频大小
         size = video.shape[-2], video.shape[-1]
-        out = cv2.VideoWriter('./out.avi', fourcc, fps, size)
+        out = cv2.VideoWriter('./1.avi', fourcc, fps, size)
         for i in range(video.shape[1]):
             fra = video[:, i, :, :]
             fra = fra.permute(1, 2, 0)
