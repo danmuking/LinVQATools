@@ -80,7 +80,7 @@ class BiFormerArc(BaseModel):
             mse_loss = criterion(y_pred, y)
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
-            loss = mse_loss + p_loss + 3 * r_loss
+            loss = mse_loss + p_loss
             return {'loss': loss, 'mse_loss': mse_loss, 'p_loss': p_loss, 'r_loss': r_loss, 'result': [y_pred, y]}
         elif mode == 'predict':
             scores = self.backbone(x=inputs)
