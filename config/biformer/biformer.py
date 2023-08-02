@@ -6,10 +6,10 @@ work_dir = 'work_dir/biformer/base'
 model = dict(
     type='BiFormerArc',
     load_path="./pretrained_weights/biformer_tiny_best.pth",
-    vqa_head=dict(in_channels=512*4*7*7),
+    vqa_head=dict(in_channels=512*8*7*7)
 )
-batch_size = 6
-num_workers = 12
+batch_size = 5
+num_workers = 4
 prefix = 'temp/fragment'
 shuffler = dict(
     name='TimeShuffler',

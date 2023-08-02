@@ -434,10 +434,10 @@ class BiFormer3D(nn.Module):
         self.downsample_layers = nn.ModuleList()
         # NOTE: uniformer uses two 3*3 conv, while in many other transformers this is one 7*7 conv
         stem = nn.Sequential(
-            nn.Conv3d(in_chans, embed_dim[0] // 2, kernel_size=(2, 2, 2), stride=(2, 2, 2)),
+            nn.Conv3d(in_chans, embed_dim[0] // 2, kernel_size=(2, 3, 3), stride=(2, 2, 2), padding=(0, 1, 1)),
             nn.BatchNorm3d(embed_dim[0] // 2),
             nn.GELU(),
-            nn.Conv3d(embed_dim[0] // 2, embed_dim[0], kernel_size=(2, 2, 2), stride=(2, 2, 2)),
+            nn.Conv3d(embed_dim[0] // 2, embed_dim[0], kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1)),
             nn.BatchNorm3d(embed_dim[0]),
         )
         if (pe is not None) and 0 in pe_stages:
@@ -448,7 +448,7 @@ class BiFormer3D(nn.Module):
 
         for i in range(3):
             downsample_layer = nn.Sequential(
-                nn.Conv3d(embed_dim[i], embed_dim[i + 1], kernel_size=(1, 2, 2), stride=(1, 2, 2)),
+                nn.Conv3d(embed_dim[i], embed_dim[i + 1], kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1)),
                 nn.BatchNorm3d(embed_dim[i + 1])
             )
             if (pe is not None) and i + 1 in pe_stages:
@@ -535,6 +535,8 @@ class BiFormer3D(nn.Module):
 
     def forward(self, x):
         x = self.forward_features(x)
+        # print(x.shape)
+        # x = x.flatten(2).mean(-1)
         # x = self.head(x)
         return [[x]]
 
@@ -548,9 +550,6 @@ class BiFormer3D(nn.Module):
             if key not in s_state_dict:
                 continue
             if t_state_dict[key].shape != s_state_dict[key].shape:
-                if t_state_dict[key].shape[-2:] != s_state_dict[key].shape[-2:]:
-                    s_state_dict.pop(key)
-                    continue
                 logger.info('biformer.py:{}由{}展开为{}'.format(key, s_state_dict[key].shape, t_state_dict[key].shape))
                 t = t_state_dict[key].shape[2]
                 s_state_dict[key] = s_state_dict[key].unsqueeze(2).repeat(1, 1, t, 1, 1) / t
