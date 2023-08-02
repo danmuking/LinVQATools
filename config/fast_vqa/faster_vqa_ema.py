@@ -2,17 +2,34 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'faster_vqa/reduce_input'
+work_dir = 'faster_vqa/base'
+visualizer = dict(
+    type='Visualizer',
+    vis_backends=[
+        dict(
+            type='WandbVisBackend',
+            init_kwargs=dict(project='faster vqa消融', name='不使用预训练权重')
+        ),
+    ],
+)
 model = dict(
     type='FasterVQA',
     backbone='faster_vqa',
-    base_x_size=(16,224,224),
-    window_size=(4,7,7),
-    load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
+    base_x_size=(16, 224, 224),
+    # window_size=(8, 7, 7),
+    # load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
+    load_path=None
 )
 batch_size = 7
 num_workers = 14
 prefix = 'temp/fragment'
+shuffler = dict(
+    name='FragmentShuffler',
+)
+post_sampler = dict(
+    name='PostProcessSampler',
+    num=2
+)
 train_dataloader = dict(
     dataset=dict(
         type='DefaultDataset',
@@ -37,13 +54,8 @@ train_dataloader = dict(
             fsize_w=32,
             aligned=8,
         ),
-        shuffler=dict(
-            name='BaseShuffler',
-        ),
-        post_sampler=dict(
-            name='PostProcessSampler',
-            num=2
-        ),
+        shuffler=shuffler,
+        post_sampler=post_sampler
     ),
     sampler=dict(
         type='DefaultSampler',
@@ -110,13 +122,8 @@ val_dataloader = dict(
             fsize_w=32,
             aligned=8,
         ),
-        shuffler=dict(
-            name='BaseShuffler',
-        ),
-        post_sampler=dict(
-            name='PostProcessSampler',
-            num=2
-        ),
+        shuffler=shuffler,
+        post_sampler=post_sampler
     ),
     sampler=dict(
         type='DefaultSampler',
@@ -133,16 +140,6 @@ val_evaluator = [
     dict(type='PLCC'),
     dict(type='RMSE'),
 ]
-
-visualizer = dict(
-    type='Visualizer',
-    vis_backends=[
-        dict(
-            type='WandbVisBackend',
-            init_kwargs=dict(project='VQA', name='reduce_input_o_change')
-        ),
-    ],
-)
 
 default_hooks = dict(
     checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=10, save_best='SROCC', rule='greater'))
