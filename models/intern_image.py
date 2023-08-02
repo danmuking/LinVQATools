@@ -39,16 +39,16 @@ class InternImage(BaseModel):
             Union[
                 Dict[str, torch.Tensor], list]:
         logger.debug("dataloader读取的inputs形状为:{}".format(inputs.shape))
-        b, c, t, h, w = inputs.shape
-        inputs = inputs.permute(0, 2, 1, 3, 4)
-        inputs = inputs.reshape(b * t, c, h, w)
-        logger.debug("传入模型的inputs形状为:{}".format(inputs.shape))
+        # b, c, t, h, w = inputs.shape
+        # inputs = inputs.permute(0, 2, 1, 3, 4)
+        # inputs = inputs.reshape(b * t, c, h, w)
+        # logger.debug("传入模型的inputs形状为:{}".format(inputs.shape))
         y = kargs['gt_label'].float().unsqueeze(-1)
         # print(y.shape)
         if mode == 'loss':
             scores = self.model(inputs)
-            scores = scores.view(b,t)
-            scores = torch.mean(scores,dim=1)
+            # scores = scores.view(b,t)
+            # scores = torch.mean(scores,dim=1)
             y_pred = scores
             criterion = nn.MSELoss()
             mse_loss = criterion(y_pred, y)
@@ -57,8 +57,8 @@ class InternImage(BaseModel):
             return {'loss': loss, 'mse_loss': mse_loss, 'p_loss': p_loss, 'r_loss': r_loss, 'result': [y_pred, y]}
         elif mode == 'predict':
             scores = self.model(inputs)
-            scores = scores.view(b, t)
-            scores = torch.mean(scores, dim=1)
+            # scores = scores.view(b, t)
+            # scores = torch.mean(scores, dim=1)
             y_pred = scores
             return y_pred, y
 

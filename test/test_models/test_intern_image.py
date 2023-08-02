@@ -12,6 +12,6 @@ class TestInternImage(TestCase):
             depths=[4, 4, 18, 4],
             groups=[4, 8, 16, 32],
         ).cuda()
-        video = torch.zeros((2, 3, 16, 224, 224)).cuda()
+        video = torch.zeros((2, 3, 224, 224)).cuda()
         scores = model(inputs=video, mode="predict", gt_label=torch.tensor(1))
         print(scores)
