@@ -5,6 +5,7 @@ import os
 import random
 from typing import Dict, List
 
+import cv2
 import torch
 import decord
 import numpy as np
@@ -50,79 +51,46 @@ class PerImageDataset(Dataset):
         # 用于获取的训练集/测试集信息
         self.data: List = self.video_info[self.phase]
 
-        frame_index = np.array([item['frame'] for item in self.data])
-        self.frame_index = np.cumsum(frame_index)
         self.mean = torch.FloatTensor([123.675, 116.28, 103.53])
         self.std = torch.FloatTensor([58.395, 57.12, 57.375])
 
+        self.prefix = opt.get("prefix", 'train')
+
     def __getitem__(self, index):
-        video_index = 0
-        for _, item in enumerate(self.frame_index):
-            video_index = _
-            if index - item <= 0:
-                break
+        video_index = index // 32
         video_info = self.data[video_index]
-        index = index - self.frame_index[video_index] + video_info['frame']
+        index = index % 32
         video_path = video_info["video_path"]
         score = video_info["score"]
-        vreader = VideoReader(video_path)
-        img = vreader[index]
+
+        # 直接读取视频
+        if self.phase == 'train':
+            num = random.randint(0, 150)
+        else:
+            num = 0
+        # 预处理好的视频路径
+        video_pre_path = video_path.split('/')
+        video_pre_path.insert(3, self.prefix)
+        video_pre_path.insert(4, '{}'.format(num))
+        video_pre_path = os.path.join('/', *video_pre_path)[:-4]
+        video = []
+        img_path = os.path.join(video_pre_path, "{}.png".format(index))
+        if not os.path.exists(img_path):
+            logger.error("{}加载失败".format(img_path))
+            return None
+        img = cv2.imread(img_path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        img = torch.tensor(img)
         img = rearrange(img, 'h w c -> c h w')
-        # print(img.shape)
 
-        #############################################################################################
-        fragments_h = 7
-        fragments_w = 7
-        fsize_h = 32
-        fsize_w = 32
-        # 采样图片的高
-        size_h = fragments_h * fsize_h
-        # 采样图片的长
-        size_w = fragments_w * fsize_w
-
-        res_h, res_w = img.shape[-2:]
-        size = size_h, size_w
-
-        ## make sure that sampling will not run out of the picture
-        hgrids = torch.LongTensor(
-            [min(res_h // fragments_h * i, res_h - fsize_h) for i in range(fragments_h)]
-        )
-        wgrids = torch.LongTensor(
-            [min(res_w // fragments_w * i, res_w - fsize_w) for i in range(fragments_w)]
-        )
-        hlength, wlength = res_h // fragments_h, res_w // fragments_w
-        if hlength > fsize_h:
-            rnd_h = torch.randint(
-                hlength - fsize_h, (len(hgrids), len(wgrids))
-            )
-        else:
-            rnd_h = torch.zeros((len(hgrids), len(wgrids)).int())
-        if wlength > fsize_w:
-            rnd_w = torch.randint(
-                wlength - fsize_w, (len(hgrids), len(wgrids))
-            )
-        else:
-            rnd_w = torch.zeros((len(hgrids), len(wgrids)).int())
-
-        target_img = torch.zeros((3,224,224))
-
-        for i, hs in enumerate(hgrids):
-            for j, ws in enumerate(wgrids):
-                h_s, h_e = i * fsize_h, (i + 1) * fsize_h
-                w_s, w_e = j * fsize_w, (j + 1) * fsize_w
-                h_so, h_eo = hs + rnd_h[i][j], hs + rnd_h[i][j] + fsize_h
-                w_so, w_eo = ws + rnd_w[i][j], ws + rnd_w[i][j] + fsize_w
-                # print(h_so, w_so)
-                target_img[:, h_s:h_e, w_s:w_e] = img[:, h_so:h_eo, w_so:w_eo]
-
-        target_img = ((target_img.permute(1, 2, 0) - self.mean) / self.std).permute(2, 0, 1)
+        img = ((img.permute(1, 2, 0) - self.mean) / self.std).permute(2, 0, 1)
 
         data = {
-            "inputs": target_img,
+            "inputs": img,
             "gt_label": score,
             "name": os.path.basename(video_path)
         }
         return data
 
     def __len__(self):
-        return self.frame_index[-1]
+        return len(self.data) * 32

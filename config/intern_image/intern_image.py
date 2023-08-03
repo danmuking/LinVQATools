@@ -1,19 +1,19 @@
 custom_imports = dict(
-    imports=['intern_image', 'default_dataset', 'srocc', 'rmse',
+    imports=['intern_image', 'per_image_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook'],
     allow_failed_imports=False)
 work_dir = 'intern_image/base'
 model = dict(
     type='InternImage',
-    load_path='./pretrained_weights/internimage_t_1k_224.pth',
+    # load_path='./pretrained_weights/internimage_t_1k_224.pth',
 
 )
-batch_size = 4
-num_workers = 10
+batch_size = 48
+num_workers = 6
 train_dataloader = dict(
     dataset=dict(
-        type='DefaultDataset',
-        prefix='resize',
+        type='PerImageDataset',
+        prefix='temp/fragment',
         anno_reader='ODVVQAReader',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
         phase='train',
@@ -85,9 +85,9 @@ param_scheduler = [
 ]
 val_dataloader = dict(
     dataset=dict(
-        type='DefaultDataset',
+        type='PerImageDataset',
         anno_reader='ODVVQAReader',
-        prefix='resize',
+        prefix='temp/fragment',
         phase='test',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
         frame_sampler=dict(
