@@ -8,7 +8,7 @@ class TimeShuffler(BaseShuffler):
     def __init__(self, frame_cube: int = 8, **kargs):
         super().__init__(**kargs)
         self.frame_cube = frame_cube
-    def shuffle(self, video: torch.Tensor):
+    def __call__(self, video: torch.Tensor):
         """
         实现数据时间维度上的打乱
         """

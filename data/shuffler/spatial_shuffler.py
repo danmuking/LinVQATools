@@ -13,7 +13,7 @@ class SpatialShuffler(BaseShuffler):
         super().__init__(**kargs)
         self.fragment_size = fragment_size
 
-    def shuffle(self,video:torch.Tensor):
+    def __call__(self,video:torch.Tensor):
         c,t,h,w = video.shape
         logger.debug("从空间维度打乱视频")
         matrix = []

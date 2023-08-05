@@ -4,5 +4,5 @@ class BaseShuffler(object):
     """
     def __init__(self,**kargs):
         pass
-    def shuffle(self,video):
+    def __call__(self,video):
         return video
