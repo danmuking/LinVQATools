@@ -5,20 +5,26 @@ from mmengine import MMLogger
 
 from data import logger
 from .base_shuffler import BaseShuffler
+
+
 class FragmentShuffler(BaseShuffler):
     """
     从fragment cube上打乱数据
     """
+
     def __init__(self, fragment_size: int = 32, frame_cube: int = 8, **kargs):
         super().__init__(**kargs)
         self.fragment_size = fragment_size
         self.frame_cube = frame_cube
-    def shuffle(self, video: torch.Tensor):
+
+    def __call__(self, video: torch.Tensor):
         c, t, h, w = video.shape
         logger.debug("从fragment cube维度打乱视频")
         matrix = []
-        assert w % self.fragment_size == 0, '视频宽度无法被fragment_size整除,W:{} fragment_size:{}'.format(w, self.fragment_size)
-        assert h % self.fragment_size == 0, '视频高度无法被fragment_size整除,H:{} fragment_size:{}'.format(h, self.fragment_size)
+        assert w % self.fragment_size == 0, '视频宽度无法被fragment_size整除,W:{} fragment_size:{}'.format(w,
+                                                                                                           self.fragment_size)
+        assert h % self.fragment_size == 0, '视频高度无法被fragment_size整除,H:{} fragment_size:{}'.format(h,
+                                                                                                           self.fragment_size)
         assert t % self.frame_cube == 0, '视频帧数无法被frame_cube整除,T:{} frame_cube:{}'.format(t, self.frame_cube)
         num_cube = t // self.frame_cube
         num_w = w // self.fragment_size

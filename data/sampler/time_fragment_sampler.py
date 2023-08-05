@@ -80,8 +80,9 @@ class UnifiedFrameSampler:
     """
     dover的帧采样
     """
+
     def __init__(
-        self, fsize_t, fragments_t, frame_interval=1, num_clips=1, drop_rate=0.0,
+            self, fsize_t, fragments_t, frame_interval=1, num_clips=1, drop_rate=0.0,
     ):
 
         self.fragments_t = fragments_t
@@ -107,9 +108,9 @@ class UnifiedFrameSampler:
             rnd_t = np.zeros(len(tgrids), dtype=np.int32)
 
         ranges_t = (
-            np.arange(self.fsize_t)[None, :] * self.frame_interval
-            + rnd_t[:, None]
-            + tgrids[:, None]
+                np.arange(self.fsize_t)[None, :] * self.frame_interval
+                + rnd_t[:, None]
+                + tgrids[:, None]
         )
 
         drop = random.sample(
@@ -130,3 +131,23 @@ class UnifiedFrameSampler:
         frame_inds = np.concatenate(frame_inds)
         frame_inds = np.mod(frame_inds + start_index, total_frames)
         return frame_inds.astype(np.int32)
+
+
+class CubeExtractSample:
+    """
+    将视频分为k个块,每个块取一帧
+    """
+
+    def __init__(self, k):
+        """
+        Args:
+            k: 将视频划分为k块
+        """
+
+        self.k = k
+
+    def __call__(self, frame_num):
+        cube_frame_num = frame_num // self.k
+        offset = np.random.randint(0, cube_frame_num, self.k)
+        cube_start_frame = [i for i in range(0, frame_num, cube_frame_num)][:self.k]
+        return cube_start_frame + offset

@@ -1,7 +1,7 @@
-from .time_fragment_sampler import FragmentSampleFrames, FragmentFullFrameSampler
+from .time_fragment_sampler import FragmentSampleFrames, FragmentFullFrameSampler, CubeExtractSample
 from .spatial_fragment_sampler import PlaneSpatialFragmentSampler, \
     SphereSpatialFragmentSampler, FullSpatialFragmentSampler
-from .post_process_sampler import PostProcessSampler
+from data.shuffler.post_process_sampler import PostProcessSampler
 
 __all__ = ['FragmentSampleFrames', 'PlaneSpatialFragmentSampler', 'SphereSpatialFragmentSampler',
-           'FullSpatialFragmentSampler', 'FragmentFullFrameSampler','PostProcessSampler']
+           'FullSpatialFragmentSampler', 'FragmentFullFrameSampler','PostProcessSampler','CubeExtractSample']
