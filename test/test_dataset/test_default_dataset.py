@@ -15,38 +15,6 @@ from data.default_dataset import SingleBranchDataset
 class TestDefaultDataset(TestCase):
     def test_default_dataset(self):
         os.chdir('../../')
-        frame_sampler = dict(
-            name='FragmentSampleFrames',
-            fsize_t=32 // 8,
-            fragments_t=8,
-            clip_len=32,
-            frame_interval=2,
-            t_frag=8,
-            num_clips=1,
-        )
-        spatial_sampler = dict(
-            name='PlaneSpatialFragmentSampler',
-            fragments_h=7,
-            fragments_w=7,
-            fsize_h=32,
-            fsize_w=32,
-            aligned=8,
-        )
-        shuffler = dict(
-            name='FragmentShuffler',
-        )
-        post_sampler = dict(
-            name='PostProcessSampler',
-            num=2
-        )
-        dataset = DefaultDataset(anno_reader='ODVVQAReader', split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
-                                 frame_sampler=frame_sampler, spatial_sampler=spatial_sampler, prefix='temp/fragment',
-                                 shuffler=shuffler, post_sampler=post_sampler)
-        dataloader = DataLoader(dataset, batch_size=6, num_workers=4)
-        # for item in tqdm(dataloader):
-        #     print(item)
-        data = dataset[0]
-        print(data['inputs'].shape)
 
     def test_save_video(self):
         os.chdir('../../')
@@ -75,35 +43,6 @@ class TestDefaultDataset(TestCase):
 
     def test(self):
         os.chdir('../../')
-        frame_sampler = dict(
-            name='FragmentSampleFrames',
-            fsize_t=32 // 8,
-            fragments_t=8,
-            clip_len=32,
-            frame_interval=2,
-            t_frag=8,
-            num_clips=1,
-        )
-        spatial_sampler = dict(
-            name='PlaneSpatialFragmentSampler',
-            fragments_h=7,
-            fragments_w=7,
-            fsize_h=32,
-            fsize_w=32,
-            aligned=8,
-        )
-        dataset = DefaultDataset(anno_reader='ODVVQAReader',
-                                 split_file='/home/ly/code/LinVQATools/data/odv_vqa/tr_te_VQA_ODV.txt',
-                                 frame_sampler=frame_sampler, spatial_sampler=spatial_sampler, phase='test',
-                                 prefix=None, norm=False)
-        dataset.shuffler(video=None)
 
     def test_load(self):
         os.chdir('../../')
-        load_torch = torch.load('./out.pt')
-        print(load_torch)
-        vreader = VideoReader('./out.avi')
-        frame_dict = {idx: vreader[idx] for idx in range(len(vreader))}
-        imgs = [frame_dict[idx] for idx in range(len(vreader))]
-        video = torch.stack(imgs, 0).permute(3, 0, 1, 2)
-        print(video)
