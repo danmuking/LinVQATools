@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'faster_vqa/base'
+work_dir = 'work_dir/faster_vqa/cube_sample'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='不使用预训练权重')
+            init_kwargs=dict(project='faster vqa消融', name='cube sample')
         ),
     ],
 )
@@ -16,46 +16,30 @@ model = dict(
     type='FasterVQA',
     backbone='faster_vqa',
     base_x_size=(16, 224, 224),
-    # window_size=(8, 7, 7),
-    # load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
-    load_path=None
+    window_size=(8, 7, 7),
+    load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
 )
+epochs = 600
 batch_size = 7
 num_workers = 14
-prefix = 'temp/fragment'
-shuffler = dict(
-    name='FragmentShuffler',
-)
-post_sampler = dict(
-    name='PostProcessSampler',
-    num=2
+prefix = 'fragment'
+video_loader = dict(
+    name='VideoSamplerLoader',
+    frame_sampler='CubeExtractSample',
+    k=16,
+    use_preprocess=True,
+    prefix=prefix,
+    argument=[],
 )
 train_dataloader = dict(
     dataset=dict(
-        type='DefaultDataset',
-        prefix=prefix,
+        type='SingleBranchDataset',
+        video_loader=video_loader,
+        anno_root='./data/odv_vqa',
         anno_reader='ODVVQAReader',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
         phase='train',
-        frame_sampler=dict(
-            name='FragmentSampleFrames',
-            fsize_t=32 // 8,
-            fragments_t=8,
-            clip_len=32,
-            frame_interval=2,
-            t_frag=8,
-            num_clips=1,
-        ),
-        spatial_sampler=dict(
-            name='PlaneSpatialFragmentSampler',
-            fragments_h=7,
-            fragments_w=7,
-            fsize_h=32,
-            fsize_w=32,
-            aligned=8,
-        ),
-        shuffler=shuffler,
-        post_sampler=post_sampler
+        norm=True
     ),
     sampler=dict(
         type='DefaultSampler',
@@ -64,11 +48,31 @@ train_dataloader = dict(
     batch_size=batch_size,
     pin_memory=True,
     num_workers=num_workers)
+val_dataloader = dict(
+    dataset=dict(
+        type='SingleBranchDataset',
+        video_loader=video_loader,
+        anno_root='./data/odv_vqa',
+        anno_reader='ODVVQAReader',
+        split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
+        phase='test',
+        norm=True
+    ),
+    sampler=dict(
+        type='DefaultSampler',
+        shuffle=False
+    ),
+    collate_fn=dict(type='default_collate'),
+    batch_size=batch_size,
+    pin_memory=True,
+    num_workers=num_workers)
+
 train_cfg = dict(
     by_epoch=True,
-    max_epochs=600,
+    max_epochs=epochs,
     val_begin=1,
     val_interval=1)
+val_cfg = dict()
 optim_wrapper = dict(
     type='OptimWrapper',
     optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
@@ -93,47 +97,12 @@ param_scheduler = [
         type='CosineAnnealingLR',
         by_epoch=True,
         begin=10,
-        T_max=600,
+        T_max=epochs,
         # eta_min=0.00002,
         convert_to_iter_based=True
     )
 ]
-val_dataloader = dict(
-    dataset=dict(
-        type='DefaultDataset',
-        anno_reader='ODVVQAReader',
-        prefix=prefix,
-        phase='test',
-        split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
-        frame_sampler=dict(
-            name='FragmentSampleFrames',
-            fsize_t=32 // 8,
-            fragments_t=8,
-            clip_len=32,
-            frame_interval=2,
-            t_frag=8,
-            num_clips=1,
-        ),
-        spatial_sampler=dict(
-            name='PlaneSpatialFragmentSampler',
-            fragments_h=7,
-            fragments_w=7,
-            fsize_h=32,
-            fsize_w=32,
-            aligned=8,
-        ),
-        shuffler=shuffler,
-        post_sampler=post_sampler
-    ),
-    sampler=dict(
-        type='DefaultSampler',
-        shuffle=False
-    ),
-    collate_fn=dict(type='default_collate'),
-    batch_size=batch_size,
-    pin_memory=True,
-    num_workers=num_workers)
-val_cfg = dict()
+
 val_evaluator = [
     dict(type='SROCC'),
     dict(type='KRCC'),

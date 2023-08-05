@@ -4,24 +4,17 @@ from unittest import TestCase
 
 import cv2
 import numpy as np
-import torch
-from decord import VideoReader
-from torch.utils.data import DataLoader
-from tqdm import tqdm
 
 from data.default_dataset import SingleBranchDataset
 
 
-class TestDefaultDataset(TestCase):
-    def test_default_dataset(self):
+class TestSingleBranchDataset(TestCase):
+    def test(self):
         os.chdir('../../')
-
-    def test_save_video(self):
-        os.chdir('../../')
-        video_loader=dict(
+        video_loader = dict(
             name='VideoSamplerLoader',
         )
-        dataset = SingleBranchDataset(video_loader=video_loader,norm=False)
+        dataset = SingleBranchDataset(video_loader=video_loader, norm=False)
         data = dataset[0]
         # video = torch.from_numpy(np.load("temp.npy"))
         video = data['inputs']
@@ -40,9 +33,3 @@ class TestDefaultDataset(TestCase):
             fra = cv2.cvtColor(fra, cv2.COLOR_RGB2BGR)
             out.write(fra)
         out.release()
-
-    def test(self):
-        os.chdir('../../')
-
-    def test_load(self):
-        os.chdir('../../')

@@ -1,10 +1,8 @@
 import torch
 from typing import Dict, List, Any
 
-import numpy as np
 from torch.utils.data import Dataset
 from mmengine import DATASETS
-from decord import VideoReader
 import os.path as osp
 import decord
 
@@ -30,7 +28,7 @@ class SingleBranchDataset(Dataset):
             anno_reader: str = 'ODVVQAReader',
             split_file: str = './data/odv_vqa/tr_te_VQA_ODV.txt',
             phase: str = 'train',
-            norm:bool=True
+            norm: bool = True
 
     ):
         # 数据集声明文件夹路径
@@ -42,7 +40,7 @@ class SingleBranchDataset(Dataset):
         # 训练集/测试集
         self.phase = phase
         # 是否归一化
-        self.norm =norm
+        self.norm = norm
 
         # 数据集信息
         self.video_info = self.anno_reader.read()
