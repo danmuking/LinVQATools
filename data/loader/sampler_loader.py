@@ -54,7 +54,7 @@ class VideoSamplerLoader(BaseLoader):
             # TODO: 不使用预处理
             pass
         video = torch.stack(video, dim=0)
-        video = rearrange(video,'t h w c -> c t h w')
+        video = rearrange(video, 't h w c -> c t h w')
         # 视频后处理
         for item in self.argument:
             video = item(video)

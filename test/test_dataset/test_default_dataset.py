@@ -12,7 +12,16 @@ class TestSingleBranchDataset(TestCase):
     def test(self):
         os.chdir('../../')
         video_loader = dict(
-            name='VideoSamplerLoader',
+            name='FragmentLoader',
+            argument=[
+                dict(
+                    name='FragmentShuffler',
+                ),
+                dict(
+                    name='PostProcessSampler',
+                    num=2
+                )
+            ]
         )
         dataset = SingleBranchDataset(video_loader=video_loader, norm=False)
         data = dataset[0]
