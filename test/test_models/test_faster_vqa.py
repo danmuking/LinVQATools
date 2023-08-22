@@ -13,7 +13,7 @@ class TestFasterVQA(TestCase):
     def test(self):
         os.chdir('../../')
         model = FasterVQA(
-            backbone='faster_vqa',
+            backbone='swin',
             base_x_size=(16, 224, 224),
             vqa_head=dict(in_channels=768),
             load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"

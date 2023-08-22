@@ -8,6 +8,7 @@ from torch import nn
 from global_class.train_recorder import TrainResultRecorder
 from models.evaluators import DiViDeAddEvaluator
 from mmengine import MODELS
+from models import logger
 
 
 def rank_loss(y_pred, y):
@@ -142,12 +143,13 @@ class FasterVQA(BaseModel):
                 elif "backbone" in key:
                     i_state_dict[key] = state_dict[key]
                     i_state_dict["fragments_" + key] = state_dict[key]
-                    i_state_dict["resize_" + key] = state_dict[key]
+                    # i_state_dict["resize_" + key] = state_dict[key]
                 else:
                     i_state_dict[key] = state_dict[key]
             t_state_dict = self.model.state_dict()
             for key, value in t_state_dict.items():
                 if key in i_state_dict and i_state_dict[key].shape != value.shape:
                     i_state_dict.pop(key)
-            self.model.load_state_dict(i_state_dict, strict=False)
+            info = self.model.load_state_dict(i_state_dict, strict=False)
+            # logger.info(info)
             # self.logger.info(self.model.load_state_dict(i_state_dict, strict=False))
