@@ -20,8 +20,8 @@ model = dict(
     load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
 )
 epochs = 600
-batch_size = 12
-num_workers = 4
+batch_size = 7
+num_workers = 14
 prefix = 'temp/fragment'
 argument = [
         dict(
