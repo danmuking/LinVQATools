@@ -1,10 +1,12 @@
 """
-    实现fragment数据预处理
+    实现faster vqa fragment数据预处理
 """
 import os
+import random
 from multiprocessing.pool import Pool
 
 import cv2
+import numpy as np
 import torch
 import decord
 from decord import VideoReader
@@ -16,6 +18,69 @@ from data.meta_reader import ODVVQAReader
 decord.bridge.set_bridge("torch")
 
 
+class FragmentSampleFrames:
+    """
+    时间上的fragment采样
+    """
+
+    def __init__(self, fsize_t, fragments_t, frame_interval=1, num_clips=1, drop_rate=0., **opt):
+        # 每个fragment采样几帧
+        self.fragments_t = fragments_t
+        # 采样几个fragment
+        self.fsize_t = fsize_t
+        # 总采样帧数
+        self.size_t = fragments_t * fsize_t
+        # 帧间隔
+        self.frame_interval = frame_interval
+        self.num_clips = num_clips
+        self.drop_rate = drop_rate
+
+    def get_frame_indices(self, num_frames, train=False):
+        """
+        获取帧索引
+        :param num_frames: 总帧数
+        :param train: 模式
+        :return:
+        """
+
+        tgrids = np.array(
+            [num_frames // self.fragments_t * i for i in range(self.fragments_t)],
+            dtype=np.int32,
+        )
+        # fragment总数
+        tlength = num_frames // self.fragments_t
+
+        if tlength > self.fsize_t * self.frame_interval:
+            rnd_t = np.random.randint(
+                0, tlength - self.fsize_t * self.frame_interval, size=len(tgrids)
+            )
+        else:
+            rnd_t = np.zeros(len(tgrids), dtype=np.int32)
+
+        ranges_t = (
+                np.arange(self.fsize_t)[None, :] * self.frame_interval
+                + rnd_t[:, None]
+                + tgrids[:, None]
+        )
+
+        drop = random.sample(list(range(self.fragments_t)), int(self.fragments_t * self.drop_rate))
+        dropped_ranges_t = []
+        for i, rt in enumerate(ranges_t):
+            if i not in drop:
+                dropped_ranges_t.append(rt)
+        return np.concatenate(dropped_ranges_t)
+
+    def __call__(self, total_frames, train=False, start_index=0):
+        frame_inds = []
+
+        for i in range(self.num_clips):
+            frame_inds += [self.get_frame_indices(total_frames)]
+
+        frame_inds = np.concatenate(frame_inds)
+        frame_inds = np.mod(frame_inds + start_index, total_frames)
+        print(frame_inds)
+        return frame_inds.astype(np.int32)
+
 def makedir(path: str):
     dir_path = path
     if os.path.exists(dir_path):
@@ -24,27 +89,31 @@ def makedir(path: str):
         os.makedirs(dir_path)
 
 
-def get_save_path(video_path,frame_num):
+def get_save_path(video_path, frame_num, epoch):
     video_path = video_path.split('/')
     video_path.insert(3, 'fragment')
+    video_path.insert(4, str(epoch))
     video_path[0] = "/data"
     video_path[1] = ""
     video_path = os.path.join(*video_path)[:-4]
     makedir(video_path)
-    img_path = os.path.join(video_path,'{}.png'.format(frame_num))
+    img_path = os.path.join(video_path, '{}.png'.format(frame_num))
     return img_path
 
 
-def sampler(video_path: str):
+def sampler(video_path: str, epoch: int):
     vreader = VideoReader(video_path)
-    for frame_num in range(len(vreader)):
-        save_path = get_save_path(video_path, frame_num)
+    frame_index = [x for x in range(len(vreader))]
+    frame_sampler = FragmentSampleFrames(fsize_t=8, fragments_t=4, frame_interval=4, num_clips=1, )
+    frame_index = frame_sampler(len(vreader))
+    for frame_num in frame_index:
+        save_path = get_save_path(video_path, frame_num, epoch)
         img = vreader[frame_num]
         img = rearrange(img, 'h w c -> c h w')
-        fragments_h = 7
-        fragments_w = 7
-        fsize_h = 32
-        fsize_w = 32
+        fragments_h = 14
+        fragments_w = 14
+        fsize_h = 16
+        fsize_w = 16
         # 采样图片的高
         size_h = fragments_h * fsize_h
         # 采样图片的长
@@ -98,9 +167,10 @@ if __name__ == '__main__':
     anno_path = os.path.join(file, './data/odv_vqa')
     data_anno = ODVVQAReader(anno_path).read()
     pool = Pool(16)
-    for video_info in tqdm(data_anno):
-        video_path = video_info['video_path']
-        print(video_path)
-        pool.apply_async(func=sampler, kwds={'video_path':video_path})
+    for i in tqdm(range(40)):
+        for video_info in data_anno:
+            video_path = video_info['video_path']
+            print(video_path)
+            pool.apply_async(func=sampler, kwds={'video_path': video_path, 'epoch': i})
     pool.close()
     pool.join()
