@@ -1,12 +1,12 @@
 import torch
 import torch.nn as nn
-from functools import partial, reduce
+# from functools import partial, reduce
 
 from .backbones.base_swin_backbone import SwinTransformer3D
 from .backbones.mvit import MViT
 from .backbones.swin_backbone import SwinTransformer3D as VideoBackbone
 from .backbones.video_mae_v2 import VisionTransformer
-from .heads.fc import FcHead
+# from .heads.fc import FcHead
 from .heads.head import VQAHead
 
 

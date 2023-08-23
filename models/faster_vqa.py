@@ -8,7 +8,6 @@ from torch import nn
 from global_class.train_recorder import TrainResultRecorder
 from models.evaluators import DiViDeAddEvaluator
 from mmengine import MODELS
-from models import logger
 
 
 def rank_loss(y_pred, y):
@@ -55,6 +54,7 @@ class FasterVQA(BaseModel):
             backbone=backbone,
             load_path=load_path
         )
+
         # self.logger = MMLogger.get_instance('mmengine', log_level='INFO')
         # TODO: 将权重加载交给骨干网络完成，vit已实现
         # 加载预训练权重

@@ -21,7 +21,7 @@ model = dict(
     load_path="./pretrained_weights/vit-small-p16_videomaev2-vit-g-dist-k710-pre_16x4x1_kinetics-400_20230510-25c748fd.pth"
 )
 epochs = 600
-batch_size = 4
+batch_size = 8
 num_workers = 12
 prefix = 'temp/fragment'
 argument = [
