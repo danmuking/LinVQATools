@@ -10,7 +10,7 @@ class TestVideoSwinTransformer(TestCase):
         model = SwinTransformer3D(base_x_size=(16, 224, 224))
         x = torch.zeros((1,3,16,224,224))
         y = model(x)
-        print(y)
+        print(y[0][0].shape)
 
     def test_load(self):
         path = '/data/ly/code/LinVQATools/pretrained_weights/biformer_tiny_best.pth'

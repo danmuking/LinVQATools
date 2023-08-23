@@ -13,10 +13,10 @@ class TestFasterVQA(TestCase):
     def test(self):
         os.chdir('../../')
         model = FasterVQA(
-            backbone='swin',
+            backbone='vit',
             base_x_size=(16, 224, 224),
-            vqa_head=dict(in_channels=768),
-            load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
+            vqa_head=dict(in_channels=384),
+            load_path="./pretrained_weights/vit-small-p16_videomaev2-vit-g-dist-k710-pre_16x4x1_kinetics-400_20230510-25c748fd.pth"
         )
         # print(model.state_dict())
         # i_state_dict = model.state_dict()

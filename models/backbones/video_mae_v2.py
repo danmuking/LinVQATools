@@ -12,8 +12,11 @@ from torch import Tensor, nn
 
 from mmaction.utils import ConfigType, OptConfigType
 
+from models import logger
+
 try:
     from mmdet.registry import MODELS as MMDET_MODELS
+
     mmdet_imported = True
 except (ImportError, ModuleNotFoundError):
     mmdet_imported = False
@@ -50,7 +53,7 @@ class Attention(BaseModule):
         self.num_heads = num_heads
         head_embed_dims = embed_dims // num_heads
 
-        self.scale = qk_scale or head_embed_dims**-0.5
+        self.scale = qk_scale or head_embed_dims ** -0.5
 
         if qkv_bias:
             self._init_qv_bias()
@@ -287,6 +290,7 @@ class VisionTransformer(BaseModule):
                          bias=0.),
                      dict(type='Constant', layer='LayerNorm', val=1., bias=0.)
                  ],
+                 load_path=None,
                  **kwargs) -> None:
 
         if pretrained:
@@ -306,7 +310,7 @@ class VisionTransformer(BaseModule):
             dilation=(1, 1, 1))
 
         grid_size = img_size // patch_size
-        num_patches = grid_size**2 * (num_frames // tubelet_size)
+        num_patches = grid_size ** 2 * (num_frames // tubelet_size)
         self.grid_size = (grid_size, grid_size)
 
         if use_learnable_pos_emb:
@@ -346,7 +350,10 @@ class VisionTransformer(BaseModule):
 
         self.return_feat_map = return_feat_map
 
-    def forward(self, x: Tensor) -> Tensor:
+        if load_path is not None:
+            self.load(load_path)
+
+    def forward(self, x: Tensor, *args, **kwargs) -> Tensor:
         """Defines the computation performed at every call.
 
         Args:
@@ -381,12 +388,21 @@ class VisionTransformer(BaseModule):
         if self.return_feat_map:
             x = x.reshape(b, -1, h, w, self.embed_dims)
             x = x.permute(0, 4, 1, 2, 3)
-            return x
+            return [[x]]
 
         if self.fc_norm is not None:
             return self.fc_norm(x.mean(1))
 
         return x[:, 0]
+
+    def load(self, path):
+        weight = torch.load(path)
+        from collections import OrderedDict
+        s_state_dict = OrderedDict()
+        for key in weight.keys():
+            s_state_dict[key[9:]] = weight[key]
+        info = self.load_state_dict(s_state_dict, strict=False)
+        logger.info("vit加载{}权重,info:{} ".format(path, info))
 
 
 if mmdet_imported:

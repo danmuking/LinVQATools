@@ -52,11 +52,13 @@ class FasterVQA(BaseModel):
             vqa_head=vqa_head,
             multi=multi,
             layer=layer,
-            backbone=backbone
+            backbone=backbone,
+            load_path=load_path
         )
         # self.logger = MMLogger.get_instance('mmengine', log_level='INFO')
+        # TODO: 将权重加载交给骨干网络完成，vit已实现
         # 加载预训练权重
-        if load_path is not None:
+        if load_path is not None and backbone != 'vit':
             # self.logger.info("加载{}权重".format(load_path))
             self._load_weight(load_path)
 
