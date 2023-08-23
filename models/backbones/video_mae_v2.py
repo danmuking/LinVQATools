@@ -399,8 +399,10 @@ class VisionTransformer(BaseModule):
         weight = torch.load(path)
         from collections import OrderedDict
         s_state_dict = OrderedDict()
+        t_state_dict = self.state_dict()
         for key in weight.keys():
-            s_state_dict[key[9:]] = weight[key]
+            if key[9:] in t_state_dict.keys() and t_state_dict[key[9:]].shape == weight[key].shape:
+                s_state_dict[key[9:]] = weight[key]
         info = self.load_state_dict(s_state_dict, strict=False)
         logger.info("vit加载{}权重,info:{} ".format(path, info))
 

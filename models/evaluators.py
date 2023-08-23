@@ -38,7 +38,7 @@ class DiViDeAddEvaluator(nn.Module):
         elif backbone == 'vit':
             b = VisionTransformer(
                 img_size=224,
-                patch_size=16,
+                patch_size=32,
                 mlp_ratio=4,
                 qkv_bias=True,
                 num_frames=16,

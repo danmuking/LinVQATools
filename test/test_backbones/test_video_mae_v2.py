@@ -9,7 +9,7 @@ class TestVisionTransformer(TestCase):
     def test(self):
         model = VisionTransformer(
             img_size=224,
-            patch_size=16,
+            patch_size=32,
             mlp_ratio=4,
             qkv_bias=True,
             num_frames=16,
@@ -18,13 +18,13 @@ class TestVisionTransformer(TestCase):
             return_feat_map=True)
         x = torch.zeros((2, 3, 16, 224, 224))
         y = model(x)
-        print(y.shape)
+        print(y[0][0].shape)
     def test_load(self):
         path = '/data/ly/code/LinVQATools/pretrained_weights/vit-small-p16_videomaev2-vit-g-dist-k710-pre_16x4x1_kinetics-400_20230510-25c748fd.pth'
         weight = torch.load(path)
         model = VisionTransformer(
             img_size=224,
-            patch_size=16,
+            patch_size=32,
             mlp_ratio=4,
             qkv_bias=True,
             num_frames=16,
