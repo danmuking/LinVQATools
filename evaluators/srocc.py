@@ -33,6 +33,7 @@ class SROCC(BaseMetric):
         pr_labels = temp
         pr_labels = np.array(pr_labels).flatten()
         # print(len(pr_labels))
+        # print("gt_labels: {} pr_labels: {}".format(gt_labels,pr_labels))
         s = spearmanr(gt_labels, pr_labels)[0]
         # 返回保存有评测指标结果的字典，其中键为指标名称
         return dict(SROCC=s)
