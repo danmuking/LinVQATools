@@ -4,11 +4,12 @@ import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 import numpy as np
 from timm.models.layers import DropPath, trunc_normal_
-import math
 
 from functools import reduce, lru_cache
 from operator import mul
 from einops import rearrange
+
+from models import logger
 
 
 def fragment_infos(D, H, W, fragments=7, device="cuda"):
@@ -885,12 +886,8 @@ class SwinTransformer3D(nn.Module):
             for key in state_dict.keys():
                 if "head" in key:
                     continue
-                if "cls" in key:
-                    tkey = key.replace("cls", "vqa")
                 elif "backbone" in key:
                     i_state_dict[key[9:]] = state_dict[key]
-                    # i_state_dict["fragments_" + key] = state_dict[key]
-                    # i_state_dict["resize_" + key] = state_dict[key]
                 else:
                     i_state_dict[key] = state_dict[key]
             t_state_dict = self.state_dict()
@@ -899,7 +896,7 @@ class SwinTransformer3D(nn.Module):
                     i_state_dict.pop(key)
             # print(i_state_dict.keys())
             info = self.load_state_dict(i_state_dict, strict=False)
-            print(info)
+            logger.info("faster vqa swin加载{}权重,info:{} ".format(load_path, info))
 
     def _freeze_stages(self):
         if self.frozen_stages >= 0:

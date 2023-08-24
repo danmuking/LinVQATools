@@ -28,7 +28,8 @@ class DiViDeAddEvaluator(nn.Module):
         if backbone == 'faster_vqa':
             b = VideoBackbone(
                 base_x_size=base_x_size,
-                window_size=window_size
+                window_size=window_size,
+                load_path=load_path
             )
         elif backbone == 'mvit':
             b = MViT(arch='tiny', drop_path_rate=drop_path_rate)
