@@ -1,4 +1,3 @@
-import io
 import os
 from unittest import TestCase
 
@@ -13,10 +12,11 @@ class TestSingleBranchDataset(TestCase):
         os.chdir('../../')
         video_loader = dict(
             name='FragmentLoader',
+            prefix='fragment',
             argument=[
-                dict(
-                    name='FragmentShuffler',
-                ),
+                # dict(
+                #     name='FragmentShuffler',
+                # ),
                 dict(
                     name='PostProcessSampler',
                     num=2

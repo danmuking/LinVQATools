@@ -17,24 +17,34 @@ model = dict(
     backbone='faster_vqa',
     base_x_size=(16, 224, 224),
     window_size=(8, 7, 7),
+    vqa_head=dict(in_channels=768,fc_in=8*7*7),
     load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
 )
 epochs = 600
 batch_size = 7
-num_workers = 14
-prefix = 'fragment'
-video_loader = dict(
-    name='VideoSamplerLoader',
-    frame_sampler='CubeExtractSample',
-    k=16,
+num_workers = 12
+prefix = 'temp/fragment'
+argument = [
+        dict(
+            name='FragmentShuffler',
+        ),
+        dict(
+            name='PostProcessSampler',
+            num=2
+        )
+]
+train_video_loader = dict(
+    name='FragmentLoader',
+    frame_sampler=None,
+    spatial_sampler=None,
+    argument=argument,
+    phase='train',
     use_preprocess=True,
-    prefix=prefix,
-    argument=[],
 )
 train_dataloader = dict(
     dataset=dict(
         type='SingleBranchDataset',
-        video_loader=video_loader,
+        video_loader=train_video_loader,
         anno_root='./data/odv_vqa',
         anno_reader='ODVVQAReader',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
@@ -48,10 +58,18 @@ train_dataloader = dict(
     batch_size=batch_size,
     pin_memory=True,
     num_workers=num_workers)
+val_video_loader = dict(
+    name='FragmentLoader',
+    frame_sampler=None,
+    spatial_sampler=None,
+    argument=argument,
+    phase='test',
+    use_preprocess=True,
+)
 val_dataloader = dict(
     dataset=dict(
         type='SingleBranchDataset',
-        video_loader=video_loader,
+        video_loader=val_video_loader,
         anno_root='./data/odv_vqa',
         anno_reader='ODVVQAReader',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',

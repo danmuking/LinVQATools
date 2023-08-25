@@ -1,409 +1,546 @@
-# Copyright (c) OpenMMLab. All rights reserved.
-from typing import Dict, List, Optional, Union
+# --------------------------------------------------------
+# Based on BEiT, timm, DINO and DeiT code bases
+# https://github.com/microsoft/unilm/tree/master/beit
+# https://github.com/rwightman/pytorch-image-models/tree/master/timm
+# https://github.com/facebookresearch/deit
+# https://github.com/facebookresearch/dino
+# --------------------------------------------------------'
+from functools import partial
 
+import numpy as np
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
-from mmcv.cnn import build_norm_layer
-from mmcv.cnn.bricks import DropPath
-from mmcv.cnn.bricks.transformer import FFN, PatchEmbed
-from mmengine import MODELS
-from mmengine.model import BaseModule, ModuleList
-from torch import Tensor, nn
-
-from mmaction.utils import ConfigType, OptConfigType
+import torch.utils.checkpoint as cp
+from timm.models.layers import drop_path, to_2tuple, trunc_normal_
+from timm.models.registry import register_model
 
 from models import logger
 
-try:
-    from mmdet.registry import MODELS as MMDET_MODELS
 
-    mmdet_imported = True
-except (ImportError, ModuleNotFoundError):
-    mmdet_imported = False
+def _cfg(url='', **kwargs):
+    return {
+        'url': url,
+        'num_classes': 400,
+        'input_size': (3, 224, 224),
+        'pool_size': None,
+        'crop_pct': .9,
+        'interpolation': 'bicubic',
+        'mean': (0.5, 0.5, 0.5),
+        'std': (0.5, 0.5, 0.5),
+        **kwargs
+    }
 
 
-class Attention(BaseModule):
-    """Multi-head Self-attention.
-
-    Args:
-        embed_dims (int): Dimensions of embedding.
-        num_heads (int): Number of parallel attention heads.
-        qkv_bias (bool): If True, add a learnable bias to q and v.
-            Defaults to True.
-        qk_scale (float, optional): Override default qk scale of
-            ``head_dim ** -0.5`` if set. Defaults to None.
-        attn_drop_rate (float): Dropout ratio of attention weight.
-            Defaults to 0.
-        drop_rate (float): Dropout ratio of output. Defaults to 0.
-        init_cfg (dict or ConfigDict, optional): The Config
-            for initialization. Defaults to None.
+class DropPath(nn.Module):
+    """Drop paths (Stochastic Depth) per sample  (when applied in main path of residual blocks).
     """
 
+    def __init__(self, drop_prob=None):
+        super(DropPath, self).__init__()
+        self.drop_prob = drop_prob
+
+    def forward(self, x):
+        return drop_path(x, self.drop_prob, self.training)
+
+    def extra_repr(self) -> str:
+        return 'p={}'.format(self.drop_prob)
+
+
+class Mlp(nn.Module):
+
     def __init__(self,
-                 embed_dims: int,
-                 num_heads: int = 8,
-                 qkv_bias: bool = True,
-                 qk_scale: Optional[float] = None,
-                 attn_drop_rate: float = 0.,
-                 drop_rate: float = 0.,
-                 init_cfg: OptConfigType = None,
-                 **kwargs) -> None:
-        super().__init__(init_cfg=init_cfg)
-        self.embed_dims = embed_dims
+                 in_features,
+                 hidden_features=None,
+                 out_features=None,
+                 act_layer=nn.GELU,
+                 drop=0.):
+        super().__init__()
+        out_features = out_features or in_features
+        hidden_features = hidden_features or in_features
+        self.fc1 = nn.Linear(in_features, hidden_features)
+        self.act = act_layer()
+        self.fc2 = nn.Linear(hidden_features, out_features)
+        self.drop = nn.Dropout(drop)
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.act(x)
+        # x = self.drop(x)
+        # commit this for the orignal BERT implement
+        x = self.fc2(x)
+        x = self.drop(x)
+        return x
+
+
+class CosAttention(nn.Module):
+
+    def __init__(self,
+                 dim,
+                 num_heads=8,
+                 qkv_bias=False,
+                 qk_scale=None,
+                 attn_drop=0.,
+                 proj_drop=0.,
+                 attn_head_dim=None):
+        super().__init__()
         self.num_heads = num_heads
-        head_embed_dims = embed_dims // num_heads
-
-        self.scale = qk_scale or head_embed_dims ** -0.5
-
-        if qkv_bias:
-            self._init_qv_bias()
-
-        self.qkv = nn.Linear(embed_dims, embed_dims * 3, bias=False)
-        self.attn_drop = nn.Dropout(attn_drop_rate)
-        self.proj = nn.Linear(embed_dims, embed_dims)
-        self.proj_drop = nn.Dropout(drop_rate)
-
-    def _init_qv_bias(self) -> None:
-        self.q_bias = nn.Parameter(torch.zeros(self.embed_dims))
-        self.v_bias = nn.Parameter(torch.zeros(self.embed_dims))
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Defines the computation performed at every call.
-
-        Args:
-            x (Tensor): The input data with size of (B, N, C).
-        Returns:
-            Tensor: The output of the attention block, same size as inputs.
-        """
-        B, N, C = x.shape
-
-        if hasattr(self, 'q_bias'):
-            k_bias = torch.zeros_like(self.v_bias, requires_grad=False)
-            qkv_bias = torch.cat((self.q_bias, k_bias, self.v_bias))
-            qkv = F.linear(input=x, weight=self.qkv.weight, bias=qkv_bias)
+        head_dim = dim // num_heads
+        if attn_head_dim is not None:
+            head_dim = attn_head_dim
+        all_head_dim = head_dim * self.num_heads
+        # self.scale = qk_scale or head_dim**-0.5
+        # DO NOT RENAME [self.scale] (for no weight decay)
+        if qk_scale is None:
+            self.scale = nn.Parameter(
+                torch.log(10 * torch.ones((num_heads, 1, 1))),
+                requires_grad=True)
         else:
-            qkv = self.qkv(x)
+            self.scale = qk_scale
 
+        self.qkv = nn.Linear(dim, all_head_dim * 3, bias=False)
+        if qkv_bias:
+            self.q_bias = nn.Parameter(torch.zeros(all_head_dim))
+            self.v_bias = nn.Parameter(torch.zeros(all_head_dim))
+        else:
+            self.q_bias = None
+            self.v_bias = None
+
+        self.attn_drop = nn.Dropout(attn_drop)
+        self.proj = nn.Linear(all_head_dim, dim)
+        self.proj_drop = nn.Dropout(proj_drop)
+
+    def forward(self, x):
+        B, N, C = x.shape
+        qkv_bias = None
+        if self.q_bias is not None:
+            qkv_bias = torch.cat(
+                (self.q_bias,
+                 torch.zeros_like(self.v_bias,
+                                  requires_grad=False), self.v_bias))
+        qkv = F.linear(input=x, weight=self.qkv.weight, bias=qkv_bias)
         qkv = qkv.reshape(B, N, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)
-        q, k, v = qkv[0], qkv[1], qkv[2]
+        q, k, v = qkv[0], qkv[1], qkv[
+            2]  # make torchscript happy (cannot use tensor as tuple)
 
-        q = q * self.scale
-        attn = q @ k.transpose(-2, -1)
+        attn = (
+                F.normalize(q, dim=-1) @ F.normalize(k, dim=-1).transpose(-2, -1))
+
+        # torch.log(torch.tensor(1. / 0.01)) = 4.6052
+        logit_scale = torch.clamp(self.scale, max=4.6052).exp()
+
+        attn = attn * logit_scale
 
         attn = attn.softmax(dim=-1)
         attn = self.attn_drop(attn)
 
         x = (attn @ v).transpose(1, 2).reshape(B, N, -1)
+
         x = self.proj(x)
         x = self.proj_drop(x)
         return x
 
 
-class Block(BaseModule):
-    """The basic block in the Vision Transformer.
-
-    Args:
-        embed_dims (int): Dimensions of embedding.
-        num_heads (int): Number of parallel attention heads.
-        mlp_ratio (int): The ratio between the hidden layer and the
-            input layer in the FFN. Defaults to 4.
-        qkv_bias (bool): If True, add a learnable bias to q and v.
-            Defaults to True.
-        qk_scale (float): Override default qk scale of
-            ``head_dim ** -0.5`` if set. Defaults to None.
-        drop_rate (float): Dropout ratio of output. Defaults to 0.
-        attn_drop_rate (float): Dropout ratio of attention weight.
-            Defaults to 0.
-        drop_path_rate (float): Dropout ratio of the residual branch.
-            Defaults to 0.
-        init_values (float): Value to init the multiplier of the
-            residual branch. Defaults to 0.
-        act_cfg (dict or ConfigDict): Config for activation layer in FFN.
-            Defaults to `dict(type='GELU')`.
-        norm_cfg (dict or ConfigDict): Config for norm layers.
-            Defaults to `dict(type='LN', eps=1e-6)`.
-        init_cfg (dict or ConfigDict, optional): The Config
-            for initialization. Defaults to None.
-    """
+class Attention(nn.Module):
 
     def __init__(self,
-                 embed_dims: int,
-                 num_heads: int,
-                 mlp_ratio: int = 4.,
-                 qkv_bias: bool = True,
-                 qk_scale: Optional[float] = None,
-                 drop_rate: float = 0.,
-                 attn_drop_rate: float = 0.,
-                 drop_path_rate: float = 0.,
-                 init_values: float = 0.0,
-                 act_cfg: ConfigType = dict(type='GELU'),
-                 norm_cfg: ConfigType = dict(type='LN', eps=1e-6),
-                 init_cfg: OptConfigType = None,
-                 **kwargs) -> None:
-        super().__init__(init_cfg=init_cfg)
-        self.norm1 = build_norm_layer(norm_cfg, embed_dims)[1]
-        self.attn = Attention(
-            embed_dims,
-            num_heads=num_heads,
-            qkv_bias=qkv_bias,
-            qk_scale=qk_scale,
-            attn_drop_rate=attn_drop_rate,
-            drop_rate=drop_rate)
+                 dim,
+                 num_heads=8,
+                 qkv_bias=False,
+                 qk_scale=None,
+                 attn_drop=0.,
+                 proj_drop=0.,
+                 attn_head_dim=None):
+        super().__init__()
+        self.num_heads = num_heads
+        head_dim = dim // num_heads
+        if attn_head_dim is not None:
+            head_dim = attn_head_dim
+        all_head_dim = head_dim * self.num_heads
+        self.scale = qk_scale or head_dim ** -0.5
 
-        self.drop_path = nn.Identity()
-        if drop_path_rate > 0.:
-            self.drop_path = DropPath(drop_path_rate)
-        self.norm2 = build_norm_layer(norm_cfg, embed_dims)[1]
-
-        mlp_hidden_dim = int(embed_dims * mlp_ratio)
-        self.mlp = FFN(
-            embed_dims=embed_dims,
-            feedforward_channels=mlp_hidden_dim,
-            act_cfg=act_cfg,
-            ffn_drop=drop_rate,
-            add_identity=False)
-
-        self._init_gammas(init_values, embed_dims)
-
-    def _init_gammas(self, init_values: float, dim: int) -> None:
-        if type(init_values) == float and init_values > 0:
-            self.gamma_1 = nn.Parameter(
-                init_values * torch.ones(dim), requires_grad=True)
-            self.gamma_2 = nn.Parameter(
-                init_values * torch.ones(dim), requires_grad=True)
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Defines the computation performed at every call.
-
-        Args:
-            x (Tensor): The input data with size of (B, N, C).
-        Returns:
-            Tensor: The output of the transformer block, same size as inputs.
-        """
-        if hasattr(self, 'gamma_1'):
-            x = x + self.drop_path(self.gamma_1 * self.attn(self.norm1(x)))
-            x = x + self.drop_path(self.gamma_2 * self.mlp(self.norm2(x)))
+        self.qkv = nn.Linear(dim, all_head_dim * 3, bias=False)
+        if qkv_bias:
+            self.q_bias = nn.Parameter(torch.zeros(all_head_dim))
+            self.v_bias = nn.Parameter(torch.zeros(all_head_dim))
         else:
-            x = x + self.drop_path(self.attn(self.norm1(x)))
-            x = x + self.drop_path(self.mlp(self.norm2(x)))
+            self.q_bias = None
+            self.v_bias = None
+
+        self.attn_drop = nn.Dropout(attn_drop)
+        self.proj = nn.Linear(all_head_dim, dim)
+        self.proj_drop = nn.Dropout(proj_drop)
+
+    def forward(self, x):
+        B, N, C = x.shape
+        qkv_bias = None
+        if self.q_bias is not None:
+            qkv_bias = torch.cat(
+                (self.q_bias,
+                 torch.zeros_like(self.v_bias,
+                                  requires_grad=False), self.v_bias))
+        qkv = F.linear(input=x, weight=self.qkv.weight, bias=qkv_bias)
+        qkv = qkv.reshape(B, N, 3, self.num_heads, -1).permute(2, 0, 3, 1, 4)
+        q, k, v = qkv[0], qkv[1], qkv[
+            2]  # make torchscript happy (cannot use tensor as tuple)
+
+        q = q * self.scale
+        attn = (q @ k.transpose(-2, -1))
+
+        attn = attn.softmax(dim=-1)
+        attn = self.attn_drop(attn)
+
+        x = (attn @ v).transpose(1, 2).reshape(B, N, -1)
+
+        x = self.proj(x)
+        x = self.proj_drop(x)
         return x
 
 
-def get_sinusoid_encoding(n_position: int, embed_dims: int) -> Tensor:
-    """Generate sinusoid encoding table.
+class Block(nn.Module):
 
-    Sinusoid encoding is a kind of relative position encoding method came from
-    `Attention Is All You Need<https://arxiv.org/abs/1706.03762>`_.
-    Args:
-        n_position (int): The length of the input token.
-        embed_dims (int): The position embedding dimension.
-    Returns:
-        :obj:`torch.FloatTensor`: The sinusoid encoding table of size
-        (1, n_position, embed_dims)
-    """
+    def __init__(self,
+                 dim,
+                 num_heads,
+                 mlp_ratio=4.,
+                 qkv_bias=False,
+                 qk_scale=None,
+                 drop=0.,
+                 attn_drop=0.,
+                 drop_path=0.,
+                 init_values=None,
+                 act_layer=nn.GELU,
+                 norm_layer=nn.LayerNorm,
+                 attn_head_dim=None,
+                 cos_attn=False):
+        super().__init__()
+        self.norm1 = norm_layer(dim)
+        if cos_attn:
+            self.attn = CosAttention(
+                dim,
+                num_heads=num_heads,
+                qkv_bias=qkv_bias,
+                qk_scale=qk_scale,
+                attn_drop=attn_drop,
+                proj_drop=drop,
+                attn_head_dim=attn_head_dim)
+        else:
+            self.attn = Attention(
+                dim,
+                num_heads=num_heads,
+                qkv_bias=qkv_bias,
+                qk_scale=qk_scale,
+                attn_drop=attn_drop,
+                proj_drop=drop,
+                attn_head_dim=attn_head_dim)
+        # NOTE: drop path for stochastic depth, we shall see if this is better than dropout here
+        self.drop_path = DropPath(
+            drop_path) if drop_path > 0. else nn.Identity()
+        self.norm2 = norm_layer(dim)
+        mlp_hidden_dim = int(dim * mlp_ratio)
+        self.mlp = Mlp(
+            in_features=dim,
+            hidden_features=mlp_hidden_dim,
+            act_layer=act_layer,
+            drop=drop)
 
-    vec = torch.arange(embed_dims, dtype=torch.float64)
-    vec = (vec - vec % 2) / embed_dims
-    vec = torch.pow(10000, -vec).view(1, -1)
+        if init_values > 0:
+            self.gamma_1 = nn.Parameter(
+                init_values * torch.ones((dim)), requires_grad=True)
+            self.gamma_2 = nn.Parameter(
+                init_values * torch.ones((dim)), requires_grad=True)
+        else:
+            self.gamma_1, self.gamma_2 = None, None
 
-    sinusoid_table = torch.arange(n_position).view(-1, 1) * vec
-    sinusoid_table[:, 0::2].sin_()  # dim 2i
-    sinusoid_table[:, 1::2].cos_()  # dim 2i+1
+    def forward(self, x):
+        if self.gamma_1 is None:
+            x = x + self.drop_path(self.attn(self.norm1(x)))
+            x = x + self.drop_path(self.mlp(self.norm2(x)))
+        else:
+            x = x + self.drop_path(self.gamma_1 * self.attn(self.norm1(x)))
+            x = x + self.drop_path(self.gamma_2 * self.mlp(self.norm2(x)))
+        return x
 
-    sinusoid_table = sinusoid_table.to(torch.float32)
 
-    return sinusoid_table.unsqueeze(0)
-
-
-@MODELS.register_module()
-class VisionTransformer(BaseModule):
-    """Vision Transformer with support for patch or hybrid CNN input stage. An
-    impl of `VideoMAE: Masked Autoencoders are Data-Efficient Learners for
-    Self-Supervised Video Pre-Training <https://arxiv.org/pdf/2203.12602.pdf>`_
-
-    Args:
-        img_size (int or tuple): Size of input image.
-            Defaults to 224.
-        patch_size (int): Spatial size of one patch. Defaults to 16.
-        in_channels (int): The number of channels of he input.
-            Defaults to 3.
-        embed_dims (int): Dimensions of embedding. Defaults to 768.
-        depth (int): number of blocks in the transformer.
-            Defaults to 12.
-        num_heads (int): Number of parallel attention heads in
-            TransformerCoder. Defaults to 12.
-        mlp_ratio (int): The ratio between the hidden layer and the
-            input layer in the FFN. Defaults to 4.
-        qkv_bias (bool): If True, add a learnable bias to q and v.
-            Defaults to True.
-        qk_scale (float, optional): Override default qk scale of
-            ``head_dim ** -0.5`` if set. Defaults to None.
-        drop_rate (float): Dropout ratio of output. Defaults to 0.
-        attn_drop_rate (float): Dropout ratio of attention weight.
-            Defaults to 0.
-        drop_path_rate (float): Dropout ratio of the residual branch.
-            Defaults to 0.
-        norm_cfg (dict or Configdict): Config for norm layers.
-            Defaults to `dict(type='LN', eps=1e-6)`.
-        init_values (float): Value to init the multiplier of the residual
-            branch. Defaults to 0.
-        use_learnable_pos_emb (bool): If True, use learnable positional
-            embedding, othersize use sinusoid encoding. Defaults to False.
-        num_frames (int): Number of frames in the video. Defaults to 16.
-        tubelet_size (int): Temporal size of one patch. Defaults to 2.
-        use_mean_pooling (bool): If True, take the mean pooling over all
-            positions. Defaults to True.
-        pretrained (str, optional): Name of pretrained model. Default: None.
-        return_feat_map (bool): If True, return the feature in the shape of
-            `[B, C, T, H, W]`. Defaults to False.
-        init_cfg (dict or list[dict]): Initialization config dict. Defaults to
-            ``[
-            dict(type='TruncNormal', layer='Linear', std=0.02, bias=0.),
-            dict(type='Constant', layer='LayerNorm', val=1., bias=0.)
-            ]``.
+class PatchEmbed(nn.Module):
+    """ Image to Patch Embedding
     """
 
     def __init__(self,
-                 img_size: int = 224,
-                 patch_size: int = 16,
-                 in_channels: int = 3,
-                 embed_dims: int = 768,
-                 depth: int = 12,
-                 num_heads: int = 12,
-                 mlp_ratio: int = 4.,
-                 qkv_bias: bool = True,
-                 qk_scale: int = None,
-                 drop_rate: float = 0.,
-                 attn_drop_rate: float = 0.,
-                 drop_path_rate: float = 0.,
-                 norm_cfg: ConfigType = dict(type='LN', eps=1e-6),
-                 init_values: int = 0.,
-                 use_learnable_pos_emb: bool = False,
-                 num_frames: int = 16,
-                 tubelet_size: int = 2,
-                 use_mean_pooling: int = True,
-                 pretrained: Optional[str] = None,
-                 return_feat_map: bool = False,
-                 init_cfg: Optional[Union[Dict, List[Dict]]] = [
-                     dict(
-                         type='TruncNormal', layer='Linear', std=0.02,
-                         bias=0.),
-                     dict(type='Constant', layer='LayerNorm', val=1., bias=0.)
-                 ],
-                 load_path=None,
-                 **kwargs) -> None:
+                 img_size=224,
+                 patch_size=16,
+                 in_chans=3,
+                 embed_dim=768,
+                 num_frames=16,
+                 tubelet_size=2):
+        super().__init__()
+        img_size = to_2tuple(img_size)
+        patch_size = to_2tuple(patch_size)
+        num_spatial_patches = (img_size[0] // patch_size[0]) * (
+                img_size[1] // patch_size[1])
+        num_patches = num_spatial_patches * (num_frames // tubelet_size)
 
-        if pretrained:
-            self.init_cfg = dict(type='Pretrained', checkpoint=pretrained)
-        super().__init__(init_cfg=init_cfg)
-
-        self.embed_dims = embed_dims
+        self.img_size = img_size
+        self.tubelet_size = tubelet_size
         self.patch_size = patch_size
+        self.num_patches = num_patches
+        self.proj = nn.Conv3d(
+            in_channels=in_chans,
+            out_channels=embed_dim,
+            kernel_size=(self.tubelet_size, patch_size[0], patch_size[1]),
+            stride=(self.tubelet_size, patch_size[0], patch_size[1]))
 
+    def forward(self, x, **kwargs):
+        B, C, T, H, W = x.shape
+        assert H == self.img_size[0] and W == self.img_size[
+            1], f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."
+        # b, c, l -> b, l, c
+        x = self.proj(x).flatten(2).transpose(1, 2)
+        return x
+
+
+# sin-cos position encoding
+# https://github.com/jadore801120/attention-is-all-you-need-pytorch/blob/master/transformer/Models.py#L31
+def get_sinusoid_encoding_table(n_position, d_hid):
+    ''' Sinusoid position encoding table '''
+
+    # TODO: make it with torch instead of numpy
+    def get_position_angle_vec(position):
+        return [
+            position / np.power(10000, 2 * (hid_j // 2) / d_hid)
+            for hid_j in range(d_hid)
+        ]
+
+    sinusoid_table = np.array(
+        [get_position_angle_vec(pos_i) for pos_i in range(n_position)])
+    sinusoid_table[:, 0::2] = np.sin(sinusoid_table[:, 0::2])  # dim 2i
+    sinusoid_table[:, 1::2] = np.cos(sinusoid_table[:, 1::2])  # dim 2i+1
+
+    return torch.tensor(
+        sinusoid_table, dtype=torch.float, requires_grad=False).unsqueeze(0)
+
+
+class VisionTransformer(nn.Module):
+    """ Vision Transformer with support for patch or hybrid CNN input stage
+    """
+
+    def __init__(self,
+                 img_size=224,
+                 patch_size=16,
+                 in_chans=3,
+                 num_classes=1000,
+                 embed_dim=768,
+                 depth=12,
+                 num_heads=12,
+                 mlp_ratio=4.,
+                 qkv_bias=False,
+                 qk_scale=None,
+                 drop_rate=0.,
+                 attn_drop_rate=0.,
+                 drop_path_rate=0.,
+                 head_drop_rate=0.,
+                 norm_layer=nn.LayerNorm,
+                 init_values=0.,
+                 use_learnable_pos_emb=False,
+                 init_scale=0.,
+                 all_frames=16,
+                 tubelet_size=2,
+                 use_mean_pooling=True,
+                 with_cp=False,
+                 cos_attn=False,
+                 load_path=None):
+        super().__init__()
+        self.num_classes = num_classes
+        # num_features for consistency with other models
+        self.num_features = self.embed_dim = embed_dim
+        self.tubelet_size = tubelet_size
         self.patch_embed = PatchEmbed(
-            in_channels=in_channels,
-            embed_dims=embed_dims,
-            conv_type='Conv3d',
-            kernel_size=(tubelet_size, patch_size, patch_size),
-            stride=(tubelet_size, patch_size, patch_size),
-            padding=(0, 0, 0),
-            dilation=(1, 1, 1))
-
-        grid_size = img_size // patch_size
-        num_patches = grid_size ** 2 * (num_frames // tubelet_size)
-        self.grid_size = (grid_size, grid_size)
+            img_size=img_size,
+            patch_size=patch_size,
+            in_chans=in_chans,
+            embed_dim=embed_dim,
+            num_frames=all_frames,
+            tubelet_size=tubelet_size)
+        num_patches = self.patch_embed.num_patches
+        self.with_cp = with_cp
 
         if use_learnable_pos_emb:
             self.pos_embed = nn.Parameter(
-                torch.zeros(1, num_patches, embed_dims))
-            nn.init.trunc_normal_(self.pos_embed, std=.02)
+                torch.zeros(1, num_patches, embed_dim))
         else:
             # sine-cosine positional embeddings is on the way
-            pos_embed = get_sinusoid_encoding(num_patches, embed_dims)
-            self.register_buffer('pos_embed', pos_embed)
+            self.pos_embed = get_sinusoid_encoding_table(
+                num_patches, embed_dim)
 
         self.pos_drop = nn.Dropout(p=drop_rate)
 
-        # stochastic depth decay rule
-        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]
-
-        self.blocks = ModuleList([
+        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)
+               ]  # stochastic depth decay rule
+        self.blocks = nn.ModuleList([
             Block(
-                embed_dims=embed_dims,
+                dim=embed_dim,
                 num_heads=num_heads,
                 mlp_ratio=mlp_ratio,
                 qkv_bias=qkv_bias,
                 qk_scale=qk_scale,
-                drop_rate=drop_rate,
-                attn_drop_rate=attn_drop_rate,
-                drop_path_rate=dpr[i],
-                norm_cfg=norm_cfg,
-                init_values=init_values) for i in range(depth)
+                drop=drop_rate,
+                attn_drop=attn_drop_rate,
+                drop_path=dpr[i],
+                norm_layer=norm_layer,
+                init_values=init_values,
+                cos_attn=cos_attn) for i in range(depth)
         ])
+        self.norm = nn.Identity() if use_mean_pooling else norm_layer(
+            embed_dim)
+        self.fc_norm = norm_layer(embed_dim) if use_mean_pooling else None
+        self.head_dropout = nn.Dropout(head_drop_rate)
+        self.head = nn.Linear(
+            embed_dim, num_classes) if num_classes > 0 else nn.Identity()
 
-        if use_mean_pooling:
-            self.norm = nn.Identity()
-            self.fc_norm = build_norm_layer(norm_cfg, embed_dims)[1]
-        else:
-            self.norm = build_norm_layer(norm_cfg, embed_dims)[1]
-            self.fc_norm = None
+        if use_learnable_pos_emb:
+            trunc_normal_(self.pos_embed, std=.02)
 
-        self.return_feat_map = return_feat_map
+        self.apply(self._init_weights)
+        #
+        # self.head.weight.data.mul_(init_scale)
+        # self.head.bias.data.mul_(init_scale)
 
         if load_path is not None:
             self.load(load_path)
 
-    def forward(self, x: Tensor, *args, **kwargs) -> Tensor:
-        """Defines the computation performed at every call.
+    def load(self, load_path):
+        weight = torch.load(load_path)['module']
+        from collections import OrderedDict
+        s_state_dict = OrderedDict()
+        t_state_dict = self.state_dict()
+        for key in weight.keys():
+            if key in t_state_dict.keys() and t_state_dict[key].shape == weight[key].shape:
+                s_state_dict[key] = weight[key]
+        info = self.load_state_dict(s_state_dict, strict=False)
+        logger.info("vit加载{}权重,info:{} ".format(load_path, info))
 
-        Args:
-            x (Tensor): The input data.
-        Returns:
-            Tensor: The feature of the input
-                samples extracted by the backbone.
-        """
-        b, _, _, h, w = x.shape
-        h //= self.patch_size
-        w //= self.patch_size
-        x = self.patch_embed(x)[0]
-        if (h, w) != self.grid_size:
-            pos_embed = self.pos_embed.reshape(-1, *self.grid_size,
-                                               self.embed_dims)
-            pos_embed = pos_embed.permute(0, 3, 1, 2)
-            pos_embed = F.interpolate(
-                pos_embed, size=(h, w), mode='bicubic', align_corners=False)
-            pos_embed = pos_embed.permute(0, 2, 3, 1).flatten(1, 2)
-            pos_embed = pos_embed.reshape(1, -1, self.embed_dims)
-        else:
-            pos_embed = self.pos_embed
+    def _init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            trunc_normal_(m.weight, std=.02)
+            if isinstance(m, nn.Linear) and m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.LayerNorm):
+            nn.init.constant_(m.bias, 0)
+            nn.init.constant_(m.weight, 1.0)
 
-        x = x + pos_embed
+    def get_num_layers(self):
+        return len(self.blocks)
+
+    @torch.jit.ignore
+    def no_weight_decay(self):
+        return {'pos_embed', 'cls_token'}
+
+    def get_classifier(self):
+        return self.head
+
+    def reset_classifier(self, num_classes, global_pool=''):
+        self.num_classes = num_classes
+        self.head = nn.Linear(
+            self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+
+    def forward_features(self, x):
+        B = x.size(0)
+
+        x = self.patch_embed(x)
+
+        if self.pos_embed is not None:
+            x = x + self.pos_embed.expand(B, -1, -1).type_as(x).to(
+                x.device).clone().detach()
         x = self.pos_drop(x)
 
         for blk in self.blocks:
-            x = blk(x)
-
-        x = self.norm(x)
-
-        if self.return_feat_map:
-            x = x.reshape(b, -1, h, w, self.embed_dims)
-            x = x.permute(0, 4, 1, 2, 3)
-            return [[x]]
+            if self.with_cp:
+                x = cp.checkpoint(blk, x)
+            else:
+                x = blk(x)
 
         if self.fc_norm is not None:
             return self.fc_norm(x.mean(1))
+        else:
+            return self.norm(x[:, 0])
 
-        return x[:, 0]
-
-    def load(self, path):
-        weight = torch.load(path)
-        from collections import OrderedDict
-        s_state_dict = OrderedDict()
-        for key in weight.keys():
-            s_state_dict[key[9:]] = weight[key]
-        info = self.load_state_dict(s_state_dict, strict=False)
-        logger.info("vit加载{}权重,info:{} ".format(path, info))
+    def forward(self, x, **kwargs):
+        x = self.forward_features(x)
+        x = self.head_dropout(x)
+        x = self.head(x)
+        return [[x]]
 
 
-if mmdet_imported:
-    MMDET_MODELS.register_module()(VisionTransformer)
+@register_model
+def vit_small_patch16_224(pretrained=False, **kwargs):
+    model = VisionTransformer(
+        patch_size=16,
+        embed_dim=384,
+        depth=12,
+        num_heads=6,
+        mlp_ratio=4,
+        qkv_bias=True,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6),
+        **kwargs)
+    model.default_cfg = _cfg()
+    return model
+
+
+@register_model
+def vit_base_patch16_224(pretrained=False, **kwargs):
+    model = VisionTransformer(
+        patch_size=16,
+        embed_dim=768,
+        depth=12,
+        num_heads=12,
+        mlp_ratio=4,
+        qkv_bias=True,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6),
+        **kwargs)
+    model.default_cfg = _cfg()
+    return model
+
+
+@register_model
+def vit_large_patch16_224(pretrained=False, **kwargs):
+    model = VisionTransformer(
+        patch_size=16,
+        embed_dim=1024,
+        depth=24,
+        num_heads=16,
+        mlp_ratio=4,
+        qkv_bias=True,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6),
+        **kwargs)
+    model.default_cfg = _cfg()
+    return model
+
+
+@register_model
+def vit_huge_patch16_224(pretrained=False, **kwargs):
+    model = VisionTransformer(
+        patch_size=16,
+        embed_dim=1280,
+        depth=32,
+        num_heads=16,
+        mlp_ratio=4,
+        qkv_bias=True,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6),
+        **kwargs)
+    model.default_cfg = _cfg()
+    return model
+
+
+@register_model
+def vit_giant_patch14_224(pretrained=False, **kwargs):
+    model = VisionTransformer(
+        patch_size=14,
+        embed_dim=1408,
+        depth=40,
+        num_heads=16,
+        mlp_ratio=48 / 11,
+        qkv_bias=True,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6),
+        **kwargs)
+    model.default_cfg = _cfg()
+    return model

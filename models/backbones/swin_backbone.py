@@ -4,11 +4,12 @@ import torch.nn.functional as F
 import torch.utils.checkpoint as checkpoint
 import numpy as np
 from timm.models.layers import DropPath, trunc_normal_
-import math
 
 from functools import reduce, lru_cache
 from operator import mul
 from einops import rearrange
+
+from models import logger
 
 
 def fragment_infos(D, H, W, fragments=7, device="cuda"):
@@ -804,6 +805,7 @@ class SwinTransformer3D(nn.Module):
             jump_attention=[False, False, False, False],
             frag_biases=[True, True, True, False],
             base_x_size=(32, 224, 224),
+            load_path = None
     ):
         super().__init__()
 
@@ -867,6 +869,34 @@ class SwinTransformer3D(nn.Module):
         self._freeze_stages()
 
         self.init_weights()
+
+        if load_path is not None:
+            self.load(load_path)
+
+    def load(self,load_path):
+        # 加载预训练参数
+        state_dict = torch.load(load_path, map_location='cpu')
+
+        if "state_dict" in state_dict:
+            ### migrate training weights from mmaction
+            state_dict = state_dict["state_dict"]
+            from collections import OrderedDict
+
+            i_state_dict = OrderedDict()
+            for key in state_dict.keys():
+                if "head" in key:
+                    continue
+                elif "backbone" in key:
+                    i_state_dict[key[9:]] = state_dict[key]
+                else:
+                    i_state_dict[key] = state_dict[key]
+            t_state_dict = self.state_dict()
+            for key, value in t_state_dict.items():
+                if key in i_state_dict and i_state_dict[key].shape != value.shape:
+                    i_state_dict.pop(key)
+            # print(i_state_dict.keys())
+            info = self.load_state_dict(i_state_dict, strict=False)
+            logger.info("faster vqa swin加载{}权重,info:{} ".format(load_path, info))
 
     def _freeze_stages(self):
         if self.frozen_stages >= 0:

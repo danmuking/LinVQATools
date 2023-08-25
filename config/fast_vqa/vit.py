@@ -17,17 +17,17 @@ model = dict(
     backbone='vit',
     base_x_size=(16, 224, 224),
     window_size=(8, 7, 7),
-    vqa_head=dict(in_channels=384),
-    load_path="./pretrained_weights/vit-small-p16_videomaev2-vit-g-dist-k710-pre_16x4x1_kinetics-400_20230510-25c748fd.pth"
+    vqa_head=dict(name='FcHead', in_channels=384, drop_rate=0.8),
+    load_path="./pretrained_weights/vit_s_k710_dl_from_giant.pth"
 )
 epochs = 600
-batch_size = 8
-num_workers = 12
-prefix = 'temp/fragment'
+batch_size = 5
+num_workers = 16
+prefix = 'fragment'
 argument = [
-        dict(
-            name='FragmentShuffler',
-        ),
+        # dict(
+        #     name='FragmentShuffler',
+        # ),
         dict(
             name='PostProcessSampler',
             num=2
@@ -35,6 +35,7 @@ argument = [
 ]
 train_video_loader = dict(
     name='FragmentLoader',
+    prefix=prefix,
     frame_sampler=None,
     spatial_sampler=None,
     argument=argument,
@@ -60,6 +61,7 @@ train_dataloader = dict(
     num_workers=num_workers)
 val_video_loader = dict(
     name='FragmentLoader',
+    prefix=prefix,
     frame_sampler=None,
     spatial_sampler=None,
     argument=argument,

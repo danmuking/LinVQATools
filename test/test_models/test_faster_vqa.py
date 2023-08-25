@@ -15,8 +15,8 @@ class TestFasterVQA(TestCase):
         model = FasterVQA(
             backbone='vit',
             base_x_size=(16, 224, 224),
-            vqa_head=dict(in_channels=384),
-            load_path="./pretrained_weights/vit-small-p16_videomaev2-vit-g-dist-k710-pre_16x4x1_kinetics-400_20230510-25c748fd.pth"
+            vqa_head=dict(name='FcHead',in_channels=384,drop_rate=0.8),
+            # load_path="/data/ly/code/LinVQATools/pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
         )
         # print(model.state_dict())
         # i_state_dict = model.state_dict()

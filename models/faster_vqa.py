@@ -58,7 +58,7 @@ class FasterVQA(BaseModel):
         # self.logger = MMLogger.get_instance('mmengine', log_level='INFO')
         # TODO: 将权重加载交给骨干网络完成，vit已实现
         # 加载预训练权重
-        if load_path is not None and backbone != 'vit':
+        if load_path is not None and backbone != 'vit'and backbone != 'faster_vqa':
             # self.logger.info("加载{}权重".format(load_path))
             self._load_weight(load_path)
 
@@ -143,7 +143,7 @@ class FasterVQA(BaseModel):
                 if "cls" in key:
                     tkey = key.replace("cls", "vqa")
                 elif "backbone" in key:
-                    i_state_dict[key] = state_dict[key]
+                    # i_state_dict[key] = state_dict[key]
                     i_state_dict["fragments_" + key] = state_dict[key]
                     # i_state_dict["resize_" + key] = state_dict[key]
                 else:

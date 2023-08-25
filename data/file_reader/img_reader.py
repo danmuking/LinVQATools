@@ -21,7 +21,7 @@ class ImgReader:
         """
         # 直接读取视频
         if is_train:
-            num = random.randint(0, 150)
+            num = random.randint(0, 39)
         else:
             num = 0
         # 预处理好的视频路径
@@ -30,8 +30,11 @@ class ImgReader:
         video_pre_path.insert(4, '{}'.format(num))
         video_pre_path = os.path.join('/', *video_pre_path)[:-4]
         logger.debug("尝试加载{}".format(video_pre_path))
+        img_list = os.listdir(video_pre_path)
+        frame_index = [int(x[:-4]) for x in img_list]
+        frame_index.sort()
         video = []
-        for i in range(32):
+        for i in frame_index:
             img_path = os.path.join(video_pre_path, "{}.png".format(i))
             if not os.path.exists(img_path):
                 logger.error("{}加载失败".format(img_path))
