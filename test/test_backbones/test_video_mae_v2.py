@@ -1,21 +1,39 @@
+from functools import partial
 from unittest import TestCase
 
 import torch
+from torch import nn
 
-from models.backbones.video_mae_v2 import VisionTransformer
+from models.backbones.video_mae_v2 import VisionTransformer, vit_small_patch16_224
 
 
 class TestVisionTransformer(TestCase):
     def test(self):
         model = VisionTransformer(
-            img_size=224,
             patch_size=16,
+            embed_dim=384,
+            depth=12,
+            num_heads=6,
             mlp_ratio=4,
             qkv_bias=True,
-            num_frames=16,
-            norm_cfg=dict(type='LN', eps=1e-6),
-            embed_dims=384, depth=12, num_heads=6,
-            return_feat_map=True)
-        x = torch.zeros((1, 3, 16, 224, 224))
+            norm_layer=partial(nn.LayerNorm, eps=1e-6),
+            num_classes=0,
+        )
+        x = torch.zeros((2, 3, 16, 224, 224))
         y = model(x)
-        print(y.shape)
+        print(y[0][0].shape)
+    def test_load(self):
+        path = '/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth'
+        weight = torch.load(path)['module']
+        # print(weight.keys())
+        model = VisionTransformer(
+            patch_size=16,
+            embed_dim=384,
+            depth=12,
+            num_heads=6,
+            mlp_ratio=4,
+            qkv_bias=True,
+            norm_layer=partial(nn.LayerNorm, eps=1e-6),
+            load_path=path,
+            num_classes=0,
+        )
