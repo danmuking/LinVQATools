@@ -25,9 +25,10 @@ batch_size = 5
 num_workers = 16
 prefix = 'fragment'
 argument = [
-        # dict(
-        #     name='FragmentShuffler',
-        # ),
+        dict(
+            name='FragmentShuffler',
+            fragment_size=16,
+        ),
         dict(
             name='PostProcessSampler',
             num=2
