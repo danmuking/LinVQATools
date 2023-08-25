@@ -415,7 +415,6 @@ class VisionTransformer(nn.Module):
         t_state_dict = self.state_dict()
         for key in weight.keys():
             if key in t_state_dict.keys() and t_state_dict[key].shape == weight[key].shape:
-                print(key)
                 s_state_dict[key] = weight[key]
         info = self.load_state_dict(s_state_dict, strict=False)
         logger.info("vit加载{}权重,info:{} ".format(load_path, info))
