@@ -29,7 +29,7 @@ class FcHead(nn.Module):
     def forward(self, x):
         x = x[0][0]
         logger.debug("head层输入维度: {}".format(x.shape))
-        x = x.view(x.shape[0], -1)
+        x = x.reshape(x.shape[0], -1)
         logger.debug("head: 特征展开{}".format(x.shape))
         x = self.dropout(x)
         qlt_score = self.fc_hid(x)

@@ -6,8 +6,7 @@ from .backbones.base_swin_backbone import SwinTransformer3D
 from .backbones.mvit import MViT
 from .backbones.swin_backbone import SwinTransformer3D as VideoBackbone
 from .backbones.video_mae_v2 import VisionTransformer
-from .heads.fc import FcHead
-from .heads.head import VQAHead
+import models.heads as heads
 
 
 class DiViDeAddEvaluator(nn.Module):
@@ -18,7 +17,7 @@ class DiViDeAddEvaluator(nn.Module):
             layer=-1,
             backbone='swin',
             base_x_size=(32, 224, 224),
-            vqa_head=dict(in_channels=768),
+            vqa_head=dict(name='VQAHead', in_channels=768),
             drop_path_rate=0.2,
             load_path=None
     ):
@@ -50,7 +49,7 @@ class DiViDeAddEvaluator(nn.Module):
             )
         print("Setting backbone:", 'fragments' + "_backbone")
         setattr(self, 'fragments' + "_backbone", b)
-        self.vqa_head = VQAHead(**vqa_head)
+        self.vqa_head = getattr(heads, vqa_head['name'])(**vqa_head)
 
     def forward(self, vclips, inference=False, return_pooled_feats=False, reduce_scores=True, pooled=False, **kwargs):
         vclips = {

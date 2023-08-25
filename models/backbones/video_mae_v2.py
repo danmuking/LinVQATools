@@ -124,7 +124,7 @@ class CosAttention(nn.Module):
             2]  # make torchscript happy (cannot use tensor as tuple)
 
         attn = (
-            F.normalize(q, dim=-1) @ F.normalize(k, dim=-1).transpose(-2, -1))
+                F.normalize(q, dim=-1) @ F.normalize(k, dim=-1).transpose(-2, -1))
 
         # torch.log(torch.tensor(1. / 0.01)) = 4.6052
         logit_scale = torch.clamp(self.scale, max=4.6052).exp()
@@ -157,7 +157,7 @@ class Attention(nn.Module):
         if attn_head_dim is not None:
             head_dim = attn_head_dim
         all_head_dim = head_dim * self.num_heads
-        self.scale = qk_scale or head_dim**-0.5
+        self.scale = qk_scale or head_dim ** -0.5
 
         self.qkv = nn.Linear(dim, all_head_dim * 3, bias=False)
         if qkv_bias:
@@ -277,7 +277,7 @@ class PatchEmbed(nn.Module):
         img_size = to_2tuple(img_size)
         patch_size = to_2tuple(patch_size)
         num_spatial_patches = (img_size[0] // patch_size[0]) * (
-            img_size[1] // patch_size[1])
+                img_size[1] // patch_size[1])
         num_patches = num_spatial_patches * (num_frames // tubelet_size)
 
         self.img_size = img_size
@@ -408,7 +408,7 @@ class VisionTransformer(nn.Module):
         if load_path is not None:
             self.load(load_path)
 
-    def load(self,load_path):
+    def load(self, load_path):
         weight = torch.load(load_path)['module']
         from collections import OrderedDict
         s_state_dict = OrderedDict()
@@ -418,6 +418,7 @@ class VisionTransformer(nn.Module):
                 s_state_dict[key] = weight[key]
         info = self.load_state_dict(s_state_dict, strict=False)
         logger.info("vit加载{}权重,info:{} ".format(load_path, info))
+
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
             trunc_normal_(m.weight, std=.02)
@@ -463,7 +464,7 @@ class VisionTransformer(nn.Module):
         else:
             return self.norm(x[:, 0])
 
-    def forward(self, x):
+    def forward(self, x, **kwargs):
         x = self.forward_features(x)
         x = self.head_dropout(x)
         x = self.head(x)

@@ -17,8 +17,8 @@ model = dict(
     backbone='vit',
     base_x_size=(16, 224, 224),
     window_size=(8, 7, 7),
-    vqa_head=dict(in_channels=384,fc_in=1568),
-    load_path="./pretrained_weights/vit-small-p16_videomaev2-vit-g-dist-k710-pre_16x4x1_kinetics-400_20230510-25c748fd.pth"
+    vqa_head=dict(name='FcHead', in_channels=384, drop_rate=0.8),
+    load_path="./pretrained_weights/vit_s_k710_dl_from_giant.pth"
 )
 epochs = 600
 batch_size = 5
@@ -95,7 +95,7 @@ train_cfg = dict(
 val_cfg = dict()
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.00001, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
