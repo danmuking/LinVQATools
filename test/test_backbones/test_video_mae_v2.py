@@ -18,6 +18,7 @@ class TestVisionTransformer(TestCase):
             qkv_bias=True,
             norm_layer=partial(nn.LayerNorm, eps=1e-6),
             num_classes=0,
+            use_mean_pooling=False
         )
         x = torch.zeros((2, 3, 16, 224, 224))
         y = model(x)
@@ -36,4 +37,5 @@ class TestVisionTransformer(TestCase):
             norm_layer=partial(nn.LayerNorm, eps=1e-6),
             load_path=path,
             num_classes=0,
+            use_mean_pooling=False
         )

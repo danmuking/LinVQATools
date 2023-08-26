@@ -46,6 +46,7 @@ class DiViDeAddEvaluator(nn.Module):
                 norm_layer=partial(nn.LayerNorm, eps=1e-6),
                 load_path=load_path,
                 num_classes=0,
+                use_mean_pooling=False
             )
         print("Setting backbone:", 'fragments' + "_backbone")
         setattr(self, 'fragments' + "_backbone", b)
