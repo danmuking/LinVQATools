@@ -22,7 +22,7 @@ model = dict(
     load_path="./pretrained_weights/vit_s_k710_dl_from_giant.pth"
 )
 epochs = 600
-batch_size = 4
+batch_size = 32
 num_workers = 16
 prefix = 'fragment'
 argument = [
