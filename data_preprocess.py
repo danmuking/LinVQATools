@@ -167,7 +167,7 @@ if __name__ == '__main__':
     anno_path = os.path.join(file, './data/odv_vqa')
     data_anno = ODVVQAReader(anno_path).read()
     pool = Pool(16)
-    for i in tqdm(range(40)):
+    for i in tqdm(range(40,80)):
         for video_info in data_anno:
             video_path = video_info['video_path']
             print(video_path)
