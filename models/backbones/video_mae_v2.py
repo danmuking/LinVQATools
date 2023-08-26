@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.checkpoint as cp
+from einops import rearrange
 from timm.models.layers import drop_path, to_2tuple, trunc_normal_
 from timm.models.registry import register_model
 
@@ -458,11 +459,12 @@ class VisionTransformer(nn.Module):
                 x = cp.checkpoint(blk, x)
             else:
                 x = blk(x)
-
         if self.fc_norm is not None:
             return self.fc_norm(x.mean(1))
         else:
-            return self.norm(x[:, 0])
+            x = self.norm(x)
+            x = rearrange(x, 'b (t h w) c -> b c t h w', t=8, h=14, w=14)
+            return x
 
     def forward(self, x, **kwargs):
         x = self.forward_features(x)
