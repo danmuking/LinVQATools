@@ -37,7 +37,7 @@ class DiViDeAddEvaluator(nn.Module):
             b = SwinTransformer3D(arch='tiny')
         elif backbone == 'vit':
             b = VisionTransformer(
-                patch_size=32,
+                patch_size=16,
                 embed_dim=384,
                 depth=12,
                 num_heads=6,
@@ -46,7 +46,7 @@ class DiViDeAddEvaluator(nn.Module):
                 norm_layer=partial(nn.LayerNorm, eps=1e-6),
                 load_path=load_path,
                 num_classes=0,
-                use_mean_pooling=True
+                use_mean_pooling=False
             )
         print("Setting backbone:", 'fragments' + "_backbone")
         setattr(self, 'fragments' + "_backbone", b)

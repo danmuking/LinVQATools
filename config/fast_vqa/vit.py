@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/vit_patch32'
+work_dir = 'work_dir/faster_vqa/vit_patch16_data79'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='vit patch32')
+            init_kwargs=dict(project='faster vqa消融', name='vit patch16 data79')
         ),
     ],
 )
@@ -17,14 +17,14 @@ model = dict(
     backbone='vit',
     base_x_size=(16, 224, 224),
     window_size=(8, 7, 7),
-    # vqa_head=dict(name='VQAHead',in_channels=384,drop_rate=0.5),
-    vqa_head=dict(name='FcHead', in_channels=384, drop_rate=0.5),
+    vqa_head=dict(name='VQAHead',in_channels=384,drop_rate=0.5),
+    # vqa_head=dict(name='FcHead', in_channels=384, drop_rate=0.5),
     load_path="./pretrained_weights/vit_s_k710_dl_from_giant.pth"
 )
 epochs = 600
-batch_size = 32
+batch_size = 4
 num_workers = 16
-prefix = 'temp/fragment'
+prefix = 'fragment'
 argument = [
         dict(
             name='FragmentShuffler',
