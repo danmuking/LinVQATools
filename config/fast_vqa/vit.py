@@ -24,7 +24,7 @@ model = dict(
 epochs = 600
 batch_size = 4
 num_workers = 16
-prefix = 'fragment'
+prefix = 'temp/fragment'
 argument = [
         dict(
             name='FragmentShuffler',
