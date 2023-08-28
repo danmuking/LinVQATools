@@ -37,7 +37,7 @@ class DiViDeAddEvaluator(nn.Module):
             b = SwinTransformer3D(arch='tiny')
         elif backbone == 'vit':
             b = VisionTransformer(
-                patch_size=16,
+                patch_size=32,
                 embed_dim=384,
                 depth=12,
                 num_heads=6,
