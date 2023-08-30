@@ -31,13 +31,16 @@ class DiViDeAddEvaluator(nn.Module):
                 load_path=load_path
             )
         elif backbone == 'mvit':
-            b = MViT(arch='tiny', drop_path_rate=drop_path_rate)
-            b.init_weights()
+            b = MViT(
+                arch='small',
+                drop_path_rate=drop_path_rate,
+                load_path=load_path,
+            )
         elif backbone == 'swin':
             b = SwinTransformer3D(arch='tiny')
         elif backbone == 'vit':
             b = VisionTransformer(
-                patch_size=32,
+                patch_size=8,
                 embed_dim=384,
                 depth=12,
                 num_heads=6,
