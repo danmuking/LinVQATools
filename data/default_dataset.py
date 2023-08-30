@@ -56,20 +56,26 @@ class SingleBranchDataset(Dataset):
         # 视频加载器
         self.video_loader = getattr(loader, video_loader['name'])(**video_loader)
 
+        # 视频中相机是否移动
+        self.camera_motion = [1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1,
+                              1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0]
+
     def __getitem__(self, index):
         video_info = self.data[index]
-        video_path: Dict = video_info["video_path"]
+        video_path: str = video_info["video_path"]
         score = video_info["score"]
         frame_num = video_info['frame_num']
 
         video = self.video_loader(video_path=video_path, frame_num=frame_num)
 
+        camera_motion = video_info['scene_id']
         if self.norm:
             video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
         data = {
             "inputs": video, "num_clips": {},
             # "frame_inds": frame_idxs,
             "gt_label": score,
+            'camera_motion': camera_motion,
             "name": osp.basename(video_path)
         }
 

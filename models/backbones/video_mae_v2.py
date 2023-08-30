@@ -463,7 +463,7 @@ class VisionTransformer(nn.Module):
             return self.fc_norm(x.mean(1))
         else:
             x = self.norm(x)
-            x = rearrange(x, 'b (t h w) c -> b c t h w', t=8, h=14, w=14)
+            x = rearrange(x, 'b (t h w) c -> b c t h w', t=8, h=7, w=7)
             return x
 
     def forward(self, x, **kwargs):

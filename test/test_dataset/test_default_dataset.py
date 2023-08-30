@@ -12,11 +12,11 @@ class TestSingleBranchDataset(TestCase):
         os.chdir('../../')
         video_loader = dict(
             name='FragmentLoader',
-            prefix='fragment',
+            prefix='temp/fragment',
             argument=[
                 dict(
                     name='FragmentShuffler',
-                    fragment_size=16
+                    fragment_size=32
                 ),
                 dict(
                     name='PostProcessSampler',
