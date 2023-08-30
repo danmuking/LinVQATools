@@ -58,7 +58,7 @@ class FasterVQA(BaseModel):
         # self.logger = MMLogger.get_instance('mmengine', log_level='INFO')
         # TODO: 将权重加载交给骨干网络完成，vit已实现
         # 加载预训练权重
-        if load_path is not None and backbone != 'vit'and backbone != 'faster_vqa':
+        if load_path is not None and backbone != 'vit' and backbone != 'faster_vqa':
             # self.logger.info("加载{}权重".format(load_path))
             self._load_weight(load_path)
 
@@ -66,17 +66,22 @@ class FasterVQA(BaseModel):
             Union[
                 Dict[str, torch.Tensor], list]:
         y = kargs['gt_label'].float().unsqueeze(-1)
+        gt_motion = kargs['camera_motion'].float().unsqueeze(-1)
         # print(y.shape)
         if mode == 'loss':
             scores = self.model(inputs, inference=False,
                                 reduce_scores=False)
             y_pred = scores[0]
+            motion = scores[1]
+            cross_entropy_loss = nn.CrossEntropyLoss()
+            motion_loss = cross_entropy_loss(motion, gt_motion)
             criterion = nn.MSELoss()
             mse_loss = criterion(y_pred, y)
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
-            loss = mse_loss + p_loss + 3 * r_loss
-            return {'loss': loss, 'mse_loss': mse_loss, 'p_loss': p_loss, 'r_loss': r_loss, 'result': [y_pred, y]}
+            loss = mse_loss + p_loss + 3 * r_loss + motion_loss
+            return {'loss': loss, 'mse_loss': mse_loss, 'p_loss': p_loss,
+                    'r_loss': r_loss, 'motion_loss': motion_loss, 'result': [y_pred, y]}
         elif mode == 'predict':
             scores = self.model(inputs, inference=True,
                                 reduce_scores=False)
@@ -122,7 +127,7 @@ class FasterVQA(BaseModel):
         recorder.iter_y = result[1]
 
         losses = {'loss': losses['loss'], 'mse_loss': losses['mse_loss'], 'p_loss': losses['p_loss'],
-                  'r_loss': losses['r_loss']}
+                  'r_loss': losses['r_loss'], 'motion_loss': losses['r_loss']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
         optim_wrapper.update_params(parsed_losses)
         return log_vars
