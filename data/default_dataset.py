@@ -56,9 +56,10 @@ class SingleBranchDataset(Dataset):
         # 视频加载器
         self.video_loader = getattr(loader, video_loader['name'])(**video_loader)
 
+
     def __getitem__(self, index):
         video_info = self.data[index]
-        video_path: Dict = video_info["video_path"]
+        video_path: str = video_info["video_path"]
         score = video_info["score"]
         frame_num = video_info['frame_num']
 

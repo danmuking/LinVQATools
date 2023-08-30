@@ -1101,7 +1101,7 @@ class SwinTransformer3D(nn.Module):
         else:
             raise TypeError("pretrained must be a str or None")
 
-    def forward(self, x, multi=False, layer=-1, adaptive_window_size=True):
+    def forward(self, x,need_feat=False, multi=False, layer=-1, adaptive_window_size=True):
 
         """Forward function."""
         # 生成自适应窗口大小
@@ -1132,6 +1132,8 @@ class SwinTransformer3D(nn.Module):
         elif layer > -1:
             print("something", len(feats))
             return feats[layer]
+        elif need_feat:
+            return feats
         else:
             return tuple([[x]])
 

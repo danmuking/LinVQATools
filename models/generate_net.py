@@ -1,14 +1,16 @@
 import torch
 from typing import Optional, Union, Dict
 
+from einops import rearrange
 from mmengine.model import BaseModel
 from mmengine.optim import OptimWrapper
 from torch import nn
 
 from global_class.train_recorder import TrainResultRecorder
-from models.evaluators import DiViDeAddEvaluator
+from models.backbones.generate_backbone import SwinTransformer3D
+import models.heads as heads
 from mmengine import MODELS
-from models import logger
+from models.generator.networks import UpsamplingGenerator
 
 
 def rank_loss(y_pred, y):
@@ -33,55 +35,64 @@ def plcc_loss(y_pred, y):
 
 
 @MODELS.register_module()
-class FasterVQA(BaseModel):
+class GenerateNet(BaseModel):
     def __init__(
             self,
             load_path=None,
-            multi=False,
-            layer=-1,
-            backbone='faster_vqa',
             base_x_size=(32, 224, 224),
-            vqa_head=dict(in_channels=768),
+            vqa_head=dict(name='VQAHead', in_channels=768),
             window_size=(8, 7, 7),
             **kwargs
     ):
         super().__init__()
-        self.model = DiViDeAddEvaluator(
+        self.backbone = SwinTransformer3D(
             window_size=window_size,
             base_x_size=base_x_size,
-            vqa_head=vqa_head,
-            multi=multi,
-            layer=layer,
-            backbone=backbone,
             load_path=load_path
         )
-        # self.logger = MMLogger.get_instance('mmengine', log_level='INFO')
-        # TODO: 将权重加载交给骨干网络完成，vit已实现
-        # 加载预训练权重
-        if load_path is not None and backbone != 'vit' and backbone != 'faster_vqa':
-            # self.logger.info("加载{}权重".format(load_path))
-            self._load_weight(load_path)
+        self.vqa_head = getattr(heads, vqa_head['name'])(**vqa_head)
+        self.generate_head = UpsamplingGenerator(input_nc=768, output_nc=3)
 
     def forward(self, inputs: torch.Tensor, data_samples: Optional[list] = None, mode: str = 'tensor', **kargs) -> \
             Union[
                 Dict[str, torch.Tensor], list]:
-        y = kargs['gt_label'].float().unsqueeze(-1)
-        # print(y.shape)
+        y = kargs['gt_label'].float()
         if mode == 'loss':
-            scores = self.model(inputs, inference=False,
-                                reduce_scores=False)
-            y_pred = scores[0]
+            self.train()
+            feat = self.backbone(inputs)
+
+            generate_feat = feat[0][1]
+            generate_video = self.generate_head(generate_feat)
+            mae_loss = nn.L1Loss()
+            gt_video = kargs['gt_video']
+            gt_video = rearrange(gt_video, "n c t h w-> n (c t h w)")
+            generate_video = rearrange(generate_video, "n c t h w-> n (c t h w)")
+            generate_loss = mae_loss(generate_video, gt_video)
+
+            vqa_feat = feat[0][0]
+            vqa_feat = [[torch.cat((vqa_feat, generate_feat), dim=1)]]
+            vqa_scores = self.vqa_head(vqa_feat)
+            y_pred = vqa_scores
             criterion = nn.MSELoss()
             mse_loss = criterion(y_pred, y)
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
+            vqa_loss = mse_loss + p_loss + 3 * r_loss
 
-            loss = mse_loss + p_loss + 3 * r_loss
+            loss = vqa_loss + generate_loss
+
             return {'loss': loss, 'mse_loss': mse_loss, 'p_loss': p_loss,
-                    'r_loss': r_loss, 'result': [y_pred, y]}
+                    'r_loss': 3 * r_loss, 'vqa_loss': vqa_loss, 'generate_loss': generate_loss,
+                    'result': [y_pred, y]}
         elif mode == 'predict':
-            scores = self.model(inputs, inference=True,
-                                reduce_scores=False)
-            y_pred = scores[0]
+            self.eval()
+            with torch.no_grad():
+                feat = self.backbone(inputs)
+                generate_feat = feat[0][1]
+                vqa_feat = feat[0][0]
+                vqa_feat = torch.cat((vqa_feat, generate_feat), dim=1)
+                vqa_scores = self.vqa_head(vqa_feat)
+                y_pred = vqa_scores
+            self.train()
             return y_pred, y
 
     def train_step(self, data: Union[dict, tuple, list],
@@ -123,7 +134,7 @@ class FasterVQA(BaseModel):
         recorder.iter_y = result[1]
 
         losses = {'loss': losses['loss'], 'mse_loss': losses['mse_loss'], 'p_loss': losses['p_loss'],
-                  'r_loss': losses['r_loss']}
+                  'r_loss': losses['r_loss'],'vqa_loss': losses['vqa_loss'],'generate_loss': losses['generate_loss']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
         optim_wrapper.update_params(parsed_losses)
         return log_vars
@@ -154,5 +165,3 @@ class FasterVQA(BaseModel):
                 if key in i_state_dict and i_state_dict[key].shape != value.shape:
                     i_state_dict.pop(key)
             info = self.model.load_state_dict(i_state_dict, strict=False)
-            # logger.info(info)
-            # self.logger.info(self.model.load_state_dict(i_state_dict, strict=False))
