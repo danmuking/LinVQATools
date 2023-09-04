@@ -3,7 +3,8 @@
 """
 import os
 import random
-from multiprocessing.pool import Pool
+import time
+from multiprocessing import Pool
 
 import cv2
 import numpy as np
@@ -14,6 +15,7 @@ from einops import rearrange
 from tqdm import tqdm
 
 from data.meta_reader import ODVVQAReader
+random.seed(time.perf_counter())
 
 decord.bridge.set_bridge("torch")
 
@@ -42,7 +44,7 @@ class FragmentSampleFrames:
         :param train: 模式
         :return:
         """
-
+        rand = np.random.RandomState()
         tgrids = np.array(
             [num_frames // self.fragments_t * i for i in range(self.fragments_t)],
             dtype=np.int32,
@@ -51,9 +53,10 @@ class FragmentSampleFrames:
         tlength = num_frames // self.fragments_t
 
         if tlength > self.fsize_t * self.frame_interval:
-            rnd_t = np.random.randint(
-                0, tlength - self.fsize_t * self.frame_interval, size=len(tgrids)
-            )
+            # rnd_t = np.random.randint(
+            #     0, tlength - self.fsize_t * self.frame_interval, size=len(tgrids)
+            # )
+            rnd_t = rand.randint(0, tlength - self.fsize_t * self.frame_interval, size=len(tgrids))
         else:
             rnd_t = np.zeros(len(tgrids), dtype=np.int32)
 
@@ -62,7 +65,6 @@ class FragmentSampleFrames:
                 + rnd_t[:, None]
                 + tgrids[:, None]
         )
-
         drop = random.sample(list(range(self.fragments_t)), int(self.fragments_t * self.drop_rate))
         dropped_ranges_t = []
         for i, rt in enumerate(ranges_t):
@@ -78,7 +80,7 @@ class FragmentSampleFrames:
 
         frame_inds = np.concatenate(frame_inds)
         frame_inds = np.mod(frame_inds + start_index, total_frames)
-        print(frame_inds)
+        # print(frame_inds)
         return frame_inds.astype(np.int32)
 
 
@@ -90,22 +92,25 @@ def makedir(path: str):
         os.makedirs(dir_path)
 
 
-def get_save_path(video_path, frame_num, epoch):
-    video_path = video_path.split('/')
-    video_path.insert(3, 'imp_ref')
-    video_path.insert(4, str(epoch))
-    video_path[0] = "/data"
-    video_path[1] = ""
-    video_path = os.path.join(*video_path)[:-4]
-    makedir(video_path)
-    img_path = os.path.join(video_path, '{}.png'.format(frame_num))
+def get_save_path(path, frame_num, epoch):
+    path = path.split('/')
+    path.insert(3, 'imp_ref')
+    path.insert(4, str(epoch))
+    path[0] = "/data"
+    path[1] = ""
+    path = os.path.join(*path)[:-4]
+    makedir(path)
+    img_path = os.path.join(path, '{}.png'.format(frame_num))
     return img_path
+
+
+frame_sampler = FragmentSampleFrames(fsize_t=8, fragments_t=2, frame_interval=2, num_clips=1, )
 
 
 def sampler(video_path: str, ref_path: str, epoch: int):
     vreader = VideoReader(video_path)
     # frame_index = [x for x in range(len(vreader))]
-    frame_sampler = FragmentSampleFrames(fsize_t=8, fragments_t=2, frame_interval=2, num_clips=1, )
+
     frame_index = frame_sampler(len(vreader))
 
     ref_vreader = VideoReader(ref_path)
@@ -199,12 +204,12 @@ if __name__ == '__main__':
     file = os.path.dirname(os.path.abspath(__file__))
     anno_path = os.path.join(file, './data/odv_vqa')
     data_anno = ODVVQAReader(anno_path).read()
-    pool = Pool(8)
+    pool = Pool(4)
     for i in tqdm(range(0, 40)):
         for video_info in data_anno:
-            video_path = video_info['video_path']
-            ref_path = video_info['ref_video_path']
-            pool.apply_async(func=sampler, kwds={'video_path': video_path, 'epoch': i, 'ref_path': ref_path})
+            v_path = video_info['video_path']
+            ref_video_path = video_info['ref_video_path']
+            pool.apply_async(func=sampler, kwds={'video_path': v_path, 'ref_path': ref_video_path, 'epoch': i})
     pool.close()
     pool.join()
     # sampler(data_anno[0]['video_path'], data_anno[0]['ref_video_path'], 0)
