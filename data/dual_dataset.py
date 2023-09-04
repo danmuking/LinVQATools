@@ -4,6 +4,7 @@
 import os
 from typing import Dict, List
 
+import torch
 from mmengine import DATASETS
 from torch.utils.data import Dataset
 from data import loader as loader
@@ -19,35 +20,44 @@ class DualDataset(Dataset):
     双分支网络数据集加载器
     """
 
-    def __init__(self, loader1: Dict, loader2: Dict, **opt: Dict):
+    def __init__(self, loader1: Dict,
+                 loader2: Dict,
+                 anno_root: str = './data/odv_vqa',
+                 anno_reader: str = 'ODVVQAReader',
+                 split_file: str = './data/odv_vqa/tr_te_VQA_ODV.txt',
+                 phase: str = 'train',
+                 norm: bool = True
+                 ):
         """
         初始化
         Args:
             loader1: 加载器1
             loader2: 加载器2
         """
-        # 数据集声明文件根路径
-        if 'anno_root' not in opt:
-            anno_root = '/home/ly/code/LinVQATools/data/odv_vqa'
-            logger.warning("anno_root参数未找到，默认为/home/ly/code/LinVQATools/data/odv_vqa")
-        else:
-            anno_root = opt['anno_root']
+        # 数据集声明文件夹路径
+        self.anno_root = anno_root
+        # 数据集声明文件加载器
+        self.anno_reader: AbstractReader = getattr(meta_reader, anno_reader)(anno_root)
 
-        # 训练集测试集划分文件路径
-        split_file = opt.get("split_file", None)
-        # 读取数据集声明文件
-        self.anno_reader: AbstractReader = getattr(meta_reader, opt['anno_reader'])(anno_root)
-        self.phase = opt.get("phase", 'train')
+        # 训练集/测试集划分文件
+        self.split_file = split_file
+        # 训练集/测试集
+        self.phase = phase
+        # 是否归一化
+        self.norm = norm
+
         # 数据集信息
         self.video_info = self.anno_reader.read()
         # 划分数据集
         self.video_info: Dict = DatasetSplit.split(self.video_info, split_file)
-        # 用于获取的训练集/测试集信息
-        self.data: List = self.video_info[self.phase]
-        # 训练集测试集划分文件路径
-        split_file = opt.get("split_file", None)
 
-        self.loader1 = getattr(loader, loader1['name'])(phase=self.phase,**loader1)
+        # 用于获取的训练集/测试集信息
+        self.data: List[Dict] = self.video_info[self.phase]
+
+        self.mean = torch.FloatTensor([123.675, 116.28, 103.53])
+        self.std = torch.FloatTensor([58.395, 57.12, 57.375])
+
+        self.loader1 = getattr(loader, loader1['name'])(**loader1)
         self.loader2 = getattr(loader, loader2['name'])(**loader2)
 
     def __getitem__(self, index):
