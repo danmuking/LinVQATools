@@ -81,6 +81,7 @@ class FragmentSampleFrames:
         print(frame_inds)
         return frame_inds.astype(np.int32)
 
+
 def makedir(path: str):
     dir_path = path
     if os.path.exists(dir_path):
@@ -91,7 +92,7 @@ def makedir(path: str):
 
 def get_save_path(video_path, frame_num, epoch):
     video_path = video_path.split('/')
-    video_path.insert(3, 'fragment')
+    video_path.insert(3, 'imp_ref')
     video_path.insert(4, str(epoch))
     video_path[0] = "/data"
     video_path[1] = ""
@@ -101,19 +102,27 @@ def get_save_path(video_path, frame_num, epoch):
     return img_path
 
 
-def sampler(video_path: str, epoch: int):
+def sampler(video_path: str, ref_path: str, epoch: int):
     vreader = VideoReader(video_path)
-    frame_index = [x for x in range(len(vreader))]
-    frame_sampler = FragmentSampleFrames(fsize_t=8, fragments_t=4, frame_interval=4, num_clips=1, )
+    # frame_index = [x for x in range(len(vreader))]
+    frame_sampler = FragmentSampleFrames(fsize_t=8, fragments_t=2, frame_interval=2, num_clips=1, )
     frame_index = frame_sampler(len(vreader))
+
+    ref_vreader = VideoReader(ref_path)
+
     for frame_num in frame_index:
         save_path = get_save_path(video_path, frame_num, epoch)
         img = vreader[frame_num]
         img = rearrange(img, 'h w c -> c h w')
-        fragments_h = 14
-        fragments_w = 14
-        fsize_h = 16
-        fsize_w = 16
+
+        ref_img = ref_vreader[frame_num]
+        ref_img = rearrange(ref_img, 'h w c -> c h w')
+
+        fragments_h = 7
+        fragments_w = 7
+        fsize_h = 32
+        fsize_w = 32
+
         # 采样图片的高
         size_h = fragments_h * fsize_h
         # 采样图片的长
@@ -143,8 +152,10 @@ def sampler(video_path: str, epoch: int):
         else:
             rnd_w = torch.zeros((len(hgrids), len(wgrids)).int())
 
+        ###########################################################
+        # 受损视频
+        ###########################################################
         target_img = torch.zeros((3, 224, 224))
-
         for i, hs in enumerate(hgrids):
             for j, ws in enumerate(wgrids):
                 h_s, h_e = i * fsize_h, (i + 1) * fsize_h
@@ -159,18 +170,41 @@ def sampler(video_path: str, epoch: int):
         cv2.imwrite(save_path, target_img)
         print('{}已保存'.format(save_path))
 
+        ###########################################################
+        # 参考视频
+        ###########################################################
+        target_img = torch.zeros((3, 224, 224))
+        for i, hs in enumerate(hgrids):
+            for j, ws in enumerate(wgrids):
+                h_s, h_e = i * fsize_h, (i + 1) * fsize_h
+                w_s, w_e = j * fsize_w, (j + 1) * fsize_w
+                h_so, h_eo = hs + rnd_h[i][j], hs + rnd_h[i][j] + fsize_h
+                w_so, w_eo = ws + rnd_w[i][j], ws + rnd_w[i][j] + fsize_w
+                # print(h_so, w_so)
+                target_img[:, h_s:h_e, w_s:w_e] = ref_img[:, h_so:h_eo, w_so:w_eo]
+        target_img = rearrange(target_img, 'c h w -> h w c ')
+        target_img = target_img.numpy()
+        target_img = cv2.cvtColor(target_img, cv2.COLOR_RGB2BGR)
+        save_path = save_path.split('/')
+        save_path.insert(-1, 'ref/')
+        # print(os.path.join('', *save_path[:-1]))
+        makedir(os.path.join('/', *save_path[:-1]))
+        save_path = os.path.join('/', *save_path)
+        cv2.imwrite(save_path, target_img)
+        print('{}已保存'.format(save_path))
+
 
 if __name__ == '__main__':
-
     # os.chdir('/')
     file = os.path.dirname(os.path.abspath(__file__))
     anno_path = os.path.join(file, './data/odv_vqa')
     data_anno = ODVVQAReader(anno_path).read()
-    pool = Pool(16)
-    for i in tqdm(range(40,80)):
+    pool = Pool(8)
+    for i in tqdm(range(0, 40)):
         for video_info in data_anno:
             video_path = video_info['video_path']
-            print(video_path)
-            pool.apply_async(func=sampler, kwds={'video_path': video_path, 'epoch': i})
+            ref_path = video_info['ref_video_path']
+            pool.apply_async(func=sampler, kwds={'video_path': video_path, 'epoch': i, 'ref_path': ref_path})
     pool.close()
     pool.join()
+    # sampler(data_anno[0]['video_path'], data_anno[0]['ref_video_path'], 0)
