@@ -28,7 +28,8 @@ class GeneratorDataset(Dataset):
             anno_reader: str = 'ODVVQAReader',
             split_file: str = './data/odv_vqa/tr_te_VQA_ODV.txt',
             phase: str = 'train',
-            norm: bool = True
+            norm: bool = True,
+            **kwargs
     ):
         """
         初始化
@@ -97,6 +98,7 @@ class GeneratorDataset(Dataset):
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             video.append(torch.tensor(img))
         video = torch.stack(video, dim=0).permute(3, 0, 1, 2)
+        video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
 
         ########## ref video ###########
         # 预处理好的视频路径
@@ -124,6 +126,7 @@ class GeneratorDataset(Dataset):
         ref_video = torch.stack(ref_video, dim=0).permute(3, 0, 1, 2)
         ref_video = ref_video - video
         ref_video= ref_video[:, ::2, ...]
+        ref_video = ((ref_video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
 
         data = {
             "inputs": video, "num_clips": {},
