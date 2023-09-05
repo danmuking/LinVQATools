@@ -91,7 +91,7 @@ class GenerateNet(BaseModel):
                 feat = self.backbone(inputs)
                 generate_feat = feat[0][1]
                 vqa_feat = feat[0][0]
-                vqa_feat = torch.cat((vqa_feat, generate_feat), dim=1)
+                vqa_feat = [[torch.cat((vqa_feat, generate_feat), dim=1)]]
                 vqa_scores = self.vqa_head(vqa_feat)
                 y_pred = vqa_scores
             self.train()
