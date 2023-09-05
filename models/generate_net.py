@@ -8,9 +8,9 @@ from torch import nn
 
 from global_class.train_recorder import TrainResultRecorder
 from models.backbones.generate_backbone import SwinTransformer3D
-import models.heads as heads
 from mmengine import MODELS
 from models.generator.networks import UpsamplingGenerator
+from models.heads import VQAHead
 
 
 def rank_loss(y_pred, y):
@@ -50,13 +50,15 @@ class GenerateNet(BaseModel):
             base_x_size=base_x_size,
             load_path=load_path
         )
-        self.vqa_head = getattr(heads, vqa_head['name'])(**vqa_head)
+        self.vqa_head = VQAHead(**vqa_head)
         self.generate_head = UpsamplingGenerator(input_nc=768, output_nc=3)
+
+        self.backbone.load(load_path=load_path)
 
     def forward(self, inputs: torch.Tensor, data_samples: Optional[list] = None, mode: str = 'tensor', **kargs) -> \
             Union[
                 Dict[str, torch.Tensor], list]:
-        y = kargs['gt_label'].float()
+        y = kargs['gt_label'].float().unsqueeze(-1)
         if mode == 'loss':
             self.train()
             feat = self.backbone(inputs)
