@@ -10,6 +10,7 @@ from operator import mul
 from einops import rearrange
 
 from models import logger
+from models.backbones.video_mae_v2 import Block
 
 
 def fragment_infos(D, H, W, fragments=7, device="cuda"):
@@ -805,7 +806,7 @@ class SwinTransformer3D(nn.Module):
             jump_attention=[False, False, False, False],
             frag_biases=[True, True, True, False],
             base_x_size=(32, 224, 224),
-            load_path = None
+            load_path=None
     ):
         super().__init__()
 
@@ -861,6 +862,19 @@ class SwinTransformer3D(nn.Module):
             )
             self.layers.append(layer)
 
+        self.mae_block = Block(
+            dim=int(embed_dim * 2 ** 3),
+            num_heads=6,
+            mlp_ratio=mlp_ratio,
+            qkv_bias=qkv_bias,
+            qk_scale=qk_scale,
+            drop=drop_rate,
+            attn_drop=attn_drop_rate,
+            drop_path=0,
+            norm_layer=norm_layer,
+            init_values=0,
+            cos_attn=False)
+
         self.num_features = int(embed_dim * 2 ** (self.num_layers - 1))
 
         # add a norm layer for each output
@@ -873,7 +887,7 @@ class SwinTransformer3D(nn.Module):
         if load_path is not None:
             self.load(load_path)
 
-    def load(self,load_path):
+    def load(self, load_path):
         # 加载预训练参数
         state_dict = torch.load(load_path, map_location='cpu')
 
@@ -1122,7 +1136,9 @@ class SwinTransformer3D(nn.Module):
             x = mlayer(x.contiguous(), resized_window_size)
             feats += [x]
 
-        x = rearrange(x, "n c d h w -> n d h w c")
+        x = x.flatten(2).transpose(1, 2)
+        x = self.mae_block(x)
+        x = rearrange(x, 'n (d h w) c -> n d h w c', d=8, h=7, w=7)
         x = self.norm(x)
         x = rearrange(x, "n d h w c -> n c d h w")
 
