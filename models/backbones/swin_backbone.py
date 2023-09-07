@@ -790,8 +790,8 @@ class SwinTransformer3D(nn.Module):
             patch_size=(2, 4, 4),
             in_chans=3,
             embed_dim=96,
-            depths=[2, 2, 6, 2],
-            num_heads=[3, 6, 12, 24],
+            depths=[2, 2, 6],
+            num_heads=[3, 6, 12],
             window_size=(8, 7, 7),
             mlp_ratio=4.0,
             qkv_bias=True,
@@ -862,18 +862,23 @@ class SwinTransformer3D(nn.Module):
             )
             self.layers.append(layer)
 
-        self.mae_block = Block(
-            dim=int(embed_dim * 2 ** 3),
-            num_heads=6,
-            mlp_ratio=mlp_ratio,
-            qkv_bias=qkv_bias,
-            qk_scale=qk_scale,
-            drop=drop_rate,
-            attn_drop=attn_drop_rate,
-            drop_path=0,
-            norm_layer=norm_layer,
-            init_values=0,
-            cos_attn=False)
+        self.mae_layer = nn.ModuleList()
+        for i in range(1):
+            self.mae_layer.append(
+                Block(
+                    dim=int(384),
+                    num_heads=6,
+                    mlp_ratio=mlp_ratio,
+                    qkv_bias=qkv_bias,
+                    qk_scale=qk_scale,
+                    drop=drop_rate,
+                    attn_drop=attn_drop_rate,
+                    drop_path=0,
+                    norm_layer=norm_layer,
+                    init_values=0,
+                    cos_attn=False)
+            )
+
 
         self.num_features = int(embed_dim * 2 ** (self.num_layers - 1))
 
@@ -1137,8 +1142,11 @@ class SwinTransformer3D(nn.Module):
             feats += [x]
 
         x = x.flatten(2).transpose(1, 2)
-        x = self.mae_block(x)
-        x = rearrange(x, 'n (d h w) c -> n d h w c', d=8, h=7, w=7)
+        # print(x.shape)
+        for l, mlayer in enumerate(self.mae_layer):
+            x = mlayer(x)
+            feats += [x]
+        x = rearrange(x, 'n (d h w) c -> n d h w c', d=8, h=14, w=14)
         x = self.norm(x)
         x = rearrange(x, "n d h w c -> n c d h w")
 
