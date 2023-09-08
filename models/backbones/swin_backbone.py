@@ -790,8 +790,8 @@ class SwinTransformer3D(nn.Module):
             patch_size=(2, 4, 4),
             in_chans=3,
             embed_dim=96,
-            depths=[2, 2, 6],
-            num_heads=[3, 6, 12],
+            depths=[2, 2],
+            num_heads=[3, 6],
             window_size=(8, 7, 7),
             mlp_ratio=4.0,
             qkv_bias=True,
@@ -855,7 +855,7 @@ class SwinTransformer3D(nn.Module):
                 attn_drop=attn_drop_rate,
                 drop_path=dpr[sum(depths[:i_layer]): sum(depths[: i_layer + 1])],
                 norm_layer=norm_layer,
-                downsample=PatchMerging if i_layer < self.num_layers - 1 else None,
+                downsample=PatchMerging,
                 use_checkpoint=use_checkpoint,
                 jump_attention=jump_attention[i_layer],
                 frag_bias=frag_biases[i_layer],
@@ -880,7 +880,7 @@ class SwinTransformer3D(nn.Module):
             )
 
 
-        self.num_features = int(embed_dim * 2 ** (self.num_layers - 1))
+        self.num_features = int(embed_dim * 2 ** self.num_layers)
 
         # add a norm layer for each output
         self.norm = norm_layer(self.num_features)
@@ -1140,7 +1140,6 @@ class SwinTransformer3D(nn.Module):
         for l, mlayer in enumerate(self.layers):
             x = mlayer(x.contiguous(), resized_window_size)
             feats += [x]
-
         x = x.flatten(2).transpose(1, 2)
         # print(x.shape)
         for l, mlayer in enumerate(self.mae_layer):
