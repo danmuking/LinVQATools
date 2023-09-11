@@ -68,6 +68,7 @@ class SingleBranchDataset(Dataset):
 
         video = self.video_loader(video_path=video_path, frame_num=frame_num)
 
+        video = video[:, ::2, ...]
         camera_motion = video_info['scene_id']
         if self.norm:
             video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
