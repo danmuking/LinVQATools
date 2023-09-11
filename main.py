@@ -1,6 +1,6 @@
 import os
 
-os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 os.environ["WANDB_API_KEY"] = '2125be99aae223011562a86318a7e1edd8556487'
 
 # os.environ["WANDB_MODE"] = "offline"
@@ -14,6 +14,6 @@ from mmengine.runner import Runner
 config = Config.fromfile('./config/fast_vqa/faster_vqa_ema.py')
 runner = Runner.from_cfg(config)
 runner.train()
-while True:
-    pass
+# while True:
+#     pass
 
