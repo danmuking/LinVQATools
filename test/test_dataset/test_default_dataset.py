@@ -20,7 +20,7 @@ class TestSingleBranchDataset(TestCase):
                 ),
                 dict(
                     name='PostProcessSampler',
-                    num=4
+                    num=2
                 )
             ]
         )
