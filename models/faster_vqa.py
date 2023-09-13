@@ -66,13 +66,13 @@ class FasterVQA(BaseModel):
             Union[
                 Dict[str, torch.Tensor], list]:
         y = kargs['gt_label'].float().unsqueeze(-1)
-        gt_motion = kargs['camera_motion'].float().unsqueeze(-1)
+        # gt_motion = kargs['camera_motion'].float().unsqueeze(-1)
         # print(y.shape)
         if mode == 'loss':
             scores = self.model(inputs, inference=False,
                                 reduce_scores=False)
             y_pred = scores[0]
-            motion = scores[1]
+            # motion = scores[1]
             criterion = nn.MSELoss()
             mse_loss = criterion(y_pred, y)
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)

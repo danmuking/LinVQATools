@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/swin_patch32_fragment32_frame16_train_mirror_rot'
+work_dir = 'work_dir/faster_vqa/swin_patch32_fragment32_frame16_patchweight'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='swin patch32 fragment32 frame16 train mirror rot')
+            init_kwargs=dict(project='faster vqa消融', name='swin patch32 fragment32 frame16 patchweight')
         ),
     ],
 )
@@ -17,14 +17,14 @@ model = dict(
     backbone='faster_vqa',
     base_x_size=(16, 224, 224),
     window_size=(8, 7, 7),
-    vqa_head=dict(name='VQAHead', in_channels=768, fc_in=8 * 7 * 7),
+    vqa_head=dict(name='VQAHead', in_channels=1, fc_in=8 * 7 * 7),
     load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
 )
 epochs = 600
 batch_size = 6
 num_workers = 12
 prefix = 'temp/fragment'
-train_argument = [
+argument = [
     dict(
         name='FragmentShuffler',
         fragment_size=32,
@@ -32,39 +32,13 @@ train_argument = [
     dict(
         name='PostProcessSampler',
         num=2
-    ),
-    dict(
-        name='FragmentMirror',
-        fragment_size=32
-    ),
-    dict(
-        name='FragmentRotate',
-        fragment_size=32
-    ),
-]
-test_argument = [
-    dict(
-        name='FragmentShuffler',
-        fragment_size=32,
-    ),
-    dict(
-        name='PostProcessSampler',
-        num=2
-    ),
-    # dict(
-    #     name='FragmentMirror',
-    #     fragment_size=32
-    # ),
-    # dict(
-    #     name='FragmentRotate',
-    #     fragment_size=32
-    # ),
+    )
 ]
 train_video_loader = dict(
     name='FragmentLoader',
     frame_sampler=None,
     spatial_sampler=None,
-    argument=train_argument,
+    argument=argument,
     phase='train',
     use_preprocess=True,
 )
@@ -89,7 +63,7 @@ val_video_loader = dict(
     name='FragmentLoader',
     frame_sampler=None,
     spatial_sampler=None,
-    argument=test_argument,
+    argument=argument,
     phase='test',
     use_preprocess=True,
 )

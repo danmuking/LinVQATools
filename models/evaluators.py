@@ -7,6 +7,7 @@ from .backbones.mvit import MViT
 from .backbones.swin_backbone import SwinTransformer3D as VideoBackbone
 from .backbones.video_mae_v2 import VisionTransformer
 import models.heads as heads
+from .neck.patch_weighted import PatchWeighted
 
 
 class DiViDeAddEvaluator(nn.Module):
@@ -53,8 +54,10 @@ class DiViDeAddEvaluator(nn.Module):
             )
         print("Setting backbone:", 'fragments' + "_backbone")
         setattr(self, 'fragments' + "_backbone", b)
+
+        self.neck = PatchWeighted()
         self.vqa_head = getattr(heads, vqa_head['name'])(**vqa_head)
-        self.motion_head = getattr(heads, vqa_head['name'])(**vqa_head)
+        # self.motion_head = getattr(heads, vqa_head['name'])(**vqa_head)
 
     def forward(self, vclips, inference=False, return_pooled_feats=False, reduce_scores=True, pooled=False, **kwargs):
         vclips = {
@@ -70,8 +73,9 @@ class DiViDeAddEvaluator(nn.Module):
                     # key = 'fragments'
                     feat = getattr(self, key.split("_")[0] + "_backbone")(vclips[key], multi=self.multi,
                                                                           layer=self.layer, **kwargs)
+                    feat = self.neck(feat)
                     scores += [getattr(self, "vqa_head")(feat)]
-                    scores += [getattr(self, "motion_head")(feat)]
+                    # scores += [getattr(self, "motion_head")(feat)]
             self.train()
             return scores
         else:
@@ -82,6 +86,7 @@ class DiViDeAddEvaluator(nn.Module):
                 # key = 'fragments_backbone'
                 feat = getattr(self, key.split("_")[0] + "_backbone")(vclips[key], multi=self.multi, layer=self.layer,
                                                                       **kwargs)
+                feat = self.neck(feat)
                 scores += [getattr(self, "vqa_head")(feat)]
-                scores += [getattr(self, "motion_head")(feat)]
+                # scores += [getattr(self, "motion_head")(feat)]
             return scores

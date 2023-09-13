@@ -13,9 +13,9 @@ class TestFasterVQA(TestCase):
     def test(self):
         os.chdir('../../')
         model = FasterVQA(
-            backbone='mvit',
+            backbone='faster_vqa',
             base_x_size=(16, 224, 224),
-            vqa_head=dict(name='VQAHead',in_channels=384*2,drop_rate=0.8,fc_in=8*7*7),
+            vqa_head=dict(name='VQAHead',in_channels=1,drop_rate=0.8,fc_in=8*7*7),
             load_path="/data/ly/code/LinVQATools/pretrained_weights/MViTv2_S_16x4_k400_f302660347.pyth"
         )
         video = torch.ones((2, 3, 16, 224, 224))
