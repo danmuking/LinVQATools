@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/swin_patch32_fragment32_frame16_mirror_rot'
+work_dir = 'work_dir/faster_vqa/swin_patch32_fragment32_frame16_mirror'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='swin patch32 fragment32 frame16 mirror rot')
+            init_kwargs=dict(project='faster vqa消融', name='swin patch32 fragment32 frame16 mirror')
         ),
     ],
 )
@@ -32,7 +32,15 @@ argument = [
     dict(
         name='PostProcessSampler',
         num=2
-    )
+    ),
+    dict(
+        name='FragmentMirror',
+        fragment_size=32
+    ),
+    # dict(
+    #     name='FragmentRotate',
+    #     fragment_size=32
+    # ),
 ]
 train_video_loader = dict(
     name='FragmentLoader',

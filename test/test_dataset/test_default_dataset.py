@@ -14,14 +14,22 @@ class TestSingleBranchDataset(TestCase):
             name='FragmentLoader',
             prefix='temp/fragment',
             argument=[
+                # dict(
+                #     name='FragmentShuffler',
+                #     fragment_size=32
+                # ),
+                # dict(
+                #     name='PostProcessSampler',
+                #     num=2
+                # ),
                 dict(
-                    name='FragmentShuffler',
+                    name='FragmentMirror',
                     fragment_size=32
                 ),
                 dict(
-                    name='PostProcessSampler',
-                    num=2
-                )
+                    name='FragmentRotate',
+                    fragment_size=32
+                ),
             ]
         )
         dataset = SingleBranchDataset(video_loader=video_loader, norm=False)

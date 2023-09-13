@@ -21,8 +21,8 @@ class ImgReader:
         """
         # 直接读取视频
         if is_train:
-            num = random.randint(0, 150)
-            # num = 0
+            # num = random.randint(0, 150)
+            num = 0
         else:
             num = 0
         # 预处理好的视频路径
