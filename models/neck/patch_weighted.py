@@ -1,4 +1,5 @@
 import torch
+from einops import rearrange
 from torch import nn
 from torch.nn import Conv3d
 
@@ -6,24 +7,39 @@ from torch.nn import Conv3d
 class PatchWeighted(nn.Module):
     def __init__(self):
         super().__init__()
-        self.batch1 = nn.Sequential(
+        self.batch1 = nn.ModuleList([
             Conv3d(768, 128, kernel_size=1),
-            nn.LayerNorm([128, 8, 7, 7]),
+            nn.LayerNorm(128),
             nn.GELU(),
             Conv3d(128, 1, kernel_size=1),
-        )
-        self.batch2 = nn.Sequential(
+        ])
+        self.batch2 = nn.ModuleList([
             Conv3d(768, 128, kernel_size=1),
-            nn.LayerNorm([128, 8, 7, 7]),
+            nn.LayerNorm(128),
             nn.GELU(),
             Conv3d(128, 1, kernel_size=1),
-        )
-        self.norm = nn.LayerNorm([1, 8, 7, 7])
+        ])
 
     def forward(self, x):
         x = x[0][0]
         # print(x.shape)
-        score = self.batch1(x)
-        weight = self.batch2(x)
+        score = x
+        for m in self.batch1:
+            if isinstance(m, nn.LayerNorm):
+                b, c, t, h, w = score.shape
+                score = rearrange(score, "b c t h w->b (t h w) c")
+                score = m(score)
+                score = rearrange(score, "b (t h w) c->b c t h w", t=t, h=h, w=w)
+            else:
+                score = m(score)
+        weight = x
+        for m in self.batch2:
+            if isinstance(m, nn.LayerNorm):
+                b, c, t, h, w = weight.shape
+                weight = rearrange(weight, "b c t h w->b (t h w) c")
+                weight = m(weight)
+                weight = rearrange(weight, "b (t h w) c->b c t h w", t=t, h=h, w=w)
+            else:
+                weight = m(weight)
         score = torch.mul(score, weight)
-        return [[self.norm(score)]]
+        return [[score]]
