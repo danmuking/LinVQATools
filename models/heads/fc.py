@@ -30,8 +30,9 @@ class FcHead(nn.Module):
         x = x[0][0]
         logger.debug("head层输入维度: {}".format(x.shape))
         x = x.reshape(x.shape[0], -1)
-        logger.debug("head: 特征展开{}".format(x.shape))
         x = self.dropout(x)
+        logger.debug("head: 特征展开{}".format(x.shape))
+        # x = self.dropout(x)
         qlt_score = self.fc_hid(x)
         logger.debug("head: Liner{}->{}".format(self.in_channels,self.hidden_channels))
         qlt_score = self.gelu(qlt_score)
