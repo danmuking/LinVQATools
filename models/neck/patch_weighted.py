@@ -7,17 +7,24 @@ from torch.nn import Conv3d
 class PatchWeighted(nn.Module):
     def __init__(self):
         super().__init__()
+        self.dropout = nn.Dropout(p=0.5)
         self.batch1 = nn.ModuleList([
+            self.dropout,
             Conv3d(768, 128, kernel_size=1),
-            nn.LayerNorm(128),
+            # nn.LayerNorm(128),
             nn.GELU(),
+            self.dropout,
             Conv3d(128, 1, kernel_size=1),
+            nn.GELU(),
         ])
         self.batch2 = nn.ModuleList([
+            self.dropout,
             Conv3d(768, 128, kernel_size=1),
-            nn.LayerNorm(128),
+            # nn.LayerNorm(128),
             nn.GELU(),
+            self.dropout,
             Conv3d(128, 1, kernel_size=1),
+            nn.GELU(),
         ])
 
     def forward(self, x):
