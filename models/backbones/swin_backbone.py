@@ -1122,9 +1122,9 @@ class SwinTransformer3D(nn.Module):
             x = mlayer(x.contiguous(), resized_window_size)
             feats += [x]
 
-        x = rearrange(x, "n c d h w -> n d h w c")
-        x = self.norm(x)
-        x = rearrange(x, "n d h w c -> n c d h w")
+        # x = rearrange(x, "n c d h w -> n d h w c")
+        # x = self.norm(x)
+        # x = rearrange(x, "n d h w c -> n c d h w")
 
         if multi:
             shape = x.shape[2:]
