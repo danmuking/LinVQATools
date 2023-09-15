@@ -45,22 +45,6 @@ class FragmentShuffler(BaseShuffler):
                     h_so, h_eo = matrix[count][0] * self.fragment_size, (matrix[count][0] + 1) * self.fragment_size
                     w_so, w_eo = matrix[count][1] * self.fragment_size, (matrix[count][1] + 1) * self.fragment_size
                     t_so, t_eo = matrix[count][2] * self.frame_cube, (matrix[count][2] + 1) * self.frame_cube
-                    if random.random() > 0.5:
-                        video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo] = \
-                            torch.flip(video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo], [2])
-                    if random.random() > 0.5:
-                        if random.random() > 0.25:
-                            video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo] = \
-                                torch.rot90(video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo], k=1, dims=(2, 3))
-                        elif random.random() > 0.25:
-                            video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo] = \
-                                torch.rot90(video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo], k=2, dims=(2, 3))
-                        elif random.random() > 0.25:
-                            video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo] = \
-                                torch.rot90(video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo], k=3, dims=(2, 3))
-                        elif random.random() > 0.25:
-                            video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo] = \
-                                torch.rot90(video[:, t_so:t_eo, h_so:h_eo, w_so:w_eo], k=4, dims=(2, 3))
                     target_video[:, t_s:t_e, h_s:h_e, w_s:w_e] = video[
                                                                  :, t_so:t_eo, h_so:h_eo, w_so:w_eo
                                                                  ]
