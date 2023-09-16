@@ -34,7 +34,7 @@ class PatchWeighted(nn.Module):
             Conv3d(768, 64, kernel_size=1),
             nn.GELU(),
             self.dropout,
-            Conv3d(64, 1, kernel_size=1),
+            Conv3d(64, 2, kernel_size=1),
             nn.GELU(),
         ])
         self.batch2 = nn.ModuleList([
@@ -61,7 +61,7 @@ class PatchWeighted(nn.Module):
             Conv3d(768, 64, kernel_size=1),
             nn.GELU(),
             self.dropout,
-            Conv3d(64, 1, kernel_size=1),
+            Conv3d(64, 2, kernel_size=1),
             nn.GELU(),
         ])
 
