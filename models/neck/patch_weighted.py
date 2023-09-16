@@ -34,7 +34,7 @@ class PatchWeighted(nn.Module):
             Conv3d(768, 64, kernel_size=1),
             nn.GELU(),
             self.dropout,
-            Conv3d(64, 2, kernel_size=1),
+            Conv3d(64, 1, kernel_size=1),
             nn.GELU(),
         ])
         self.batch2 = nn.ModuleList([
@@ -61,7 +61,35 @@ class PatchWeighted(nn.Module):
             Conv3d(768, 64, kernel_size=1),
             nn.GELU(),
             self.dropout,
-            Conv3d(64, 2, kernel_size=1),
+            Conv3d(64, 1, kernel_size=1),
+            nn.GELU(),
+        ])
+
+        self.batch3 = nn.ModuleList([
+            BasicLayer(
+                dim=768,
+                depth=2,
+                num_heads=24,
+                window_size=(8, 7, 7),
+                mlp_ratio=4.0,
+                qkv_bias=True,
+                qk_scale=None,
+                drop=0.0,
+                attn_drop=0.0,
+                # drop_path=dpr[sum(depths[:i_layer]): sum(depths[: i_layer + 1])],
+                drop_path=0,
+                norm_layer=nn.LayerNorm,
+                downsample=None,
+                use_checkpoint=True,
+                jump_attention=False,
+                frag_bias=False,
+            ),
+            nn.LayerNorm(768),
+            self.dropout,
+            Conv3d(768, 64, kernel_size=1),
+            nn.GELU(),
+            self.dropout,
+            Conv3d(64, 1, kernel_size=1),
             nn.GELU(),
         ])
 
@@ -86,5 +114,21 @@ class PatchWeighted(nn.Module):
                 weight = rearrange(weight, "n d h w c -> n c d h w")
             else:
                 weight = m(weight)
+
+        time_weight = x
+        for m in self.batch3:
+            if isinstance(m, nn.LayerNorm):
+                b, c, t, h, w = time_weight.shape
+                time_weight = rearrange(time_weight, "n c d h w -> n d h w c")
+                time_weight = m(time_weight)
+                time_weight = rearrange(time_weight, "n d h w c -> n c d h w")
+            else:
+                time_weight = m(time_weight)
         score = torch.mul(score, weight)
+        score = rearrange(score, "n c (e f) h w -> n c e f h w", e=2, f=4)
+        time_weight = rearrange(time_weight, "n c (e f) h w -> n c e (f h w)", e=2, f=4)
+        time_weight = time_weight.mean(-1)
+        time_weight = time_weight.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+        score = torch.mul(time_weight, score)
+        score = rearrange(score, "n c e f h w -> n c (e f) h w")
         return [[score]]
