@@ -9,6 +9,7 @@ import cv2
 import numpy as np
 import torch
 import decord
+import torchvision
 from decord import VideoReader
 from einops import rearrange
 from tqdm import tqdm
@@ -42,7 +43,7 @@ class FragmentSampleFrames:
         :param train: 模式
         :return:
         """
-
+        rand = np.random.RandomState()
         tgrids = np.array(
             [num_frames // self.fragments_t * i for i in range(self.fragments_t)],
             dtype=np.int32,
@@ -51,7 +52,7 @@ class FragmentSampleFrames:
         tlength = num_frames // self.fragments_t
 
         if tlength > self.fsize_t * self.frame_interval:
-            rnd_t = np.random.randint(
+            rnd_t = rand.randint(
                 0, tlength - self.fsize_t * self.frame_interval, size=len(tgrids)
             )
         else:
@@ -81,6 +82,7 @@ class FragmentSampleFrames:
         print(frame_inds)
         return frame_inds.astype(np.int32)
 
+
 def makedir(path: str):
     dir_path = path
     if os.path.exists(dir_path):
@@ -104,16 +106,20 @@ def get_save_path(video_path, frame_num, epoch):
 def sampler(video_path: str, epoch: int):
     vreader = VideoReader(video_path)
     frame_index = [x for x in range(len(vreader))]
-    frame_sampler = FragmentSampleFrames(fsize_t=8, fragments_t=4, frame_interval=4, num_clips=1, )
+    frame_sampler = FragmentSampleFrames(fsize_t=8, fragments_t=4, frame_interval=2, num_clips=1, )
     frame_index = frame_sampler(len(vreader))
     for frame_num in frame_index:
         save_path = get_save_path(video_path, frame_num, epoch)
         img = vreader[frame_num]
+        h, w, _ = img.shape
+        h, w = int(h * 0.7), int(w * 0.7)
+        # print(h, w)
         img = rearrange(img, 'h w c -> c h w')
-        fragments_h = 14
-        fragments_w = 14
-        fsize_h = 16
-        fsize_w = 16
+        img = torchvision.transforms.CenterCrop((h, w))(img)
+        fragments_h = 7
+        fragments_w = 7
+        fsize_h = 32
+        fsize_w = 32
         # 采样图片的高
         size_h = fragments_h * fsize_h
         # 采样图片的长
@@ -167,10 +173,13 @@ if __name__ == '__main__':
     anno_path = os.path.join(file, './data/odv_vqa')
     data_anno = ODVVQAReader(anno_path).read()
     pool = Pool(16)
-    for i in tqdm(range(40,80)):
+    for i in tqdm(range(0, 40)):
         for video_info in data_anno:
             video_path = video_info['video_path']
             print(video_path)
             pool.apply_async(func=sampler, kwds={'video_path': video_path, 'epoch': i})
     pool.close()
     pool.join()
+    # for video_info in data_anno[:1]:
+    #     video_path = video_info['video_path']
+    #     sampler(video_path, 0)
