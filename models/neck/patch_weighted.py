@@ -125,10 +125,8 @@ class PatchWeighted(nn.Module):
             else:
                 time_weight = m(time_weight)
         score = torch.mul(score, weight)
-        score = rearrange(score, "n c (e f) h w -> n c e f h w", e=2, f=4)
-        time_weight = rearrange(time_weight, "n c (e f) h w -> n c e (f h w)", e=2, f=4)
+        time_weight = rearrange(time_weight, "n c d h w -> n c d (h w)")
         time_weight = time_weight.mean(-1)
-        time_weight = time_weight.unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+        time_weight = time_weight.unsqueeze(-1).unsqueeze(-1)
         score = torch.mul(time_weight, score)
-        score = rearrange(score, "n c e f h w -> n c (e f) h w")
         return [[score]]
