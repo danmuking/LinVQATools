@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/swin_center_crop'
+work_dir = 'work_dir/faster_vqa/swin_softpool'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='swin center crop')
+            init_kwargs=dict(project='faster vqa消融', name='swin softpool')
         ),
     ],
 )
@@ -17,7 +17,7 @@ model = dict(
     backbone='faster_vqa',
     base_x_size=(16, 224, 224),
     window_size=(8, 7, 7),
-    vqa_head=dict(name='VQAHead', in_channels=768, fc_in=8 * 7 * 7),
+    vqa_head=dict(name='VQAHead', in_channels=768, fc_in=8 * 4 * 4),
     load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
 )
 epochs = 600

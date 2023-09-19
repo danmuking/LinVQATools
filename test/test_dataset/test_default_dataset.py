@@ -47,7 +47,7 @@ class TestSingleBranchDataset(TestCase):
         for i in range(video.shape[1]):
             fra = video[:, i, :, :]
             fra = fra.permute(1, 2, 0)
-            fra = fra.numpy().astype(np.uint8)
+            fra = (fra.numpy()).astype(np.uint8)
             fra = cv2.cvtColor(fra, cv2.COLOR_RGB2BGR)
             out.write(fra)
         out.release()

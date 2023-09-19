@@ -1,6 +1,9 @@
+import SoftPool
 import torch
 from typing import Dict, List, Any
 
+from SoftPool import SoftPool2d
+from einops import rearrange
 from torch.utils.data import Dataset
 from mmengine import DATASETS
 import os.path as osp
@@ -60,6 +63,8 @@ class SingleBranchDataset(Dataset):
         self.camera_motion = [1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1,
                               1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0]
 
+        self.soft_pool = SoftPool2d()
+
     def __getitem__(self, index):
         video_info = self.data[index]
         video_path: str = video_info["video_path"]
@@ -68,9 +73,14 @@ class SingleBranchDataset(Dataset):
 
         video = self.video_loader(video_path=video_path, frame_num=frame_num)
 
+        video = rearrange(video/255, "c d h w-> d c h w")
+        video = self.soft_pool(video)
+        video = rearrange(video, "d c h w-> c d h w")*255
+
         camera_motion = video_info['scene_id']
         if self.norm:
             video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
+
         data = {
             "inputs": video, "num_clips": {},
             # "frame_inds": frame_idxs,
