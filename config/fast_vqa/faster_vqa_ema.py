@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/swin_origin'
+work_dir = 'work_dir/faster_vqa/swin_center_crop'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='swin origin')
+            init_kwargs=dict(project='faster vqa消融', name='swin center crop')
         ),
     ],
 )
@@ -21,9 +21,9 @@ model = dict(
     load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
 )
 epochs = 600
-batch_size = 6
+batch_size = 7
 num_workers = 12
-prefix = 'temp/fragment'
+prefix = 'fragment'
 argument = [
     dict(
         name='FragmentShuffler',
