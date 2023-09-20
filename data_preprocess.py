@@ -15,6 +15,7 @@ from einops import rearrange
 from tqdm import tqdm
 
 from data.meta_reader import ODVVQAReader
+from SoftPool import soft_pool2d, SoftPool2d
 
 decord.bridge.set_bridge("torch")
 
@@ -108,14 +109,18 @@ def sampler(video_path: str, epoch: int):
     frame_index = [x for x in range(len(vreader))]
     frame_sampler = FragmentSampleFrames(fsize_t=8, fragments_t=4, frame_interval=2, num_clips=1, )
     frame_index = frame_sampler(len(vreader))
+    softpool = SoftPool2d()
     for frame_num in frame_index:
         save_path = get_save_path(video_path, frame_num, epoch)
         img = vreader[frame_num]
         h, w, _ = img.shape
         h, w = int(h * 0.7), int(w * 0.7)
         # print(h, w)
-        img = rearrange(img, 'h w c -> c h w')
-        img = torchvision.transforms.CenterCrop((h, w))(img)
+        img = rearrange(img, '(b h) w c -> b c h w',b=1)
+        img = img/255
+        img = softpool(img)
+        img = rearrange(img, 'b c h w -> (b c) h w')
+        # img = torchvision.transforms.CenterCrop((h, w))(img)
         fragments_h = 7
         fragments_w = 7
         fsize_h = 32
@@ -162,7 +167,7 @@ def sampler(video_path: str, epoch: int):
         target_img = rearrange(target_img, 'c h w -> h w c ')
         target_img = target_img.numpy()
         target_img = cv2.cvtColor(target_img, cv2.COLOR_RGB2BGR)
-        cv2.imwrite(save_path, target_img)
+        cv2.imwrite(save_path, (target_img*255).astype('uint8'))
         print('{}已保存'.format(save_path))
 
 
@@ -172,8 +177,8 @@ if __name__ == '__main__':
     file = os.path.dirname(os.path.abspath(__file__))
     anno_path = os.path.join(file, './data/odv_vqa')
     data_anno = ODVVQAReader(anno_path).read()
-    pool = Pool(16)
-    for i in tqdm(range(0, 40)):
+    pool = Pool(8)
+    for i in tqdm(range(6, 40)):
         for video_info in data_anno:
             video_path = video_info['video_path']
             print(video_path)
