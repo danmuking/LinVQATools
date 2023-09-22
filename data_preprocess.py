@@ -33,7 +33,6 @@ def get_save_path(video_path, frame_num, epoch):
     return img_path
 
 
-# TODO: 在时间上位置没有变化
 def sampler(video_path: str, epoch: int):
     vreader = VideoReader(video_path)
     for i in range(len(vreader)):
