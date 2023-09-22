@@ -35,7 +35,6 @@ class ImageDataset(Dataset):
 
     def __init__(
             self,
-            video_loader: Dict,
             anno_root: str = './data/odv_vqa',
             anno_reader: str = 'ODVVQAReader',
             split_file: str = './data/odv_vqa/tr_te_VQA_ODV.txt',
