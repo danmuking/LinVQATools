@@ -8,7 +8,7 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='swin softpool')
+            init_kwargs=dict(project='faster vqa消融', name='swin softpool 多卡')
         ),
     ],
 )
@@ -21,7 +21,7 @@ model = dict(
     load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
 )
 epochs = 600
-batch_size = 7
+batch_size = 6
 num_workers = 12
 prefix = 'fragment'
 argument = [
@@ -132,11 +132,11 @@ val_evaluator = [
 default_hooks = dict(
     checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=10, save_best='SROCC', rule='greater'))
 custom_hooks = [
-    dict(type='TrainEvaluatorHook'),
+    # dict(type='TrainEvaluatorHook'),
     # dict(type='CustomEMAHook',momentum=0.01)
     # dict(type='EmptyCacheHook', after_epoch=True)
 ]
-launcher = 'none'
+launcher = 'pytorch'
 randomness = dict(seed=42)
 # randomness = dict(seed=3407)
 # randomness = dict(seed=114514)
