@@ -2,22 +2,22 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/swin_softpool'
+work_dir = 'work_dir/faster_vqa/swin_softpool_8frame'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='swin softpool 多卡')
+            init_kwargs=dict(project='faster vqa消融', name='swin softpool 多卡 8frame')
         ),
     ],
 )
 model = dict(
     type='FasterVQA',
     backbone='faster_vqa',
-    base_x_size=(16, 224, 224),
-    window_size=(8, 7, 7),
-    vqa_head=dict(name='VQAHead', in_channels=768, fc_in=8 * 7 * 7),
+    base_x_size=(8, 224, 224),
+    window_size=(4, 7, 7),
+    vqa_head=dict(name='VQAHead', in_channels=768, fc_in=4 * 7 * 7),
     load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
 )
 epochs = 600
@@ -31,7 +31,7 @@ argument = [
     ),
     dict(
         name='PostProcessSampler',
-        num=2
+        num=1
     )
 ]
 train_video_loader = dict(
