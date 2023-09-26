@@ -167,8 +167,8 @@ def sampler(video_path: str, epoch: int):
                 # print(i,j,int(index/8))
                 # print(rnd_h[i][j][int(index/8)],rnd_w[i][j][int(index/8)])
                 # print(h_so, w_so)
-                target_img[:, h_s:h_e, w_s:w_e] = get_perspective(img, (64 / w)*180, ((h_so + h_eo) / h * 180) - 90,
-                                                                  ((w_so + w_eo) / w * 360) - 180, 64, 64)
+                target_img[:, h_s:h_e, w_s:w_e] = get_perspective(img, (64 / w)*180,
+                                                                  ((w_so + w_eo) / w * 360) - 180, ((h_so + h_eo) / h * 180) - 90, 64, 64)
 
         target_img = rearrange(target_img, '(b c) h w -> b c h w', b=1)
         target_img = target_img / 255
