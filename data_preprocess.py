@@ -17,6 +17,8 @@ from tqdm import tqdm
 from data.meta_reader import ODVVQAReader
 from SoftPool import soft_pool2d, SoftPool2d
 
+from data.shpere.equirec2perspec import get_perspective
+
 decord.bridge.set_bridge("torch")
 
 
@@ -94,7 +96,7 @@ def makedir(path: str):
 
 def get_save_path(video_path, frame_num, epoch):
     video_path = video_path.split('/')
-    video_path.insert(3, 'fragment')
+    video_path.insert(3, 'test')
     video_path.insert(4, str(epoch))
     video_path[0] = "/data"
     video_path[1] = ""
@@ -151,6 +153,8 @@ def sampler(video_path: str, epoch: int):
         save_path = get_save_path(video_path, frame_num, epoch)
         img = vreader[frame_num]
         img = rearrange(img, 'h w c -> c h w ')
+        c, h, w = img.shape
+        img = rearrange(img, 'c h w -> h w c ')
         # img = torchvision.transforms.CenterCrop((h, w))(img)
         target_img = torch.zeros((3, 448, 448))
 
@@ -158,12 +162,13 @@ def sampler(video_path: str, epoch: int):
             for j, ws in enumerate(wgrids):
                 h_s, h_e = i * fsize_h, (i + 1) * fsize_h
                 w_s, w_e = j * fsize_w, (j + 1) * fsize_w
-                h_so, h_eo = hs + rnd_h[i][j][int(index/8)], hs + rnd_h[i][j][int(index/8)] + fsize_h
-                w_so, w_eo = ws + rnd_w[i][j][int(index/8)], ws + rnd_w[i][j][int(index/8)] + fsize_w
+                h_so, h_eo = hs + rnd_h[i][j][int(index / 8)], hs + rnd_h[i][j][int(index / 8)] + fsize_h
+                w_so, w_eo = ws + rnd_w[i][j][int(index / 8)], ws + rnd_w[i][j][int(index / 8)] + fsize_w
                 # print(i,j,int(index/8))
                 # print(rnd_h[i][j][int(index/8)],rnd_w[i][j][int(index/8)])
                 # print(h_so, w_so)
-                target_img[:, h_s:h_e, w_s:w_e] = img[:, h_so:h_eo, w_so:w_eo]
+                target_img[:, h_s:h_e, w_s:w_e] = get_perspective(img, (64 / w)*180, ((h_so + h_eo) / h * 180) - 90,
+                                                                  ((w_so + w_eo) / w * 360) - 180, 64, 64)
 
         target_img = rearrange(target_img, '(b c) h w -> b c h w', b=1)
         target_img = target_img / 255
@@ -183,7 +188,7 @@ if __name__ == '__main__':
     file = os.path.dirname(os.path.abspath(__file__))
     anno_path = os.path.join(file, './data/odv_vqa')
     data_anno = ODVVQAReader(anno_path).read()
-    pool = Pool(18)
+    pool = Pool(12)
     for i in tqdm(range(0, 40)):
         for video_info in data_anno:
             video_path = video_info['video_path']
