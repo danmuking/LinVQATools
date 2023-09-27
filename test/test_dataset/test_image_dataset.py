@@ -10,9 +10,10 @@ from data.image_dataset import ImageDataset
 class TestImageDataset(TestCase):
     def test(self):
         os.chdir('../../')
-        dataset = ImageDataset(video_loader=None,norm=False)
+        dataset = ImageDataset(norm=False)
         dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=4)
         for i in tqdm(dataloader):
-            print(i)
+            # print(i)
             pass
-
+        # for i in range(len(dataset)):
+        #     dataset.__getitem__(i)

@@ -37,13 +37,6 @@ def plcc_loss(y_pred, y):
 class ImageModel(BaseModel):
     def __init__(
             self,
-            load_path=None,
-            multi=False,
-            layer=-1,
-            backbone='faster_vqa',
-            base_x_size=(32, 224, 224),
-            vqa_head=dict(in_channels=768),
-            window_size=(8, 7, 7),
             **kwargs
     ):
         super().__init__()
@@ -53,6 +46,8 @@ class ImageModel(BaseModel):
             Union[
                 Dict[str, torch.Tensor], list]:
         y = kargs['gt_label'].float().unsqueeze(-1)
+        name = kargs['name']
+        # print(name)
         # gt_motion = kargs['camera_motion'].float().unsqueeze(-1)
         # print(y.shape)
         if mode == 'loss':
@@ -66,7 +61,7 @@ class ImageModel(BaseModel):
         elif mode == 'predict':
             scores = self.model(inputs)
             y_pred = scores
-            return y_pred, y
+            return y_pred, y,name
 
     def train_step(self, data: Union[dict, tuple, list],
                    optim_wrapper: OptimWrapper) -> Dict[str, torch.Tensor]:
@@ -101,10 +96,10 @@ class ImageModel(BaseModel):
             losses = self._run_forward(data, mode='loss')  # type: ignore
 
         # 略作修改，适配一下train hook
-        result = losses['result']
-        recorder = TrainResultRecorder.get_instance('mmengine')
-        recorder.iter_y_pre = result[0]
-        recorder.iter_y = result[1]
+        # result = losses['result']
+        # recorder = TrainResultRecorder.get_instance('mmengine')
+        # recorder.iter_y_pre = result[0]
+        # recorder.iter_y = result[1]
 
         losses = {'loss': losses['loss']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore

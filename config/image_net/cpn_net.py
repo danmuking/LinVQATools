@@ -8,20 +8,15 @@ visualizer = dict(
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='swin patch32 fragment32 frame16 patchweight')
+            init_kwargs=dict(project='image', name='cpn')
         ),
     ],
 )
 model = dict(
     type='ImageModel',
-    backbone='faster_vqa',
-    base_x_size=(16, 224, 224),
-    window_size=(8, 7, 7),
-    vqa_head=dict(name='MeanHead', in_channels=8 * 7 * 7),
-    load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
 )
 epochs = 600
-batch_size = 6
+batch_size = 32
 num_workers = 4
 train_dataloader = dict(
     dataset=dict(
@@ -37,6 +32,7 @@ train_dataloader = dict(
 val_dataloader = dict(
     dataset=dict(
         type='ImageDataset',
+        phase='test'
     ),
     sampler=dict(
         type='DefaultSampler',
@@ -93,11 +89,11 @@ val_evaluator = [
 default_hooks = dict(
     checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=10, save_best='SROCC', rule='greater'))
 custom_hooks = [
-    dict(type='TrainEvaluatorHook'),
+    # dict(type='TrainEvaluatorHook'),
     # dict(type='CustomEMAHook',momentum=0.01)
     # dict(type='EmptyCacheHook', after_epoch=True)
 ]
-launcher = 'none'
+launcher = 'pytorch'
 randomness = dict(seed=42)
 # randomness = dict(seed=3407)
 # randomness = dict(seed=114514)

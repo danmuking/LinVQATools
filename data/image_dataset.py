@@ -1,3 +1,7 @@
+import os
+import random
+
+import cv2
 import numpy as np
 import torch
 from typing import Dict, List, Any
@@ -39,8 +43,9 @@ class ImageDataset(Dataset):
             anno_reader: str = 'ODVVQAReader',
             split_file: str = './data/odv_vqa/tr_te_VQA_ODV.txt',
             phase: str = 'train',
-            norm: bool = True
-
+            norm: bool = True,
+            prefix: str = 'frame',
+            is_preprocess: bool = True,
     ):
         # 数据集声明文件夹路径
         self.anno_root = anno_root
@@ -63,7 +68,9 @@ class ImageDataset(Dataset):
 
         self.frame_index = frame_compute(self.data)
 
-        self.frame_interval = 10
+        self.frame_interval = 30
+
+        self.prefix = prefix
 
         self.mean = torch.FloatTensor([123.675, 116.28, 103.53])
         self.std = torch.FloatTensor([58.395, 57.12, 57.375])
@@ -74,36 +81,67 @@ class ImageDataset(Dataset):
 
         self.data_argument = None
         means, stds = [0.485, 0.456, 0.406], [0.229, 0.224, 0.225]
-        if phase == 'train':
-            self.data_argument = transforms.Compose([
-                transforms.Resize(512),
-                transforms.RandomCrop(320),
-                transforms.RandomHorizontalFlip(0.5),
-                transforms.Normalize(means, stds),
-            ])
+        self.is_preprocess = is_preprocess
+        if self.is_preprocess:
+            if phase == 'train':
+                self.data_argument = transforms.Compose([
+                    transforms.RandomCrop(320),
+                    transforms.RandomHorizontalFlip(0.5),
+                    transforms.Normalize(means, stds),
+                ])
+            else:
+                self.data_argument = transforms.Compose([
+                    transforms.CenterCrop(320),
+                    transforms.Normalize(means, stds),
+                ])
         else:
-            self.data_argument = transforms.Compose([
-                transforms.Resize(512),
-                transforms.CenterCrop(320),
-                # transforms.RandomHorizontalFlip(0.5),
-                transforms.Normalize(means, stds),
-            ])
+            if phase == 'train':
+                self.data_argument = transforms.Compose([
+                    transforms.Resize(512),
+                    transforms.RandomCrop(320),
+                    transforms.RandomHorizontalFlip(0.5),
+                    transforms.Normalize(means, stds),
+                ])
+            else:
+                self.data_argument = transforms.Compose([
+                    transforms.Resize(512),
+                    transforms.CenterCrop(320),
+                    # transforms.RandomHorizontalFlip(0.5),
+                    transforms.Normalize(means, stds),
+                ])
 
+    # TODO: 时间段随机采样
     def __getitem__(self, index):
         frame_index = index * self.frame_interval
+        # print(frame_index)
+        # print(self.frame_index)
         # 获取视频索引
         video_index = None
-        for i,video_range in enumerate(self.frame_index[1:]):
+        for i, video_range in enumerate(self.frame_index[1:]):
             if frame_index < video_range:
                 video_index = i
                 break
+        # print(video_index)
         video_info = self.data[video_index]
         video_path: str = video_info["video_path"]
         score = video_info["score"]
         frame_num = video_info['frame_num']
-        img = VideoReader(video_path)[frame_index-self.frame_index[i]]
+        frame_index = frame_index - self.frame_index[i]
+        if self.is_preprocess:
+            video_pre_path = video_path.split('/')
+            video_pre_path.insert(3, self.prefix)
+            video_pre_path.insert(4, '{}'.format(0))
+            video_pre_path = os.path.join('/', *video_pre_path)[:-4]
+            img_path = os.path.join(video_pre_path, "{}.png".format(frame_index))
+            # print(img_path)
+            img = cv2.imread(img_path)
+            # print(img_path,img.shape)
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img = torch.tensor(img)
+        else:
+            img = VideoReader(video_path)[frame_index]
         img = rearrange(img, 'h w c -> c h w')
-        img = img/255
+        img = img / 255
         img = self.data_argument(img)
         camera_motion = self.camera_motion[video_info['scene_id']]
         data = {
@@ -117,4 +155,4 @@ class ImageDataset(Dataset):
         return data
 
     def __len__(self):
-        return int(self.frame_index[-1]/self.frame_interval)
+        return int(self.frame_index[-1] / self.frame_interval)
