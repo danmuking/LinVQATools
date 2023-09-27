@@ -11,7 +11,7 @@ class TestImageDataset(TestCase):
     def test(self):
         os.chdir('../../')
         dataset = ImageDataset(norm=False)
-        dataloader = DataLoader(dataset, batch_size=1, shuffle=True, num_workers=4)
+        dataloader = DataLoader(dataset, batch_size=1, shuffle=False, num_workers=4)
         for i in tqdm(dataloader):
             # print(i)
             pass

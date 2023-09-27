@@ -23,14 +23,6 @@ from data import loader
 decord.bridge.set_bridge("torch")
 
 
-def frame_compute(data):
-    data = [x['frame_num'] for x in data]
-    data.append(1)
-    frame_index = np.cumsum(data)
-    frame_index = np.insert(frame_index, 0, 0)
-    return frame_index
-
-
 @DATASETS.register_module()
 class ImageDataset(Dataset):
     """
@@ -66,11 +58,11 @@ class ImageDataset(Dataset):
         # 用于获取的训练集/测试集信息
         self.data: List[Dict] = self.video_info[self.phase]
 
-        self.frame_index = frame_compute(self.data)
-
         self.frame_interval = 30
 
         self.prefix = prefix
+
+        self.frame_index = self.frame_compute(self.data)
 
         self.mean = torch.FloatTensor([123.675, 116.28, 103.53])
         self.std = torch.FloatTensor([58.395, 57.12, 57.375])
@@ -110,10 +102,8 @@ class ImageDataset(Dataset):
                     transforms.Normalize(means, stds),
                 ])
 
-    # TODO: 时间段随机采样
     def __getitem__(self, index):
         frame_index = index * self.frame_interval
-        # print(frame_index)
         # print(self.frame_index)
         # 获取视频索引
         video_index = None
@@ -126,7 +116,7 @@ class ImageDataset(Dataset):
         video_path: str = video_info["video_path"]
         score = video_info["score"]
         frame_num = video_info['frame_num']
-        frame_index = frame_index - self.frame_index[i]
+        frame_index = frame_index - self.frame_index[video_index] + random.randint(0, self.frame_interval - 1)
         if self.is_preprocess:
             video_pre_path = video_path.split('/')
             video_pre_path.insert(3, self.prefix)
@@ -156,3 +146,9 @@ class ImageDataset(Dataset):
 
     def __len__(self):
         return int(self.frame_index[-1] / self.frame_interval)
+
+    def frame_compute(self, data):
+        data = [x['frame_num'] - x['frame_num'] % self.frame_interval for x in data]
+        frame_index = np.cumsum(data)
+        frame_index = np.insert(frame_index, 0, 0)
+        return frame_index
