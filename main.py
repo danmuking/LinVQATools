@@ -11,7 +11,7 @@ from mmengine import Config
 
 from mmengine.runner import Runner
 
-config = Config.fromfile('./config/image_net/cpn_net.py')
+config = Config.fromfile('./config/intern_image/intern_image.py')
 runner = Runner.from_cfg(config)
 runner.train()
 # while True:
