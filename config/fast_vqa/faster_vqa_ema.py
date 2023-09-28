@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/swin_patch32_fragment32_frame16_patchweight'
+work_dir = 'work_dir/faster_vqa/swin_patch32_fragment32_frame16_patchweight_softpool'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='swin patch32 fragment32 frame16 patchweight')
+            init_kwargs=dict(project='faster vqa消融', name='swin patch32 fragment32 frame16 patchweight softpool')
         ),
     ],
 )
@@ -23,7 +23,7 @@ model = dict(
 epochs = 600
 batch_size = 6
 num_workers = 4
-prefix = 'temp/fragment'
+prefix = 'test'
 argument = [
     dict(
         name='FragmentShuffler',
