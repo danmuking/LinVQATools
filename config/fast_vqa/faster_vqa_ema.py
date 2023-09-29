@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/swin_patch32_fragment32_frame16_patchweight_softpool'
+work_dir = 'work_dir/faster_vqa/swin_patch32_fragment32_frame16_patchweight'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='swin patch32 fragment32 frame16 patchweight softpool')
+            init_kwargs=dict(project='faster vqa消融', name='swin patch32 fragment32 frame16 patchweight')
         ),
     ],
 )
@@ -22,8 +22,8 @@ model = dict(
 )
 epochs = 600
 batch_size = 6
-num_workers = 4
-prefix = 'test'
+num_workers = 12
+prefix = 'temp/fragment'
 argument = [
     dict(
         name='FragmentShuffler',
@@ -132,11 +132,11 @@ val_evaluator = [
 default_hooks = dict(
     checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=10, save_best='SROCC', rule='greater'))
 custom_hooks = [
-    # dict(type='TrainEvaluatorHook'),
+    dict(type='TrainEvaluatorHook'),
     # dict(type='CustomEMAHook',momentum=0.01)
     # dict(type='EmptyCacheHook', after_epoch=True)
 ]
-launcher = 'pytorch'
+launcher = 'none'
 randomness = dict(seed=42)
 # randomness = dict(seed=3407)
 # randomness = dict(seed=114514)
