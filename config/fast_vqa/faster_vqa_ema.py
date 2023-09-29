@@ -36,6 +36,7 @@ argument = [
 ]
 train_video_loader = dict(
     name='FragmentLoader',
+    prefix=prefix,
     frame_sampler=None,
     spatial_sampler=None,
     argument=argument,
@@ -61,6 +62,7 @@ train_dataloader = dict(
     num_workers=num_workers)
 val_video_loader = dict(
     name='FragmentLoader',
+    prefix=prefix,
     frame_sampler=None,
     spatial_sampler=None,
     argument=argument,
