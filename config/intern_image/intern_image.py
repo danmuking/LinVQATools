@@ -2,19 +2,19 @@ custom_imports = dict(
     imports=['intern_image', 'image_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/image_net/intern_image'
+work_dir = 'work_dir/image_net/09301121 intern_image'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='image', name='intern_image')
+            init_kwargs=dict(project='image', name='09301121 intern_image')
         ),
     ],
 )
 model = dict(
     type='InternImage',
-    load_path='./pretrained_weights/internimage_t_1k_224.pth',
+    # load_path='./pretrained_weights/internimage_t_1k_224.pth',
 
 )
 epochs = 600

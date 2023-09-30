@@ -64,9 +64,6 @@ class ImageDataset(Dataset):
 
         self.frame_index = self.frame_compute(self.data)
 
-        self.mean = torch.FloatTensor([123.675, 116.28, 103.53])
-        self.std = torch.FloatTensor([58.395, 57.12, 57.375])
-
         # 视频中相机是否移动
         self.camera_motion = [1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 1, 1, 0, 1,
                               1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0]
@@ -79,6 +76,8 @@ class ImageDataset(Dataset):
                 self.data_argument = transforms.Compose([
                     transforms.RandomCrop(320),
                     transforms.RandomHorizontalFlip(0.5),
+                    transforms.RandomVerticalFlip(p=0.5),
+                    transforms.RandomRotation(90),
                     transforms.Normalize(means, stds),
                 ])
             else:
