@@ -77,7 +77,6 @@ class ImageDataset(Dataset):
                     transforms.RandomCrop(320),
                     transforms.RandomHorizontalFlip(0.5),
                     transforms.RandomVerticalFlip(p=0.5),
-                    transforms.RandomRotation(90),
                     transforms.Normalize(means, stds),
                 ])
             else:
