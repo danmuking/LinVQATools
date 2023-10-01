@@ -96,7 +96,7 @@ def makedir(path: str):
 
 def get_save_path(video_path, frame_num, epoch):
     video_path = video_path.split('/')
-    video_path.insert(3, 'test')
+    video_path.insert(3, 'sphere')
     video_path.insert(4, str(epoch))
     video_path[0] = "/data"
     video_path[1] = ""
@@ -115,8 +115,8 @@ def sampler(video_path: str, epoch: int):
 
     fragments_h = 7
     fragments_w = 7
-    fsize_h = 64
-    fsize_w = 64
+    fsize_h = 32
+    fsize_w = 32
     # 采样图片的高
     size_h = fragments_h * fsize_h
     # 采样图片的长
@@ -124,6 +124,7 @@ def sampler(video_path: str, epoch: int):
     img = vreader[0]
     img = rearrange(img, 'h w c -> c h w ')
     res_h, res_w = img.shape[-2:]
+    res_h, res_w = int(res_w * 124 / 360), int(res_w * 124 / 360)
     size = size_h, size_w
 
     ## make sure that sampling will not run out of the picture
@@ -148,15 +149,23 @@ def sampler(video_path: str, epoch: int):
         rnd_w = torch.zeros((len(hgrids), len(wgrids)).int())
 
     softpool = SoftPool2d()
-
+    theta = torch.randint(
+        -180, 180, (4, 1)
+    )
+    phi = torch.randint(
+        -60, 60, (4, 1)
+    )
     for index, frame_num in enumerate(frame_index):
         save_path = get_save_path(video_path, frame_num, epoch)
         img = vreader[frame_num]
         img = rearrange(img, 'h w c -> c h w ')
         c, h, w = img.shape
         img = rearrange(img, 'c h w -> h w c ')
+        img = get_perspective(img, 124,
+                              theta[index // 8], phi[index // 8], int(w * 124 / 360),
+                              int(w * 124 / 360))
         # img = torchvision.transforms.CenterCrop((h, w))(img)
-        target_img = torch.zeros((3, 448, 448))
+        target_img = torch.zeros((3, 224, 224))
 
         for i, hs in enumerate(hgrids):
             for j, ws in enumerate(wgrids):
@@ -167,18 +176,16 @@ def sampler(video_path: str, epoch: int):
                 # print(i,j,int(index/8))
                 # print(rnd_h[i][j][int(index/8)],rnd_w[i][j][int(index/8)])
                 # print(h_so, w_so)
-                target_img[:, h_s:h_e, w_s:w_e] = get_perspective(img, (64 / w)*180,
-                                                                  ((w_so + w_eo) / w * 360) - 180, ((h_so + h_eo) / h * 180) - 90, 64, 64)
+                target_img[:, h_s:h_e, w_s:w_e] = img[:, h_so:h_eo, w_so:w_eo]
 
-        target_img = rearrange(target_img, '(b c) h w -> b c h w', b=1)
-        target_img = target_img / 255
-        target_img = softpool(target_img)
-        target_img = rearrange(target_img, 'b c h w -> (b c) h w', b=1)
-
+        # target_img = rearrange(target_img, '(b c) h w -> b c h w', b=1)
+        # target_img = target_img / 255
+        # target_img = softpool(target_img)
+        # target_img = rearrange(target_img, 'b c h w -> (b c) h w', b=1)
         target_img = rearrange(target_img, 'c h w -> h w c ')
         target_img = target_img.numpy()
         target_img = cv2.cvtColor(target_img, cv2.COLOR_RGB2BGR)
-        cv2.imwrite(save_path, (target_img * 255).astype('uint8'))
+        cv2.imwrite(save_path, target_img.astype('uint8'))
         print('{}已保存'.format(save_path))
 
 
@@ -188,7 +195,7 @@ if __name__ == '__main__':
     file = os.path.dirname(os.path.abspath(__file__))
     anno_path = os.path.join(file, './data/odv_vqa')
     data_anno = ODVVQAReader(anno_path).read()
-    pool = Pool(12)
+    pool = Pool(4)
     for i in tqdm(range(0, 40)):
         for video_info in data_anno:
             video_path = video_info['video_path']
