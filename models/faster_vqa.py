@@ -66,7 +66,7 @@ class FasterVQA(BaseModel):
             Union[
                 Dict[str, torch.Tensor], list]:
         y = kargs['gt_label'].float().unsqueeze(-1)
-        gt_motion = kargs['camera_motion'].float().unsqueeze(-1)
+        gt_motion = kargs['camera_motion'].long().view(-1)
         # print(y.shape)
         if mode == 'loss':
             scores = self.model(inputs, inference=False,
@@ -81,7 +81,7 @@ class FasterVQA(BaseModel):
 
             loss = mse_loss + p_loss + 3 * r_loss + motion_loss
             return {'loss': loss, 'mse_loss': mse_loss, 'p_loss': p_loss,
-                    'r_loss': r_loss, 'motion_loss': motion_loss, 'result': [y_pred, y]}
+                    'r_loss': r_loss, 'motion_loss': motion_loss,}
         elif mode == 'predict':
             scores = self.model(inputs, inference=True,
                                 reduce_scores=False)
@@ -121,10 +121,10 @@ class FasterVQA(BaseModel):
             losses = self._run_forward(data, mode='loss')  # type: ignore
 
         # 略作修改，适配一下train hook
-        result = losses['result']
-        recorder = TrainResultRecorder.get_instance('mmengine')
-        recorder.iter_y_pre = result[0]
-        recorder.iter_y = result[1]
+        # result = losses['result']
+        # recorder = TrainResultRecorder.get_instance('mmengine')
+        # recorder.iter_y_pre = result[0]
+        # recorder.iter_y = result[1]
 
         losses = {'loss': losses['loss'], 'mse_loss': losses['mse_loss'], 'p_loss': losses['p_loss'],
                   'r_loss': losses['r_loss'], 'motion_loss': losses['motion_loss']}

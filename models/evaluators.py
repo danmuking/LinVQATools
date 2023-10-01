@@ -58,7 +58,7 @@ class DiViDeAddEvaluator(nn.Module):
 
         # self.neck = PatchWeighted()
         self.vqa_head = getattr(heads, vqa_head['name'])(**vqa_head)
-        self.motion_head = getattr(heads, vqa_head['name'])(**vqa_head)
+        self.motion_head = getattr(heads, vqa_head['name'])(fc_out=2,**vqa_head)
 
     def forward(self, vclips, inference=False, return_pooled_feats=False, reduce_scores=True, pooled=False, **kwargs):
         vclips = {

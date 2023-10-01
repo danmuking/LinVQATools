@@ -134,11 +134,11 @@ val_evaluator = [
 default_hooks = dict(
     checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=10, save_best='SROCC', rule='greater'))
 custom_hooks = [
-    dict(type='TrainEvaluatorHook'),
+    # dict(type='TrainEvaluatorHook'),
     # dict(type='CustomEMAHook',momentum=0.01)
     # dict(type='EmptyCacheHook', after_epoch=True)
 ]
-launcher = 'none'
+launcher = 'pytorch'
 randomness = dict(seed=42)
 # randomness = dict(seed=3407)
 # randomness = dict(seed=114514)

@@ -33,7 +33,8 @@ class TestSingleBranchDataset(TestCase):
             ]
         )
         dataset = SingleBranchDataset(video_loader=video_loader, norm=False)
-        data = dataset[0]
+        data = dataset[32]
+        print(data)
         # video = torch.from_numpy(np.load("temp.npy"))
         video = data['inputs']
         # print(data)

@@ -12,7 +12,7 @@ class VQAHead(nn.Module):
     """
 
     def __init__(
-            self, in_channels=768, hidden_channels=64, dropout_ratio=0.5,fc_in=1568, **kwargs
+            self, in_channels=768, hidden_channels=64, dropout_ratio=0.5,fc_in=1568,fc_out=1, **kwargs
     ):
         super().__init__()
         self.dropout_ratio = dropout_ratio
@@ -25,7 +25,7 @@ class VQAHead(nn.Module):
         self.fc_hid = nn.Conv3d(self.in_channels, self.hidden_channels, (1, 1, 1))
         self.fc_last = nn.Conv3d(self.hidden_channels, 1, (1, 1, 1))
         self.gelu = nn.GELU()
-        self.fc = nn.Linear(fc_in, 1)
+        self.fc = nn.Linear(fc_in, fc_out)
 
     def forward(self, x):
         x = x[0][0]

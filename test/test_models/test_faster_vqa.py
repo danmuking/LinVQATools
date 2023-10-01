@@ -19,7 +19,7 @@ class TestFasterVQA(TestCase):
             # load_path="/data/ly/code/LinVQATools/pretrained_weights/MViTv2_S_16x4_k400_f302660347.pyth"
         )
         video = torch.ones((2, 3, 16, 224, 224))
-        scores = model(inputs=video, mode="loss", gt_label=torch.tensor((2,1)),camera_motion=torch.tensor((2,1)))
+        scores = model(inputs=video, mode="loss", gt_label=torch.tensor((2,1)),camera_motion=torch.zeros((2,1)))
         print(scores)
         # if len(scores) > 1:
         #     y_pred = reduce(lambda x, y: x + y, scores)
@@ -29,30 +29,9 @@ class TestFasterVQA(TestCase):
         # print(y_pred)
 
     def test_torch(self):
-        window_size = (2,2,2)
-        shift_size = (2,2,2)
-        D,H,W=4,4,4
-        img_mask = torch.zeros((1, D, H, W, 1))  # 1 Dp Hp Wp 1
-        cnt = 0
-        for d in (
-                slice(-window_size[0]),
-                slice(-window_size[0], -shift_size[0]),
-                slice(-shift_size[0], None),
-        ):
-            for h in (
-                    slice(-window_size[1]),
-                    slice(-window_size[1], -shift_size[1]),
-                    slice(-shift_size[1], None),
-            ):
-                for w in (
-                        slice(-window_size[2]),
-                        slice(-window_size[2], -shift_size[2]),
-                        slice(-shift_size[2], None),
-                ):
-                    img_mask[:, d, h, w, :] = cnt
-                    cnt += 1
-        x = [i for i in range(4)]
-        test = slice(-window_size[0])
-        print(test.start,test.stop,test.step)
-        print(x[test])
-        # print(img_mask.view(D, H, W))
+        loss = nn.CrossEntropyLoss()
+        input = torch.randn(3, 5, requires_grad=True)
+        target = torch.empty(3, dtype=torch.long).random_(5)
+        print(input,target)
+        output = loss(input, target)
+        output.backward()
