@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/09292339_swin_patchweight_soft_pool'
+work_dir = 'work_dir/faster_vqa/10011007 swin patchweight soft pool'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='09292339 swin patchweight soft_pool')
+            init_kwargs=dict(project='faster vqa消融', name='10011007 swin patchweight soft pool 调参')
         ),
     ],
 )
@@ -117,7 +117,7 @@ param_scheduler = [
     dict(
         type='CosineAnnealingLR',
         by_epoch=True,
-        begin=10,
+        begin=5,
         T_max=epochs,
         eta_min=0.00002,
         convert_to_iter_based=True
