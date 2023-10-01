@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/swin_mae_patch32_fragment32'
+work_dir = 'work_dir/faster_vqa/10011811 swin motion'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='swin mae patch32 fragment32')
+            init_kwargs=dict(project='faster vqa消融', name='10011811 swin motion')
         ),
     ],
 )
@@ -17,7 +17,7 @@ model = dict(
     backbone='faster_vqa',
     base_x_size=(16, 224, 224),
     window_size=(8, 7, 7),
-    vqa_head=dict(name='VQAHead', in_channels=384, fc_in=8 * 14 * 14),
+    vqa_head=dict(name='VQAHead', in_channels=768, fc_in=8 * 7 * 7),
     load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
 )
 epochs = 600
@@ -36,6 +36,7 @@ argument = [
 ]
 train_video_loader = dict(
     name='FragmentLoader',
+    prefix=prefix,
     frame_sampler=None,
     spatial_sampler=None,
     argument=argument,
@@ -61,6 +62,7 @@ train_dataloader = dict(
     num_workers=num_workers)
 val_video_loader = dict(
     name='FragmentLoader',
+    prefix=prefix,
     frame_sampler=None,
     spatial_sampler=None,
     argument=argument,

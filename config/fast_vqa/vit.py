@@ -34,7 +34,15 @@ argument = [
     dict(
         name='PostProcessSampler',
         num=2
-    )
+    ),
+    dict(
+        name='FragmentMirror',
+        fragment_size=32
+    ),
+    # dict(
+    #     name='FragmentRotate',
+    #     fragment_size=32
+    # ),
 ]
 train_video_loader = dict(
     name='FragmentLoader',

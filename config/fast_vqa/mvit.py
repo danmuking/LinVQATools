@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/mvit_patch32_fragment32'
+work_dir = 'work_dir/faster_vqa/mvit_patch244patch244_fragment32'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='mvit patch32 fragment32')
+            init_kwargs=dict(project='faster vqa消融', name='mvit patch244 fragment32')
         ),
     ],
 )
@@ -24,7 +24,7 @@ model = dict(
 epochs = 600
 batch_size = 4
 num_workers = 16
-base_lr = 0.002
+base_lr = 0.01
 prefix = 'temp/fragment'
 argument = [
     dict(

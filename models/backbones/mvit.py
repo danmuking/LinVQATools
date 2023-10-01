@@ -707,7 +707,9 @@ class MViT(BaseModule):
             qkv_bias: bool = True,
             norm_cfg: Dict = dict(type='LN', eps=1e-6),
             patch_cfg: Dict = dict(
-                kernel_size=(3, 7, 7), stride=(2, 4, 4), padding=(1, 3, 3)),
+                # kernel_size=(3, 7, 7), stride=(2, 4, 4), padding=(1, 3, 3)
+                kernel_size=(2, 4, 4), stride=(2, 4, 4), padding=(0, 0, 0)
+            ),
             init_cfg: Optional[Union[Dict, List[Dict]]] = [
                 dict(type='TruncNormal', layer=['Conv2d', 'Conv3d'], std=0.02),
                 dict(type='TruncNormal', layer='Linear', std=0.02, bias=0.02),

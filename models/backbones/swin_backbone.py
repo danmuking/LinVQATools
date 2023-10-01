@@ -10,7 +10,6 @@ from operator import mul
 from einops import rearrange
 
 from models import logger
-from models.backbones.video_mae_v2 import Block
 
 
 def fragment_infos(D, H, W, fragments=7, device="cuda"):
@@ -539,6 +538,7 @@ class PatchMerging(nn.Module):
         self.reduction = nn.Linear(4 * dim, 2 * dim, bias=False)
         self.norm = norm_layer(4 * dim)
 
+    # TODO：时间上也该给它做patch merging
     def forward(self, x):
         """Forward function.
 
@@ -790,8 +790,8 @@ class SwinTransformer3D(nn.Module):
             patch_size=(2, 4, 4),
             in_chans=3,
             embed_dim=96,
-            depths=[2, 2],
-            num_heads=[3, 6],
+            depths=[2, 2, 6, 2],
+            num_heads=[3, 6, 12, 24],
             window_size=(8, 7, 7),
             mlp_ratio=4.0,
             qkv_bias=True,
@@ -815,7 +815,7 @@ class SwinTransformer3D(nn.Module):
         self.num_layers = len(depths)
         # 编码维度
         self.embed_dim = embed_dim
-        # patch是否使用norm
+        # patch之后是否使用norm
         self.patch_norm = patch_norm
         self.frozen_stages = frozen_stages
         self.window_size = window_size
@@ -855,32 +855,14 @@ class SwinTransformer3D(nn.Module):
                 attn_drop=attn_drop_rate,
                 drop_path=dpr[sum(depths[:i_layer]): sum(depths[: i_layer + 1])],
                 norm_layer=norm_layer,
-                downsample=PatchMerging,
+                downsample=PatchMerging if i_layer < self.num_layers - 1 else None,
                 use_checkpoint=use_checkpoint,
                 jump_attention=jump_attention[i_layer],
                 frag_bias=frag_biases[i_layer],
             )
             self.layers.append(layer)
 
-        self.mae_layer = nn.ModuleList()
-        for i in range(1):
-            self.mae_layer.append(
-                Block(
-                    dim=int(384),
-                    num_heads=6,
-                    mlp_ratio=mlp_ratio,
-                    qkv_bias=qkv_bias,
-                    qk_scale=qk_scale,
-                    drop=drop_rate,
-                    attn_drop=attn_drop_rate,
-                    drop_path=0,
-                    norm_layer=norm_layer,
-                    init_values=0,
-                    cos_attn=False)
-            )
-
-
-        self.num_features = int(embed_dim * 2 ** self.num_layers)
+        self.num_features = int(embed_dim * 2 ** (self.num_layers - 1))
 
         # add a norm layer for each output
         self.norm = norm_layer(self.num_features)
@@ -1140,12 +1122,8 @@ class SwinTransformer3D(nn.Module):
         for l, mlayer in enumerate(self.layers):
             x = mlayer(x.contiguous(), resized_window_size)
             feats += [x]
-        x = x.flatten(2).transpose(1, 2)
-        # print(x.shape)
-        for l, mlayer in enumerate(self.mae_layer):
-            x = mlayer(x)
-            feats += [x]
-        x = rearrange(x, 'n (d h w) c -> n d h w c', d=8, h=14, w=14)
+
+        x = rearrange(x, "n c d h w -> n d h w c")
         x = self.norm(x)
         x = rearrange(x, "n d h w c -> n c d h w")
 
