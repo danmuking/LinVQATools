@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10021100 swin'
+work_dir = 'work_dir/faster_vqa/10021712 swin patch merge'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10021100 swin')
+            init_kwargs=dict(project='faster vqa消融', name='10021712 swin patch merge')
         ),
     ],
 )
@@ -17,13 +17,13 @@ model = dict(
     backbone='faster_vqa',
     base_x_size=(16, 224, 224),
     window_size=(8, 7, 7),
-    vqa_head=dict(name='VQAHead', in_channels=768, fc_in=8 * 7 * 7),
+    vqa_head=dict(name='VQAHead', in_channels=768, fc_in=1 * 7 * 7),
     load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
 )
 epochs = 600
 batch_size = 6
-num_workers = 4
-prefix = 'temp'
+num_workers = 8
+prefix = 'fragment'
 argument = [
     dict(
         name='FragmentShuffler',
@@ -96,7 +96,7 @@ train_cfg = dict(
 val_cfg = dict()
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.0002, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
