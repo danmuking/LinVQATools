@@ -40,7 +40,6 @@ def global_position_index(
         .long()
         .permute(0, 2, 3, 4, 1)
     )
-    # print(shift_size)
     coords = torch.roll(
         coords, shifts=(-shift_size[0], -shift_size[1], -shift_size[2]), dims=(1, 2, 3)
     )
@@ -315,7 +314,6 @@ class WindowAttention3D(nn.Module):
             nW = fmask.shape[0]
             relative_position_bias = relative_position_bias.unsqueeze(0)
             fgate = fgate.unsqueeze(1)
-            # print(fgate.shape, relative_position_bias.shape)
             if hasattr(self, "fragment_position_bias_table"):
                 relative_position_bias = (
                         relative_position_bias * fgate
