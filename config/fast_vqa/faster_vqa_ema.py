@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10011811 swin motion'
+work_dir = 'work_dir/faster_vqa/10021100 swin'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10011811 swin motion')
+            init_kwargs=dict(project='faster vqa消融', name='10021100 swin')
         ),
     ],
 )
@@ -22,8 +22,8 @@ model = dict(
 )
 epochs = 600
 batch_size = 6
-num_workers = 12
-prefix = 'temp/fragment'
+num_workers = 4
+prefix = 'temp'
 argument = [
     dict(
         name='FragmentShuffler',
@@ -96,7 +96,7 @@ train_cfg = dict(
 val_cfg = dict()
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=0.0002, weight_decay=0.05),
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
