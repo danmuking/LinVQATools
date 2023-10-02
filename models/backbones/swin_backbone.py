@@ -535,8 +535,8 @@ class PatchMerging(nn.Module):
     def __init__(self, dim, norm_layer=nn.LayerNorm):
         super().__init__()
         self.dim = dim
-        self.reduction = nn.Linear(4 * dim, 2 * dim, bias=False)
-        self.norm = norm_layer(4 * dim)
+        self.reduction = nn.Linear(2*4 * dim, 2*2 * dim, bias=False)
+        self.norm = norm_layer(2*4 * dim)
 
     # TODO：时间上也该给它做patch merging
     def forward(self, x):
@@ -552,11 +552,16 @@ class PatchMerging(nn.Module):
         if pad_input:
             x = F.pad(x, (0, 0, 0, W % 2, 0, H % 2))
 
-        x0 = x[:, :, 0::2, 0::2, :]  # B D H/2 W/2 C
-        x1 = x[:, :, 1::2, 0::2, :]  # B D H/2 W/2 C
-        x2 = x[:, :, 0::2, 1::2, :]  # B D H/2 W/2 C
-        x3 = x[:, :, 1::2, 1::2, :]  # B D H/2 W/2 C
-        x = torch.cat([x0, x1, x2, x3], -1)  # B D H/2 W/2 4*C
+        x0 = x[:, 0::2, 0::2, 0::2, :]  # B D/2 H/2 W/2 C
+        x1 = x[:, 1::2, 1::2, 0::2, :]  # B D/2 H/2 W/2 C
+        x2 = x[:, 0::2, 0::2, 1::2, :]  # B D/2 H/2 W/2 C
+        x3 = x[:, 1::2, 1::2, 1::2, :]  # B D/2 H/2 W/2 C
+        x5 = x[:, 0::2, 0::2, 0::2, :]  # B D/2 H/2 W/2 C
+        x6 = x[:, 1::2, 1::2, 0::2, :]  # B D/2 H/2 W/2 C
+        x7 = x[:, 0::2, 0::2, 1::2, :]  # B D/2 H/2 W/2 C
+        x8 = x[:, 1::2, 1::2, 1::2, :]  # B D/2 H/2 W/2 C
+        x = torch.cat([x0, x1, x2, x3,x5,x6,x7,x8], -1)  # B D/2 H/2 W/2 8*C
+        print(x.shape)
 
         x = self.norm(x)
         x = self.reduction(x)
@@ -842,7 +847,7 @@ class SwinTransformer3D(nn.Module):
         self.layers = nn.ModuleList()
         for i_layer in range(self.num_layers):
             layer = BasicLayer(
-                dim=int(embed_dim * 2 ** i_layer),
+                dim=int(embed_dim * 4 ** i_layer),
                 depth=depths[i_layer],
                 num_heads=num_heads[i_layer],
                 window_size=window_size[i_layer]
@@ -862,7 +867,7 @@ class SwinTransformer3D(nn.Module):
             )
             self.layers.append(layer)
 
-        self.num_features = int(embed_dim * 2 ** (self.num_layers - 1))
+        self.num_features = int(embed_dim * 4 ** (self.num_layers - 1))
 
         # add a norm layer for each output
         self.norm = norm_layer(self.num_features)
