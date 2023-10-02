@@ -15,7 +15,7 @@ from einops import rearrange
 from tqdm import tqdm
 
 from data.meta_reader import ODVVQAReader
-from SoftPool import soft_pool2d, SoftPool2d
+# from SoftPool import soft_pool2d, SoftPool2d
 
 from data.shpere.equirec2perspec import get_perspective
 
@@ -148,7 +148,7 @@ def sampler(video_path: str, epoch: int):
     else:
         rnd_w = torch.zeros((len(hgrids), len(wgrids)).int())
 
-    softpool = SoftPool2d()
+    # softpool = SoftPool2d()
     theta = torch.randint(
         -180, 180, (4, 1)
     )
@@ -196,7 +196,7 @@ if __name__ == '__main__':
     anno_path = os.path.join(file, './data/odv_vqa')
     data_anno = ODVVQAReader(anno_path).read()
     pool = Pool(4)
-    for i in tqdm(range(0, 40)):
+    for i in tqdm(range(22, 40)):
         for video_info in data_anno:
             video_path = video_info['video_path']
             print(video_path)
