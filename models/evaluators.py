@@ -30,7 +30,6 @@ class DiViDeAddEvaluator(nn.Module):
                 base_x_size=base_x_size,
                 window_size=window_size,
                 load_path=load_path,
-                drop_path_rate=0.2,
             )
         elif backbone == 'mvit':
             b = MViT(
