@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10030021 swin patch merge'
+work_dir = 'work_dir/faster_vqa/10031254 swin patch merge'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10030021 swin patch merge')
+            init_kwargs=dict(project='faster vqa消融', name='10031254 swin patch merge')
         ),
     ],
 )
@@ -100,7 +100,7 @@ optim_wrapper = dict(
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
-            'model.fragments_backbone': dict(lr_mult=10),
+            'model.fragments_backbone': dict(lr_mult=1),
         })
 )
 param_scheduler = [
