@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10011007 swin patchweight soft pool'
+work_dir = 'work_dir/faster_vqa/10031557 swin patchweight soft pool'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10011007 swin patchweight soft pool 调参')
+            init_kwargs=dict(project='faster vqa消融', name='10031557 swin patchweight soft pool 调参')
         ),
     ],
 )
@@ -22,8 +22,8 @@ model = dict(
 )
 epochs = 600
 batch_size = 6
-num_workers = 4
-prefix = 'test'
+num_workers = 6
+prefix = 'fragment'
 argument = [
     dict(
         name='FragmentShuffler',
@@ -96,7 +96,7 @@ train_cfg = dict(
 val_cfg = dict()
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=0.001, weight_decay=0.05),
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
