@@ -324,7 +324,7 @@ class BiLevelRoutingAttention3D(nn.Module):
         self.scale = qk_scale or self.qk_dim ** -0.5
 
         ################side_dwconv (i.e. LCE in ShuntedTransformer)###########
-        self.lepe = nn.Conv3d(dim, dim, kernel_size=side_dwconv, stride=1, padding=side_dwconv // 2,
+        self.lepe = nn.Conv3d(dim, dim, kernel_size=(1,side_dwconv,side_dwconv), stride=(1,2,2), padding=side_dwconv // 2,
                               groups=dim) if side_dwconv > 0 else \
             lambda x: torch.zeros_like(x)
 

@@ -58,7 +58,7 @@ class Block(nn.Module):
                  kv_per_win=4, kv_downsample_ratio=4, kv_downsample_kernel=None, kv_downsample_mode='ada_avgpool',
                  topk=4, param_attention="qkvo", param_routing=False, diff_routing=False, soft_routing=False,
                  mlp_ratio=4, mlp_dwconv=False,
-                 side_dwconv=5, before_attn_dwconv=3, pre_norm=True, auto_pad=False):
+                 side_dwconv=2, before_attn_dwconv=3, pre_norm=True, auto_pad=False):
         super().__init__()
         qk_dim = qk_dim or dim
 
@@ -148,7 +148,7 @@ class Block3D(nn.Module):
 
         # modules
         if before_attn_dwconv > 0:
-            self.pos_embed = nn.Conv3d(dim, dim, kernel_size=before_attn_dwconv, padding=1, groups=dim)
+            self.pos_embed = nn.Conv3d(dim, dim, kernel_size=(1,before_attn_dwconv,before_attn_dwconv), padding=(0,1,1), groups=dim)
         else:
             self.pos_embed = lambda x: 0
         self.norm1 = nn.LayerNorm(dim, eps=1e-6)  # important to avoid attention collapsing
@@ -196,6 +196,7 @@ class Block3D(nn.Module):
         x: NCHW tensor
         """
         # conv pos embedding
+        # print(x.shape)
         # print(self.pos_embed(x).shape)
         x = x + self.pos_embed(x)
         # permute to NHWC tensor for attention & mlp
@@ -400,7 +401,7 @@ class BiFormer3D(nn.Module):
                  pre_norm=True,
                  pe=None,
                  pe_stages=[0],
-                 before_attn_dwconv=3,
+                 before_attn_dwconv=2,
                  auto_pad=False,
                  # -----------------------
                  kv_downsample_kernels=[4, 2, 1, 1],
@@ -434,10 +435,10 @@ class BiFormer3D(nn.Module):
         self.downsample_layers = nn.ModuleList()
         # NOTE: uniformer uses two 3*3 conv, while in many other transformers this is one 7*7 conv
         stem = nn.Sequential(
-            nn.Conv3d(in_chans, embed_dim[0] // 2, kernel_size=(2, 3, 3), stride=(2, 2, 2), padding=(0, 1, 1)),
+            nn.Conv3d(in_chans, embed_dim[0] // 2, kernel_size=(2, 2, 2), stride=(2, 2, 2), padding=(0, 0, 0)),
             nn.BatchNorm3d(embed_dim[0] // 2),
             nn.GELU(),
-            nn.Conv3d(embed_dim[0] // 2, embed_dim[0], kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1)),
+            nn.Conv3d(embed_dim[0] // 2, embed_dim[0], kernel_size=(1, 2, 2), stride=(1, 2, 2), padding=(0, 0, 0)),
             nn.BatchNorm3d(embed_dim[0]),
         )
         if (pe is not None) and 0 in pe_stages:
@@ -448,7 +449,7 @@ class BiFormer3D(nn.Module):
 
         for i in range(3):
             downsample_layer = nn.Sequential(
-                nn.Conv3d(embed_dim[i], embed_dim[i + 1], kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1)),
+                nn.Conv3d(embed_dim[i], embed_dim[i + 1], kernel_size=(1, 2, 2), stride=(1, 2, 2), padding=(0, 0, 0)),
                 nn.BatchNorm3d(embed_dim[i + 1])
             )
             if (pe is not None) and i + 1 in pe_stages:
@@ -553,6 +554,9 @@ class BiFormer3D(nn.Module):
                 logger.info('biformer.py:{}由{}展开为{}'.format(key, s_state_dict[key].shape, t_state_dict[key].shape))
                 t = t_state_dict[key].shape[2]
                 s_state_dict[key] = s_state_dict[key].unsqueeze(2).repeat(1, 1, t, 1, 1) / t
+        for key in t_state_dict.keys():
+            if t_state_dict[key].shape != s_state_dict[key].shape:
+                s_state_dict.pop(key)
         info = self.load_state_dict(s_state_dict, strict=False)
         return info
 

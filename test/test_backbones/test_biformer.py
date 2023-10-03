@@ -17,16 +17,15 @@ class TestBiFormer(TestCase):
         kv_downsample_mode='identity',
         kv_per_wins=[-1, -1, -1, -1],
         topks=[1, 4, 16, -2],
-        side_dwconv=5,
+        side_dwconv=0,
         before_attn_dwconv=3,
         layer_scale_init_value=-1,
         qk_dims=[64, 128, 256, 512],
         head_dim=32,
         param_routing=False, diff_routing=False, soft_routing=False,
         pre_norm=True,
-        pe=None,
-        num_classes=1)
-        x = torch.zeros(2, 3, 32, 224, 224)
+        pe=None,)
+        x = torch.zeros(2, 3, 16, 224, 224)
         print(model(x).shape)
 
     def test_torch(self):
