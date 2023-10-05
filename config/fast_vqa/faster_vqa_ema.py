@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10050949 swin patchweight'
+work_dir = 'work_dir/faster_vqa/10051448 swin patchweight mseloss'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10050949 swin patchweight 取消fragment编码')
+            init_kwargs=dict(project='faster vqa消融', name='10051448 swin patchweight mseloss')
         ),
     ],
 )
