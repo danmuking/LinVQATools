@@ -1,6 +1,7 @@
 import torch
 from typing import Dict, List, Any
 
+from einops import rearrange
 from torch.utils.data import Dataset
 from mmengine import DATASETS
 import os.path as osp
@@ -67,6 +68,10 @@ class SingleBranchDataset(Dataset):
         frame_num = video_info['frame_num']
 
         video = self.video_loader(video_path=video_path, frame_num=frame_num)
+
+        video = rearrange(video, 'c (f n) h w -> c n f h w', n=8, f=2)
+        video = video[:, 2:, ...] - video[:, :-2, ...]
+        video = rearrange(video, 'c n f h w -> c (f n) h w')
 
         camera_motion = video_info['scene_id']
         if self.norm:

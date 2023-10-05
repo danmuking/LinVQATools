@@ -12,24 +12,24 @@ class TestSingleBranchDataset(TestCase):
         os.chdir('../../')
         video_loader = dict(
             name='FragmentLoader',
-            prefix='temp/fragment',
+            prefix='temp',
             argument=[
+                dict(
+                    name='FragmentShuffler',
+                    fragment_size=32
+                ),
+                dict(
+                    name='PostProcessSampler',
+                    num=2
+                ),
                 # dict(
-                #     name='FragmentShuffler',
+                #     name='FragmentMirror',
                 #     fragment_size=32
                 # ),
                 # dict(
-                #     name='PostProcessSampler',
-                #     num=2
+                #     name='FragmentRotate',
+                #     fragment_size=32
                 # ),
-                dict(
-                    name='FragmentMirror',
-                    fragment_size=32
-                ),
-                dict(
-                    name='FragmentRotate',
-                    fragment_size=32
-                ),
             ]
         )
         dataset = SingleBranchDataset(video_loader=video_loader, norm=False)

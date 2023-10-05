@@ -42,7 +42,7 @@ class FasterVQA(BaseModel):
             backbone='faster_vqa',
             base_x_size=(32, 224, 224),
             vqa_head=dict(in_channels=768),
-            window_size=(8, 7, 7),
+            window_size=(3, 7, 7),
             **kwargs
     ):
         super().__init__()
@@ -73,12 +73,13 @@ class FasterVQA(BaseModel):
                                 reduce_scores=False)
             y_pred = scores[0]
             # motion = scores[1]
-            criterion = nn.MSELoss()
-            mse_loss = criterion(y_pred, y)
-            # p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
+            # criterion = nn.MSELoss()
+            # mse_loss = criterion(y_pred, y)
+            p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
-            loss = mse_loss
-            return {'loss': loss, 'mse_loss': mse_loss}
+            loss = p_loss + 3 * r_loss
+            return {'loss': loss, 'p_loss': p_loss,
+                    'r_loss': r_loss}
         elif mode == 'predict':
             scores = self.model(inputs, inference=True,
                                 reduce_scores=False)
@@ -123,7 +124,8 @@ class FasterVQA(BaseModel):
         # recorder.iter_y_pre = result[0]
         # recorder.iter_y = result[1]
 
-        losses = {'loss': losses['loss'], 'mse_loss': losses['mse_loss']}
+        losses = {'loss': losses['loss'], 'p_loss': losses['p_loss'],
+                  'r_loss': losses['r_loss']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
         optim_wrapper.update_params(parsed_losses)
         return log_vars
