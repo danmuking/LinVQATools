@@ -696,8 +696,6 @@ class BasicLayer(nn.Module):
             self.window_size if resized_window_size is None else resized_window_size,
             self.shift_size,
         )
-        # print("window_size:", window_size)
-        # print(window_size)
         x = rearrange(x, "b c d h w -> b d h w c")
         Dp = int(np.ceil(D / window_size[0])) * window_size[0]
         Hp = int(np.ceil(H / window_size[1])) * window_size[1]
@@ -1102,7 +1100,7 @@ class SwinTransformer3D(nn.Module):
         else:
             raise TypeError("pretrained must be a str or None")
 
-    def forward(self, x, multi=False, layer=-1, adaptive_window_size=True):
+    def forward(self, x, multi=False, layer=-1, adaptive_window_size=True,need_feat=False,temporal_feat=None):
 
         """Forward function."""
         # 生成自适应窗口大小
@@ -1120,12 +1118,16 @@ class SwinTransformer3D(nn.Module):
         feats = [x]
         for l, mlayer in enumerate(self.layers):
             x = mlayer(x.contiguous(), resized_window_size)
+            if temporal_feat!=None:
+                x = x+temporal_feat[l]
             feats += [x]
 
         x = rearrange(x, "n c d h w -> n d h w c")
         x = self.norm(x)
         x = rearrange(x, "n d h w c -> n c d h w")
 
+        if need_feat:
+            return feats
         if multi:
             shape = x.shape[2:]
             return torch.cat([F.interpolate(xi, size=shape, mode="trilinear") for xi in feats[:-1]], 1)

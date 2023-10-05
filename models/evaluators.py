@@ -76,9 +76,11 @@ class DiViDeAddEvaluator(nn.Module):
                 feats = {}
                 for key in vclips:
                     # key = 'fragments'
-                    feat = getattr(self, key.split("_")[0] + "_backbone")(vclips[key], multi=self.multi,
-                                                                          layer=self.layer, **kwargs)
+                    feat2 = self.motion_backbone(temp_video, need_feat=True)
+                    feat1 = getattr(self, key.split("_")[0] + "_backbone")(vclips[key], multi=self.multi,
+                                                                          temporal_feat=feat2[1:],layer=self.layer, **kwargs)
 
+                    feat = feat1
                     feat = self.motion_backbone(temp_video)
 
                     feat = self.neck(feat)
@@ -92,11 +94,11 @@ class DiViDeAddEvaluator(nn.Module):
             feats = {}
             for key in vclips:
                 # key = 'fragments_backbone'
-                feat1 = getattr(self, key.split("_")[0] + "_backbone")(vclips[key], multi=self.multi, layer=self.layer,
-                                                                      **kwargs)
 
-                feat2 = self.motion_backbone(temp_video)
-                feat = [[torch.cat([feat1[0][0],feat2[0][0]],dim=2)]]
+                feat2 = self.motion_backbone(temp_video,need_feat=True)
+                feat1 = getattr(self, key.split("_")[0] + "_backbone")(vclips[key], multi=self.multi, layer=self.layer,
+                                                                      temporal_feat=feat2[1:],**kwargs)
+                feat = feat1
 
                 feat = self.neck(feat)
                 scores += [getattr(self, "vqa_head")(feat)]

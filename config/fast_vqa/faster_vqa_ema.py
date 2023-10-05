@@ -2,22 +2,22 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10051628 swin patchweight 2branch'
+work_dir = 'work_dir/faster_vqa/10052325 swin patchweight 2branch'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10051628 swin patchweight 2branch')
+            init_kwargs=dict(project='faster vqa消融', name='10052325 swin patchweight 2branch')
         ),
     ],
 )
 model = dict(
     type='FasterVQA',
     backbone='faster_vqa',
-    base_x_size=(16, 224, 224),
-    window_size=(4, 7, 7),
-    vqa_head=dict(name='MeanHead', in_channels=14 * 7 * 7),
+    base_x_size=(12, 224, 224),
+    window_size=(3, 7, 7),
+    vqa_head=dict(name='MeanHead', in_channels=6 * 7 * 7),
     load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
 )
 epochs = 600
@@ -101,6 +101,7 @@ optim_wrapper = dict(
     paramwise_cfg=dict(
         custom_keys={
             'model.fragments_backbone': dict(lr_mult=0.1),
+            'model.motion_backbone': dict(lr_mult=0.1),
         })
 )
 param_scheduler = [
@@ -138,7 +139,7 @@ custom_hooks = [
     # dict(type='CustomEMAHook',momentum=0.01)
     # dict(type='EmptyCacheHook', after_epoch=True)
 ]
-launcher = 'pytorch'
+launcher = 'none'
 randomness = dict(seed=42)
 # randomness = dict(seed=3407)
 # randomness = dict(seed=114514)

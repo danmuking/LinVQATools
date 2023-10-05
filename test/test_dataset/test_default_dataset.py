@@ -14,14 +14,14 @@ class TestSingleBranchDataset(TestCase):
             name='FragmentLoader',
             prefix='fragment',
             argument=[
-                # dict(
-                #     name='FragmentShuffler',
-                #     fragment_size=32
-                # ),
-                # dict(
-                #     name='PostProcessSampler',
-                #     num=2
-                # ),
+                dict(
+                    name='FragmentShuffler',
+                    fragment_size=32
+                ),
+                dict(
+                    name='PostProcessSampler',
+                    num=2
+                ),
                 # dict(
                 #     name='FragmentMirror',
                 #     fragment_size=32

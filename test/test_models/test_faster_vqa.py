@@ -15,11 +15,12 @@ class TestFasterVQA(TestCase):
         os.chdir('../../')
         model = FasterVQA(
             backbone='faster_vqa',
-            base_x_size=(16, 224, 224),
-            vqa_head=dict(name='MeanHead', in_channels=14*7*7),
+            base_x_size=(12, 224, 224),
+            window_size=(3, 7, 7),
+            vqa_head=dict(name='MeanHead', in_channels=6*7*7),
             # load_path="/data/ly/code/LinVQATools/pretrained_weights/MViTv2_S_16x4_k400_f302660347.pyth"
         )
-        video = torch.ones((2, 3, 16, 224, 224))
+        video = torch.ones((2, 3, 12, 224, 224))
         temp_vidoe = torch.ones((2, 3, 12, 224, 224))
         scores = model(inputs=video,temporal=temp_vidoe, mode="loss", gt_label=torch.tensor((2, 1)), camera_motion=torch.zeros((2, 1)))
         print(scores)
