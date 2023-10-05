@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10041438 swin patchweight'
+work_dir = 'work_dir/faster_vqa/10050015 swin patchweight biattention'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10041438 swin patchweight sphere数据集')
+            init_kwargs=dict(project='faster vqa消融', name='10050015 swin patchweight biattention')
         ),
     ],
 )
@@ -21,9 +21,9 @@ model = dict(
     load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
 )
 epochs = 600
-batch_size = 6
+batch_size = 1
 num_workers = 6
-prefix = 'sphere'
+prefix = 'fragment'
 argument = [
     dict(
         name='FragmentShuffler',
@@ -31,7 +31,7 @@ argument = [
     ),
     dict(
         name='PostProcessSampler',
-        num=2
+        num=1
     )
 ]
 train_video_loader = dict(

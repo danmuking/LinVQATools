@@ -10,6 +10,9 @@ from operator import mul
 from einops import rearrange
 
 from models import logger
+from models.backbones.biformer.common import Attention
+from models.backbones.biformer.ops.bra_legacy import BiLevelRoutingAttention
+from models.utils.common import BiLevelRoutingAttention3D, Attention3D
 
 
 def fragment_infos(D, H, W, fragments=7, device="cuda"):
@@ -382,6 +385,18 @@ class SwinTransformerBlock3D(nn.Module):
             use_checkpoint=False,
             jump_attention=False,
             frag_bias=False,
+            topk=4,
+            qk_dim=None,
+            kv_per_win=4,
+            kv_downsample_ratio=4,
+            kv_downsample_kernel=None,
+            kv_downsample_mode='ada_avgpool',
+            param_attention="qkvo",
+            param_routing=False,
+            diff_routing=False,
+            soft_routing=False,
+            side_dwconv=5,
+            auto_pad=False
     ):
         super().__init__()
         self.dim = dim
@@ -404,16 +419,19 @@ class SwinTransformerBlock3D(nn.Module):
         ), "shift_size must in 0-window_size"
 
         self.norm1 = norm_layer(dim)
-        self.attn = WindowAttention3D(
-            dim,
-            window_size=self.window_size,
-            num_heads=num_heads,
-            qkv_bias=qkv_bias,
-            qk_scale=qk_scale,
-            attn_drop=attn_drop,
-            proj_drop=drop,
-            frag_bias=frag_bias,
-        )
+        if topk > 0:
+            self.attn = BiLevelRoutingAttention3D(dim=dim, num_heads=num_heads, n_win=window_size, qk_dim=qk_dim,
+                                                  qk_scale=qk_scale, kv_per_win=kv_per_win,
+                                                  kv_downsample_ratio=kv_downsample_ratio,
+                                                  kv_downsample_kernel=kv_downsample_kernel,
+                                                  kv_downsample_mode=kv_downsample_mode,
+                                                  topk=topk, param_attention=param_attention,
+                                                  param_routing=param_routing,
+                                                  diff_routing=diff_routing, soft_routing=soft_routing,
+                                                  side_dwconv=side_dwconv,
+                                                  auto_pad=auto_pad)
+        elif topk == -1:
+            self.attn = Attention3D(dim=dim)
 
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.norm2 = norm_layer(dim)
@@ -425,82 +443,27 @@ class SwinTransformerBlock3D(nn.Module):
             drop=drop,
         )
 
-    def forward_part1(self, x, mask_matrix, resized_window_size=None):
+    # TODO: 添加位置编码
+    def forward_part1(self, x):
         B, D, H, W, C = x.shape
-        window_size, shift_size = get_window_size(
-            (D, H, W),
-            self.window_size if resized_window_size is None else resized_window_size,
-            self.shift_size
-        )
 
         x = self.norm1(x)
-        # pad feature maps to multiples of window size
-        pad_l = pad_t = pad_d0 = 0
-        pad_d1 = (window_size[0] - D % window_size[0]) % window_size[0]
-        pad_b = (window_size[1] - H % window_size[1]) % window_size[1]
-        pad_r = (window_size[2] - W % window_size[2]) % window_size[2]
-
-        x = F.pad(x, (0, 0, pad_l, pad_r, pad_t, pad_b, pad_d0, pad_d1))
         _, Dp, Hp, Wp, _ = x.shape
-        if False:  # not hasattr(self, 'finfo_windows'):
-            finfo = fragment_infos(Dp, Hp, Wp)
-
-        # cyclic shift
-        if any(i > 0 for i in shift_size):
-            shifted_x = torch.roll(
-                x,
-                shifts=(-shift_size[0], -shift_size[1], -shift_size[2]),
-                dims=(1, 2, 3),
-            )
-            if False:  # not hasattr(self, 'finfo_windows'):
-                shifted_finfo = torch.roll(
-                    finfo,
-                    shifts=(-shift_size[0], -shift_size[1], -shift_size[2]),
-                    dims=(1, 2, 3),
-                )
-            attn_mask = mask_matrix
-        else:
-            shifted_x = x
-            if False:  # not hasattr(self, 'finfo_windows'):
-                shifted_finfo = finfo
-            attn_mask = None
         # partition windows
-        x_windows = window_partition(shifted_x, window_size)  # B*nW, Wd*Wh*Ww, C
-        if False:  # not hasattr(self, 'finfo_windows'):
-            self.finfo_windows = window_partition(shifted_finfo, window_size)
         # W-MSA/SW-MSA
         # print(shift_size)
-        gpi = global_position_index(
-            Dp, Hp, Wp, fragments=(1,) + window_size[1:], window_size=window_size, shift_size=shift_size,
-            device=x.device,
-        )
-        attn_windows = self.attn(
-            x_windows, mask=attn_mask, fmask=gpi,
-            resized_window_size=window_size if resized_window_size is not None else None,
-        )  # self.finfo_windows)  # B*nW, Wd*Wh*Ww, C
-        # merge windows
-        attn_windows = attn_windows.view(-1, *(window_size + (C,)))
-        shifted_x = window_reverse(
-            attn_windows, window_size, B, Dp, Hp, Wp
-        )  # B D' H' W' C
-        # reverse cyclic shift
-        if any(i > 0 for i in shift_size):
-            x = torch.roll(
-                shifted_x,
-                shifts=(shift_size[0], shift_size[1], shift_size[2]),
-                dims=(1, 2, 3),
-            )
-        else:
-            x = shifted_x
+        # gpi = global_position_index(
+        #     Dp, Hp, Wp, fragments=(1,) + window_size[1:], window_size=window_size, shift_size=shift_size,
+        #     device=x.device,
+        # )
+        x = self.attn(x, )  # self.finfo_windows)  # B*nW, Wd*Wh*Ww, C
 
-        if pad_d1 > 0 or pad_r > 0 or pad_b > 0:
-            x = x[:, :D, :H, :W, :].contiguous()
         return x
 
     def forward_part2(self, x):
         return self.drop_path(self.mlp(self.norm2(x)))
 
-    def forward(self, x, mask_matrix, resized_window_size=None):
+    def forward(self, x, ):
         """Forward function.
 
         Args:
@@ -513,7 +476,7 @@ class SwinTransformerBlock3D(nn.Module):
             if self.use_checkpoint:
                 x = checkpoint.checkpoint(self.forward_part1, x, mask_matrix, resized_window_size)
             else:
-                x = self.forward_part1(x, mask_matrix, resized_window_size)
+                x = self.forward_part1(x, )
             x = shortcut + self.drop_path(x)
 
         if self.use_checkpoint:
@@ -631,18 +594,31 @@ class BasicLayer(nn.Module):
             dim,
             depth,
             num_heads,
-            window_size=(1, 7, 7),
+            window_size=(2, 7, 7),
             mlp_ratio=4.0,
             qkv_bias=False,
             qk_scale=None,
             drop=0.0,
             attn_drop=0.0,
             drop_path=0.0,
+            act_layer=nn.GELU,
             norm_layer=nn.LayerNorm,
             downsample=None,
             use_checkpoint=False,
             jump_attention=False,
             frag_bias=False,
+            topk=4,
+            qk_dim=None,
+            kv_per_win=4,
+            kv_downsample_ratio=4,
+            kv_downsample_kernel=None,
+            kv_downsample_mode='ada_avgpool',
+            param_attention="qkvo",
+            param_routing=False,
+            diff_routing=False,
+            soft_routing=False,
+            side_dwconv=5,
+            auto_pad=False
     ):
         super().__init__()
         # 8,7,7
@@ -671,6 +647,18 @@ class BasicLayer(nn.Module):
                     use_checkpoint=use_checkpoint,
                     jump_attention=jump_attention,
                     frag_bias=frag_bias,
+                    topk=topk,
+                    qk_dim=qk_dim,
+                    kv_per_win=kv_per_win,
+                    kv_downsample_ratio=kv_downsample_ratio,
+                    kv_downsample_kernel=kv_downsample_kernel,
+                    kv_downsample_mode=kv_downsample_mode,
+                    param_attention=param_attention,
+                    param_routing=param_routing,
+                    diff_routing=diff_routing,
+                    soft_routing=soft_routing,
+                    side_dwconv=side_dwconv,
+                    auto_pad=auto_pad
                 )
                 for i in range(depth)
             ]
@@ -705,7 +693,7 @@ class BasicLayer(nn.Module):
         Wp = int(np.ceil(W / window_size[2])) * window_size[2]
         attn_mask = compute_mask(Dp, Hp, Wp, window_size, shift_size, x.device)
         for blk in self.blocks:
-            x = blk(x, attn_mask, resized_window_size=resized_window_size)
+            x = blk(x)
         x = x.view(B, D, H, W, -1)
 
         if self.downsample is not None:
@@ -803,11 +791,23 @@ class SwinTransformer3D(nn.Module):
             norm_layer=nn.LayerNorm,
             patch_norm=True,
             frozen_stages=-1,
-            use_checkpoint=True,
+            use_checkpoint=False,
             jump_attention=[False, False, False, False],
             frag_biases=[True, True, True, False],
             base_x_size=(32, 224, 224),
-            load_path = None
+            load_path=None,
+            topks=[1, 4, 16, -1],
+            qk_dims=[96, 192, 384, 768],
+            kv_per_wins=[-1, -1, -1, -1],
+            kv_downsample_ratios=[4, 2, 1, 1],
+            kv_downsample_kernels=[4, 2, 1, 1],
+            kv_downsample_mode='identity',
+            param_attention='qkvo',
+            param_routing=False,
+            diff_routing=False,
+            soft_routing=False,
+            side_dwconv=0,
+            auto_pad=False,
     ):
         super().__init__()
 
@@ -860,6 +860,18 @@ class SwinTransformer3D(nn.Module):
                 use_checkpoint=use_checkpoint,
                 jump_attention=jump_attention[i_layer],
                 frag_bias=frag_biases[i_layer],
+                topk=topks[i_layer],
+                qk_dim=qk_dims[i_layer],
+                kv_per_win=kv_per_wins[i_layer],
+                kv_downsample_ratio=kv_downsample_ratios[i_layer],
+                kv_downsample_kernel=kv_downsample_kernels[i_layer],
+                kv_downsample_mode=kv_downsample_mode,
+                param_attention=param_attention,
+                param_routing=param_routing,
+                diff_routing=diff_routing,
+                soft_routing=soft_routing,
+                side_dwconv=side_dwconv,
+                auto_pad=auto_pad,
             )
             self.layers.append(layer)
 
@@ -875,7 +887,7 @@ class SwinTransformer3D(nn.Module):
         if load_path is not None:
             self.load(load_path)
 
-    def load(self,load_path):
+    def load(self, load_path):
         # 加载预训练参数
         state_dict = torch.load(load_path, map_location='cpu')
 
