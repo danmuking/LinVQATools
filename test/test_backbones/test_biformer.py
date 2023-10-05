@@ -24,10 +24,9 @@ class TestBiFormer(TestCase):
         head_dim=32,
         param_routing=False, diff_routing=False, soft_routing=False,
         pre_norm=True,
-        pe=None,
-        num_classes=1)
-        x = torch.zeros(2, 3, 32, 224, 224)
-        print(model(x).shape)
+        pe=None,)
+        x = torch.zeros(2, 3, 16, 224, 224)
+        print(model(x)[0][0].shape)
 
     def test_torch(self):
         model = BiLevelRoutingAttention3D(dim=96)

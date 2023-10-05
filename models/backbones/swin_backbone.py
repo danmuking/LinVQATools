@@ -695,11 +695,13 @@ class BasicLayer(nn.Module):
 
         # window_size 8,7,7
         # shift_size 0,3,3
+        # print("resized_window_size:",resized_window_size)
         window_size, shift_size = get_window_size(
             (D, H, W),
             self.window_size if resized_window_size is None else resized_window_size,
             self.shift_size,
         )
+        # print("window_size:", window_size)
         # print(window_size)
         x = rearrange(x, "b c d h w -> b d h w c")
         Dp = int(np.ceil(D / window_size[0])) * window_size[0]
@@ -1121,7 +1123,6 @@ class SwinTransformer3D(nn.Module):
         # dropout
         x = self.pos_drop(x)
         feats = [x]
-
         for l, mlayer in enumerate(self.layers):
             x = mlayer(x.contiguous(), resized_window_size)
             feats += [x]
