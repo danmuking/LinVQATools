@@ -66,21 +66,23 @@ class FasterVQA(BaseModel):
             Union[
                 Dict[str, torch.Tensor], list]:
         y = kargs['gt_label'].float().unsqueeze(-1)
+        temp_video = kargs['temporal']
         # gt_motion = kargs['camera_motion'].float().unsqueeze(-1)
         # print(y.shape)
         if mode == 'loss':
-            scores = self.model(inputs, inference=False,
+            scores = self.model(inputs,temp_video, inference=False,
                                 reduce_scores=False)
             y_pred = scores[0]
             # motion = scores[1]
-            criterion = nn.MSELoss()
-            mse_loss = criterion(y_pred, y)
-            # p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
+            # criterion = nn.MSELoss()
+            # mse_loss = criterion(y_pred, y)
+            p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
-            loss = mse_loss
-            return {'loss': loss, 'mse_loss': mse_loss}
+            loss = p_loss + 3 * r_loss
+            return {'loss': loss, 'p_loss': p_loss,
+                    'r_loss': r_loss}
         elif mode == 'predict':
-            scores = self.model(inputs, inference=True,
+            scores = self.model(inputs,temp_video, inference=True,
                                 reduce_scores=False)
             y_pred = scores[0]
             return y_pred, y

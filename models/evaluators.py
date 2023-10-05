@@ -55,11 +55,16 @@ class DiViDeAddEvaluator(nn.Module):
         print("Setting backbone:", 'fragments' + "_backbone")
         setattr(self, 'fragments' + "_backbone", b)
 
+        self.motion_backbone = VideoBackbone(
+                base_x_size=(12,224,224),
+                window_size=(3,7,7),
+                load_path=load_path,
+            )
         self.neck = PatchWeighted()
         self.vqa_head = getattr(heads, vqa_head['name'])(**vqa_head)
         # self.motion_head = getattr(heads, vqa_head['name'])(**vqa_head)
 
-    def forward(self, vclips, inference=False, return_pooled_feats=False, reduce_scores=True, pooled=False, **kwargs):
+    def forward(self, vclips,temp_video, inference=False, return_pooled_feats=False, reduce_scores=True, pooled=False, **kwargs):
         vclips = {
             'fragments': vclips
         }
@@ -73,6 +78,9 @@ class DiViDeAddEvaluator(nn.Module):
                     # key = 'fragments'
                     feat = getattr(self, key.split("_")[0] + "_backbone")(vclips[key], multi=self.multi,
                                                                           layer=self.layer, **kwargs)
+
+                    feat = self.motion_backbone(temp_video)
+
                     feat = self.neck(feat)
                     scores += [getattr(self, "vqa_head")(feat)]
                     # scores += [getattr(self, "motion_head")(feat)]
@@ -84,8 +92,12 @@ class DiViDeAddEvaluator(nn.Module):
             feats = {}
             for key in vclips:
                 # key = 'fragments_backbone'
-                feat = getattr(self, key.split("_")[0] + "_backbone")(vclips[key], multi=self.multi, layer=self.layer,
+                feat1 = getattr(self, key.split("_")[0] + "_backbone")(vclips[key], multi=self.multi, layer=self.layer,
                                                                       **kwargs)
+
+                feat2 = self.motion_backbone(temp_video)
+                feat = [[torch.cat([feat1[0][0],feat2[0][0]],dim=2)]]
+
                 feat = self.neck(feat)
                 scores += [getattr(self, "vqa_head")(feat)]
                 # scores += [getattr(self, "motion_head")(feat)]
