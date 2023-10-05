@@ -805,7 +805,8 @@ class SwinTransformer3D(nn.Module):
             frozen_stages=-1,
             use_checkpoint=True,
             jump_attention=[False, False, False, False],
-            frag_biases=[True, True, True, False],
+            # frag_biases=[True, True, True, False],
+            frag_biases=[False, False, False, False],
             base_x_size=(32, 224, 224),
             load_path = None
     ):
