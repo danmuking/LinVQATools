@@ -42,7 +42,7 @@ class FasterVQA(BaseModel):
             backbone='faster_vqa',
             base_x_size=(32, 224, 224),
             vqa_head=dict(in_channels=768),
-            window_size=(3, 7, 7),
+            window_size=(8, 7, 7),
             **kwargs
     ):
         super().__init__()

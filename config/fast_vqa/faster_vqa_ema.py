@@ -2,30 +2,28 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10051448 swin patchweight motion'
+work_dir = 'work_dir/faster_vqa/10051448 swin patchweight move数据集'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10051448 swin patchweight motion')
+            init_kwargs=dict(project='faster vqa消融', name='10051448 swin patchweight move数据集')
         ),
     ],
 )
 model = dict(
     type='FasterVQA',
     backbone='faster_vqa',
-    base_x_size=(12, 224, 224),
-    # window_size=(4, 7, 7),
-    window_size=(3, 7, 7),
-    # vqa_head=dict(name='MeanHead', in_channels=8 * 7 * 7),
-    vqa_head=dict(name='MeanHead', in_channels=6 * 7 * 7),
+    base_x_size=(16, 224, 224),
+    window_size=(4, 7, 7),
+    vqa_head=dict(name='MeanHead', in_channels=8 * 7 * 7),
     load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
 )
 epochs = 600
 batch_size = 6
 num_workers = 6
-prefix = 'sphere'
+prefix = 'move'
 argument = [
     dict(
         name='FragmentShuffler',
