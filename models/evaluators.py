@@ -59,6 +59,7 @@ class DiViDeAddEvaluator(nn.Module):
                 base_x_size=(12,224,224),
                 window_size=(3,7,7),
                 load_path=load_path,
+                is_motion=True
             )
         self.neck = PatchWeighted()
         self.vqa_head = getattr(heads, vqa_head['name'])(**vqa_head)
@@ -81,7 +82,6 @@ class DiViDeAddEvaluator(nn.Module):
                                                                           temporal_feat=feat2[1:],layer=self.layer, **kwargs)
 
                     feat = feat1
-                    feat = self.motion_backbone(temp_video)
 
                     feat = self.neck(feat)
                     scores += [getattr(self, "vqa_head")(feat)]

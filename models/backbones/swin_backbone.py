@@ -804,7 +804,8 @@ class SwinTransformer3D(nn.Module):
             jump_attention=[False, False, False, False],
             frag_biases=[True, True, True, False],
             base_x_size=(32, 224, 224),
-            load_path=None
+            load_path=None,
+            is_motion=False,
     ):
         super().__init__()
 
@@ -862,8 +863,9 @@ class SwinTransformer3D(nn.Module):
 
         self.num_features = int(embed_dim * 2 ** (self.num_layers - 1))
 
-        # add a norm layer for each output
-        self.norm = norm_layer(self.num_features)
+        if not is_motion:
+            # add a norm layer for each output
+            self.norm = norm_layer(self.num_features)
 
         self._freeze_stages()
 
@@ -1122,12 +1124,13 @@ class SwinTransformer3D(nn.Module):
                 x = x+temporal_feat[l]
             feats += [x]
 
+        if need_feat:
+            return feats
+
         x = rearrange(x, "n c d h w -> n d h w c")
         x = self.norm(x)
         x = rearrange(x, "n d h w c -> n c d h w")
 
-        if need_feat:
-            return feats
         if multi:
             shape = x.shape[2:]
             return torch.cat([F.interpolate(xi, size=shape, mode="trilinear") for xi in feats[:-1]], 1)

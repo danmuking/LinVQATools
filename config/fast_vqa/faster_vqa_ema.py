@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10052325 swin patchweight 2branch'
+work_dir = 'work_dir/faster_vqa/10060937 swin patchweight 2branch'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10052325 swin patchweight 2branch')
+            init_kwargs=dict(project='faster vqa消融', name='10060937 swin patchweight 2branch')
         ),
     ],
 )
@@ -139,7 +139,7 @@ custom_hooks = [
     # dict(type='CustomEMAHook',momentum=0.01)
     # dict(type='EmptyCacheHook', after_epoch=True)
 ]
-launcher = 'none'
+launcher = 'pytorch'
 randomness = dict(seed=42)
 # randomness = dict(seed=3407)
 # randomness = dict(seed=114514)
