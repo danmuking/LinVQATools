@@ -94,7 +94,7 @@ def makedir(path: str):
 
 def get_save_path(video_path, frame_num, epoch):
     video_path = video_path.split('/')
-    video_path.insert(3, 'move')
+    video_path.insert(3, 'move2')
     video_path.insert(4, str(epoch))
     video_path[0] = "/data"
     video_path[1] = ""
@@ -122,8 +122,11 @@ def sampler(video_path: str, epoch: int):
     img = vreader[0]
     img = rearrange(img, 'h w c -> c h w ')
     res_h, res_w = img.shape[-2:]
+    res_h = int(res_h * 5 // 6)
     res_w = int(res_w*23//24)
-    move_pix = int(res_w/24/8)
+    move = ((0,int(res_w/24/8)),(int(res_h/6/8),0),(0,-int(res_w/24/8)),(-int(res_h/6/8),0))
+
+
     size = size_h, size_w
 
     ## make sure that sampling will not run out of the picture
@@ -133,6 +136,7 @@ def sampler(video_path: str, epoch: int):
     wgrids = torch.LongTensor(
         [min(res_w // fragments_w * i, res_w - fsize_w) for i in range(fragments_w)]
     )
+
     hlength, wlength = res_h // fragments_h, res_w // fragments_w
     if hlength > fsize_h:
         rnd_h = torch.randint(
@@ -148,8 +152,22 @@ def sampler(video_path: str, epoch: int):
         rnd_w = torch.zeros((len(hgrids), len(wgrids)).int())
 
     # softpool = SoftPool2d()
-
+    random_index= 0
     for index, frame_num in enumerate(frame_index):
+        if index%8==0:
+            if random_index==3:
+                hgrids -= int(res_h // 6)
+            if random_index==2:
+                wgrids -= int(res_w // 24)
+            random_index = random.randint(0, 3)
+            # random_index = 3
+            move_pix = move[random_index]
+            print(move_pix)
+            if random_index == 3:
+                hgrids += int(res_h // 6)
+            if random_index == 2:
+                wgrids += int(res_w // 24)
+
         save_path = get_save_path(video_path, frame_num, epoch)
         img = vreader[frame_num]
         img = rearrange(img, 'h w c -> c h w ')
@@ -159,9 +177,8 @@ def sampler(video_path: str, epoch: int):
             for j, ws in enumerate(wgrids):
                 h_s, h_e = i * fsize_h, (i + 1) * fsize_h
                 w_s, w_e = j * fsize_w, (j + 1) * fsize_w
-                h_so, h_eo = hs + rnd_h[i][j][int(index/8)], hs + rnd_h[i][j][int(index/8)] + fsize_h
-                w_so, w_eo = ws + rnd_w[i][j][int(index/8)]+move_pix*(index%8), ws + rnd_w[i][j][int(index/8)] + fsize_w+move_pix*(index%8)
-                print(res_w,w_so, w_eo)
+                h_so, h_eo = hs + rnd_h[i][j][int(index/8)]+move_pix[0]*(index%8), hs + rnd_h[i][j][int(index/8)] + fsize_h+move_pix[0]*(index%8)
+                w_so, w_eo = ws + rnd_w[i][j][int(index/8)]+move_pix[1]*(index%8), ws + rnd_w[i][j][int(index/8)] + fsize_w+move_pix[1]*(index%8)
                 # print(i,j,int(index/8))
                 # print(rnd_h[i][j][int(index/8)],rnd_w[i][j][int(index/8)])
                 # print(h_so, w_so)
