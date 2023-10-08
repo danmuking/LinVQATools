@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10072244 swin patchweight move2数据集'
+work_dir = 'work_dir/faster_vqa/10081035 swin patchweight channel attention'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10072244 swin patchweight move2数据集')
+            init_kwargs=dict(project='faster vqa消融', name='10081035 swin patchweight channel attention')
         ),
     ],
 )
@@ -24,7 +24,7 @@ base_lr = 0.001
 epochs = 600
 batch_size = 6
 num_workers = 6
-prefix = 'move2'
+prefix = 'fragment'
 argument = [
     dict(
         name='FragmentShuffler',

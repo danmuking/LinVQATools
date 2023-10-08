@@ -4,6 +4,7 @@ from torch import nn
 from torch.nn import Conv3d
 
 from models.backbones.swin_backbone import BasicLayer
+from models.utils.common import ChannelAttention
 
 
 class PatchWeighted(nn.Module):
@@ -11,27 +12,27 @@ class PatchWeighted(nn.Module):
         super().__init__()
         self.dropout = nn.Dropout(p=0.5)
         self.batch1 = nn.ModuleList([
-            self.dropout,
+            ChannelAttention(768),
             Conv3d(768, 64, kernel_size=1),
             nn.GELU(),
-            self.dropout,
+            ChannelAttention(64),
             Conv3d(64, 1, kernel_size=1),
             nn.GELU(),
         ])
         self.batch2 = nn.ModuleList([
-            self.dropout,
+            ChannelAttention(768),
             Conv3d(768, 64, kernel_size=1),
             nn.GELU(),
-            self.dropout,
+            ChannelAttention(64),
             Conv3d(64, 1, kernel_size=1),
             nn.GELU(),
         ])
 
         self.batch3 = nn.ModuleList([
-            self.dropout,
+            ChannelAttention(768),
             Conv3d(768, 64, kernel_size=1),
             nn.GELU(),
-            self.dropout,
+            ChannelAttention(64),
             Conv3d(64, 1, kernel_size=1),
             nn.GELU(),
         ])

@@ -1,6 +1,8 @@
 import torch
 import torch.nn as nn
 from einops import rearrange
+from torch.nn import Flatten
+import torch.nn.functional as F
 
 
 class DWConv(nn.Module):
@@ -91,7 +93,7 @@ class AttentionLePE(nn.Module):
         return:
             NHWC tensor
         """
-        _, T,H, W, _ = x.size()
+        _, T, H, W, _ = x.size()
         x = rearrange(x, 'n t h w c -> n (t h w) c')
 
         #######################################
@@ -99,7 +101,7 @@ class AttentionLePE(nn.Module):
         qkv = self.qkv(x).reshape(B, N, 3, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4)
         q, k, v = qkv[0], qkv[1], qkv[2]  # make torchscript happy (cannot use tensor as tuple)
 
-        lepe = self.lepe(rearrange(x, 'n (t h w) c -> n c t h w',t=T, h=H, w=W))
+        lepe = self.lepe(rearrange(x, 'n (t h w) c -> n c t h w', t=T, h=H, w=W))
         lepe = rearrange(lepe, 'n c t h w -> n (t h w) c')
 
         attn = (q @ k.transpose(-2, -1)) * self.scale
@@ -113,7 +115,7 @@ class AttentionLePE(nn.Module):
         x = self.proj_drop(x)
         #######################################
 
-        x = rearrange(x, 'n (t h w) c -> n t h w c',t=T, h=H, w=W)
+        x = rearrange(x, 'n (t h w) c -> n t h w c', t=T, h=H, w=W)
         return x
 
 
@@ -159,3 +161,6 @@ class nchwAttentionLePE(nn.Module):
         output = self.proj_drop(self.proj(output))
 
         return output
+
+
+
