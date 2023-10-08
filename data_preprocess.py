@@ -103,8 +103,6 @@ def get_save_path(video_path, frame_num, epoch):
     img_path = os.path.join(video_path, '{}.png'.format(frame_num))
     return img_path
 
-
-# TODO: 在时间上位置没有变化
 def sampler(video_path: str, epoch: int):
     vreader = VideoReader(video_path)
     # frame_index = [x for x in range(len(vreader))]
@@ -152,22 +150,14 @@ def sampler(video_path: str, epoch: int):
         rnd_w = torch.zeros((len(hgrids), len(wgrids)).int())
 
     # softpool = SoftPool2d()
-    random_index= 0
+    random_index = random.randint(0, 3)
+    move_pix = move[random_index]
+    print(move_pix)
+    if random_index == 3:
+        hgrids += int(res_h // 6)
+    if random_index == 2:
+        wgrids += int(res_w // 24)
     for index, frame_num in enumerate(frame_index):
-        if index%8==0:
-            if random_index==3:
-                hgrids -= int(res_h // 6)
-            if random_index==2:
-                wgrids -= int(res_w // 24)
-            random_index = random.randint(0, 3)
-            # random_index = 3
-            move_pix = move[random_index]
-            print(move_pix)
-            if random_index == 3:
-                hgrids += int(res_h // 6)
-            if random_index == 2:
-                wgrids += int(res_w // 24)
-
         save_path = get_save_path(video_path, frame_num, epoch)
         img = vreader[frame_num]
         img = rearrange(img, 'h w c -> c h w ')
