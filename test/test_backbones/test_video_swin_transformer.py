@@ -2,7 +2,7 @@ from unittest import TestCase
 
 import torch
 
-from models.backbones.swin_backbone import SwinTransformer3D
+from models.backbones.swin_backbone import SwinTransformer3D, global_position_index
 
 
 class TestVideoSwinTransformer(TestCase):
@@ -47,3 +47,6 @@ class TestVideoSwinTransformer(TestCase):
                 s_state_dict[key] = s_state_dict[key].unsqueeze(2).repeat(1, 1, t, 1, 1) / t
         info = model.load_state_dict(s_state_dict, strict=False)
         print(info)
+
+    def test_position_index(self):
+        global_position_index(8,14,14,fragments=(2, 7, 7))
