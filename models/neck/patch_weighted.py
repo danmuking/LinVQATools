@@ -3,7 +3,6 @@ from einops import rearrange
 from torch import nn
 from torch.nn import Conv3d
 
-from models.backbones.swin_backbone import BasicLayer
 from models.utils.common import ChannelAttention
 
 
@@ -13,26 +12,29 @@ class PatchWeighted(nn.Module):
         self.dropout = nn.Dropout(p=0.5)
         self.batch1 = nn.ModuleList([
             ChannelAttention(768),
+            self.dropout,
             Conv3d(768, 64, kernel_size=1),
             nn.GELU(),
-            ChannelAttention(64),
+            self.dropout,
             Conv3d(64, 1, kernel_size=1),
             nn.GELU(),
         ])
         self.batch2 = nn.ModuleList([
             ChannelAttention(768),
+            self.dropout,
             Conv3d(768, 64, kernel_size=1),
             nn.GELU(),
-            ChannelAttention(64),
+            self.dropout,
             Conv3d(64, 1, kernel_size=1),
             nn.GELU(),
         ])
 
         self.batch3 = nn.ModuleList([
             ChannelAttention(768),
+            self.dropout,
             Conv3d(768, 64, kernel_size=1),
             nn.GELU(),
-            ChannelAttention(64),
+            self.dropout,
             Conv3d(64, 1, kernel_size=1),
             nn.GELU(),
         ])

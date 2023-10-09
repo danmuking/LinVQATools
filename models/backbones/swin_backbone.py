@@ -471,7 +471,7 @@ class SwinTransformerBlock3D(nn.Module):
         # W-MSA/SW-MSA
         # print(shift_size)
         gpi = global_position_index(
-            Dp, Hp, Wp, fragments=(1,) + window_size[1:], window_size=window_size, shift_size=shift_size,
+            Dp, Hp, Wp, fragments=(2,) + window_size[1:], window_size=window_size, shift_size=shift_size,
             device=x.device,
         )
         attn_windows = self.attn(
