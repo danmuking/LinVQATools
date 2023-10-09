@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10091424 swin patchweight channel attention time position'
+work_dir = 'work_dir/faster_vqa/10092220 swin patchweight channel attention time position'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10091424 swin patchweight channel attention time position')
+            init_kwargs=dict(project='faster vqa消融', name='10092220 swin patchweight channel attention time position')
         ),
     ],
 )
@@ -20,7 +20,7 @@ model = dict(
     vqa_head=dict(name='MeanHead', in_channels=8 * 7 * 7),
     load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
 )
-base_lr = 0.0001
+base_lr = 0.00001
 epochs = 600
 batch_size = 6
 num_workers = 6
@@ -101,7 +101,7 @@ optim_wrapper = dict(
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
-            # 'model.fragments_backbone': dict(lr_mult=0.1),
+            'model.fragments_backbone': dict(lr_mult=10),
         })
 )
 param_scheduler = [

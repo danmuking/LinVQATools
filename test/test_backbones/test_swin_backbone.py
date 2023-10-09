@@ -2,7 +2,7 @@ from unittest import TestCase
 
 import torch
 
-from models.backbones.swin_backbone import SwinTransformer3D
+from models.backbones.swin_backbone import SwinTransformer3D, global_position_index
 
 
 class TestSwinTransformer3D(TestCase):
@@ -24,3 +24,5 @@ class TestSwinTransformer3D(TestCase):
         # print(t_state_dict.keys())
         # s_state_dict = torch.load(path)['state_dict']
         # print(s_state_dict.keys())
+    def test_gpi(self):
+        global_position_index(8,7,7,fragments=(2, 7, 7),window_size=(4, 7, 7),)
