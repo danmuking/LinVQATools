@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10081351 swin patchweight channel attention'
+work_dir = 'work_dir/faster_vqa/10090915 swin patchweight channel attention 16frame'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10081351 swin patchweight channel attention')
+            init_kwargs=dict(project='faster vqa消融', name='10090915 swin patchweight channel attention 16frame')
         ),
     ],
 )
@@ -16,7 +16,7 @@ model = dict(
     type='FasterVQA',
     backbone='faster_vqa',
     base_x_size=(16, 224, 224),
-    window_size=(4, 7, 7),
+    window_size=(8, 7, 7),
     vqa_head=dict(name='MeanHead', in_channels=8 * 7 * 7),
     load_path="./pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
 )
@@ -24,15 +24,17 @@ base_lr = 0.001
 epochs = 600
 batch_size = 6
 num_workers = 6
-prefix = 'fragment'
+prefix = '16frame'
 argument = [
     dict(
         name='FragmentShuffler',
         fragment_size=32,
+        frame_cube=16
     ),
     dict(
         name='PostProcessSampler',
-        num=2
+        frame_cube=16,
+        num=1
     )
 ]
 train_video_loader = dict(
