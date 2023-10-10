@@ -20,6 +20,7 @@ class DiViDeAddEvaluator(nn.Module):
             base_x_size=(32, 224, 224),
             vqa_head=dict(name='VQAHead', in_channels=768),
             drop_path_rate=0.2,
+            in_chans=768,
             load_path=None
     ):
         super().__init__()
@@ -41,7 +42,7 @@ class DiViDeAddEvaluator(nn.Module):
             b = SwinTransformer3D(arch='tiny')
         elif backbone == 'vit':
             b = VisionTransformer(
-                patch_size=8,
+                patch_size=16,
                 embed_dim=384,
                 depth=12,
                 num_heads=6,
@@ -55,7 +56,7 @@ class DiViDeAddEvaluator(nn.Module):
         print("Setting backbone:", 'fragments' + "_backbone")
         setattr(self, 'fragments' + "_backbone", b)
 
-        self.neck = PatchWeighted()
+        self.neck = PatchWeighted(in_chans=in_chans)
         self.vqa_head = getattr(heads, vqa_head['name'])(**vqa_head)
         # self.motion_head = getattr(heads, vqa_head['name'])(**vqa_head)
 

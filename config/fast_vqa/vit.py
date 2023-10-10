@@ -15,17 +15,15 @@ visualizer = dict(
 model = dict(
     type='FasterVQA',
     backbone='vit',
-    base_x_size=(16, 224, 224),
-    window_size=(8, 7, 7),
-    vqa_head=dict(name='VQAHead', in_channels=384, drop_rate=0.5,fc_in=8*7*7),
-    # vqa_head=dict(name='FcHead', in_channels=384, drop_rate=0.5),
+    vqa_head=dict(name='MeanHead'),
+    in_chans=384,
     load_path="./pretrained_weights/vit_s_k710_dl_from_giant.pth"
 )
 epochs = 600
 batch_size = 16
 num_workers = 16
 base_lr = 0.001
-prefix = 'temp/fragment'
+prefix = 'fragment'
 argument = [
     dict(
         name='FragmentShuffler',
@@ -35,14 +33,6 @@ argument = [
         name='PostProcessSampler',
         num=2
     ),
-    dict(
-        name='FragmentMirror',
-        fragment_size=32
-    ),
-    # dict(
-    #     name='FragmentRotate',
-    #     fragment_size=32
-    # ),
 ]
 train_video_loader = dict(
     name='FragmentLoader',
@@ -106,11 +96,11 @@ train_cfg = dict(
 val_cfg = dict()
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=base_lr * batch_size / 256, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=base_lr, weight_decay=0.05),
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
-            'model.fragments_backbone': dict(lr_mult=0.1),
+            'model.fragments_backbone': dict(lr_mult=10),
         })
 )
 param_scheduler = [

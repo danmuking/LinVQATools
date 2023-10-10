@@ -43,6 +43,7 @@ class FasterVQA(BaseModel):
             base_x_size=(32, 224, 224),
             vqa_head=dict(in_channels=768),
             window_size=(8, 7, 7),
+            in_chans=768,
             **kwargs
     ):
         super().__init__()
@@ -53,6 +54,7 @@ class FasterVQA(BaseModel):
             multi=multi,
             layer=layer,
             backbone=backbone,
+            in_chans=in_chans,
             load_path=load_path
         )
         # self.logger = MMLogger.get_instance('mmengine', log_level='INFO')

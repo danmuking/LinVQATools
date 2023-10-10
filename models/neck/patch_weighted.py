@@ -7,22 +7,22 @@ from models.utils.common import ChannelAttention
 
 
 class PatchWeighted(nn.Module):
-    def __init__(self):
+    def __init__(self,in_chans=768):
         super().__init__()
         self.dropout = nn.Dropout(p=0.5)
         self.batch1 = nn.ModuleList([
-            ChannelAttention(768),
+            ChannelAttention(in_chans),
             self.dropout,
-            Conv3d(768, 64, kernel_size=1),
+            Conv3d(in_chans, 64, kernel_size=1),
             nn.GELU(),
             self.dropout,
             Conv3d(64, 1, kernel_size=1),
             nn.GELU(),
         ])
         self.batch2 = nn.ModuleList([
-            ChannelAttention(768),
+            ChannelAttention(in_chans),
             self.dropout,
-            Conv3d(768, 64, kernel_size=1),
+            Conv3d(in_chans, 64, kernel_size=1),
             nn.GELU(),
             self.dropout,
             Conv3d(64, 1, kernel_size=1),
@@ -30,9 +30,9 @@ class PatchWeighted(nn.Module):
         ])
 
         self.batch3 = nn.ModuleList([
-            ChannelAttention(768),
+            ChannelAttention(in_chans),
             self.dropout,
-            Conv3d(768, 64, kernel_size=1),
+            Conv3d(in_chans, 64, kernel_size=1),
             nn.GELU(),
             self.dropout,
             Conv3d(64, 1, kernel_size=1),
