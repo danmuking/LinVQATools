@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10101600 vit'
+work_dir = 'work_dir/faster_vqa/10101651 vit'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10101600 vit')
+            init_kwargs=dict(project='faster vqa消融', name='10101651 vit')
         ),
     ],
 )
@@ -22,7 +22,7 @@ model = dict(
 epochs = 600
 batch_size = 4
 num_workers = 4
-base_lr = 0.0001
+base_lr = 0.00001
 prefix = 'fragment'
 argument = [
     dict(
