@@ -2,27 +2,28 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10101651 vit'
+work_dir = 'work_dir/faster_vqa/10102043 vit'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10101651 vit')
+            init_kwargs=dict(project='faster vqa消融', name='10102043 vit')
         ),
     ],
 )
 model = dict(
     type='FasterVQA',
     backbone='vit',
-    vqa_head=dict(name='MeanHead'),
+    vqa_head=dict(name='VQAHead',in_channels=384,drop_rate=0.5),
     in_chans=384,
+
     load_path="./pretrained_weights/vit_s_k710_dl_from_giant.pth"
 )
 epochs = 600
 batch_size = 4
 num_workers = 4
-base_lr = 0.00001
+base_lr = 0.0001
 prefix = 'fragment'
 argument = [
     dict(
@@ -100,7 +101,7 @@ optim_wrapper = dict(
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
-            'model.fragments_backbone': dict(lr_mult=10),
+            'model.fragments_backbone': dict(lr_mult=0.1),
         })
 )
 param_scheduler = [

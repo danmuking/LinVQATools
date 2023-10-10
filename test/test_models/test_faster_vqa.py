@@ -15,7 +15,7 @@ class TestFasterVQA(TestCase):
         model = FasterVQA(
             backbone='vit',
             base_x_size=(16, 224, 224),
-            vqa_head=dict(name='MeanHead'),
+            vqa_head=dict(name='VQAHead',in_channels=384,drop_rate=0.8),
             in_chans=384,
             # load_path="/data/ly/code/LinVQATools/pretrained_weights/MViTv2_S_16x4_k400_f302660347.pyth"
         )
