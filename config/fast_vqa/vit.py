@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/vit_patch32_fragment32'
+work_dir = 'work_dir/faster_vqa/10101600 vit'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='vit patch32 fragment32')
+            init_kwargs=dict(project='faster vqa消融', name='10101600 vit')
         ),
     ],
 )
@@ -20,9 +20,9 @@ model = dict(
     load_path="./pretrained_weights/vit_s_k710_dl_from_giant.pth"
 )
 epochs = 600
-batch_size = 16
-num_workers = 16
-base_lr = 0.001
+batch_size = 4
+num_workers = 4
+base_lr = 0.0001
 prefix = 'fragment'
 argument = [
     dict(
@@ -119,7 +119,7 @@ param_scheduler = [
         by_epoch=True,
         begin=10,
         T_max=epochs,
-        # eta_min=0.00002,
+        eta_min=base_lr*0.01,
         convert_to_iter_based=True
     )
 ]
@@ -134,11 +134,11 @@ val_evaluator = [
 default_hooks = dict(
     checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=10, save_best='SROCC', rule='greater'))
 custom_hooks = [
-    dict(type='TrainEvaluatorHook'),
+    # dict(type='TrainEvaluatorHook'),
     # dict(type='CustomEMAHook',momentum=0.01)
     # dict(type='EmptyCacheHook', after_epoch=True)
 ]
-launcher = 'none'
+launcher = 'pytorch'
 randomness = dict(seed=42)
 # randomness = dict(seed=3407)
 # randomness = dict(seed=114514)
