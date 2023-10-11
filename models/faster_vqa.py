@@ -43,6 +43,7 @@ class FasterVQA(BaseModel):
             base_x_size=(32, 224, 224),
             vqa_head=dict(in_channels=768),
             window_size=(8, 7, 7),
+            in_chans=768,
             **kwargs
     ):
         super().__init__()
@@ -53,6 +54,7 @@ class FasterVQA(BaseModel):
             multi=multi,
             layer=layer,
             backbone=backbone,
+            in_chans=in_chans,
             load_path=load_path
         )
         # self.logger = MMLogger.get_instance('mmengine', log_level='INFO')
@@ -116,10 +118,10 @@ class FasterVQA(BaseModel):
             losses = self._run_forward(data, mode='loss')  # type: ignore
 
         # 略作修改，适配一下train hook
-        result = losses['result']
-        recorder = TrainResultRecorder.get_instance('mmengine')
-        recorder.iter_y_pre = result[0]
-        recorder.iter_y = result[1]
+        # result = losses['result']
+        # recorder = TrainResultRecorder.get_instance('mmengine')
+        # recorder.iter_y_pre = result[0]
+        # recorder.iter_y = result[1]
 
         losses = {'loss': losses['loss'], 'mse_loss': losses['mse_loss'], 'p_loss': losses['p_loss'],
                   'r_loss': losses['r_loss']}

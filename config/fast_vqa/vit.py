@@ -15,9 +15,8 @@ visualizer = dict(
 model = dict(
     type='FasterVQA',
     backbone='vit',
-    base_x_size=(16, 224, 224),
-    window_size=(8, 7, 7),
-    vqa_head=dict(name='VQAHead',in_channels=384,drop_rate=0.5),
+    vqa_head=dict(name='MeanHead'),
+    in_chans=384,
     # vqa_head=dict(name='FcHead', in_channels=384, drop_rate=0.5),
     load_path="./pretrained_weights/vit_s_k710_dl_from_giant.pth"
 )
