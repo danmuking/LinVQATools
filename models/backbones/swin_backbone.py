@@ -27,7 +27,7 @@ def global_position_index(
         fragments=(1, 7, 7),
         window_size=(8, 7, 7),
         shift_size=(0, 0, 0),
-        device="cuda",
+        device="cpu",
 ):
     frags_d = torch.arange(fragments[0])
     frags_h = torch.arange(fragments[1])
@@ -315,7 +315,6 @@ class WindowAttention3D(nn.Module):
             nW = fmask.shape[0]
             relative_position_bias = relative_position_bias.unsqueeze(0)
             fgate = fgate.unsqueeze(1)
-            # print(fgate.shape, relative_position_bias.shape)
             if hasattr(self, "fragment_position_bias_table"):
                 relative_position_bias = (
                         relative_position_bias * fgate
@@ -325,6 +324,9 @@ class WindowAttention3D(nn.Module):
             attn = attn.view(
                 B_ // nW, nW, self.num_heads, N, N
             ) + relative_position_bias.unsqueeze(0)
+            # print(attn.view(
+            #     B_ // nW, nW, self.num_heads, N, N
+            # ).shape,relative_position_bias.unsqueeze(0).shape)
             attn = attn.view(-1, self.num_heads, N, N)
         else:
             attn = attn + relative_position_bias.unsqueeze(0)  # B_, nH, N, N
