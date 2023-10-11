@@ -78,7 +78,7 @@ class FasterVQA(BaseModel):
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
             loss = mse_loss + p_loss + 3 * r_loss
-            return {'loss': loss, 'mse_loss': mse_loss, 'p_loss': p_loss, 'r_loss': r_loss, 'result': [y_pred, y]}
+            return {'loss': loss, 'mse_loss': mse_loss, 'p_loss': p_loss, 'r_loss': r_loss}
         elif mode == 'predict':
             scores = self.model(inputs, inference=True,
                                 reduce_scores=False)

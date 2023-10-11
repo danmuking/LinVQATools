@@ -316,9 +316,26 @@ def get_sinusoid_encoding_table(n_position, d_hid):
         [get_position_angle_vec(pos_i) for pos_i in range(n_position)])
     sinusoid_table[:, 0::2] = np.sin(sinusoid_table[:, 0::2])  # dim 2i
     sinusoid_table[:, 1::2] = np.cos(sinusoid_table[:, 1::2])  # dim 2i+1
-
-    return torch.tensor(
+    sinusoid_table = torch.tensor(
         sinusoid_table, dtype=torch.float, requires_grad=False).unsqueeze(0)
+    frags_d = torch.arange(1)
+    frags_h = torch.arange(14)
+    frags_w = torch.arange(14)
+    frags = torch.stack(
+        torch.meshgrid(frags_d, frags_h, frags_w)
+    ).float()  # 3, Fd, Fh, Fw
+    coords = (
+        torch.nn.functional.interpolate(frags[None], size=(8, 14, 14))
+        .long()
+        .permute(0, 2, 3, 4, 1)
+    )
+    coords = coords.abs().sum(-1)
+    coords = coords - (coords.max() / 2)
+    coords = coords / coords.max()
+    coords = coords.reshape(1, -1)
+    sinusoid_table = sinusoid_table +coords[:,:,None]
+    sinusoid_table = sinusoid_table/2
+    return sinusoid_table
 
 
 class VisionTransformer(nn.Module):
@@ -394,7 +411,7 @@ class VisionTransformer(nn.Module):
         self.norm = nn.Identity() if use_mean_pooling else norm_layer(
             embed_dim)
         self.fc_norm = norm_layer(embed_dim) if use_mean_pooling else None
-
+        self.head_dropout = nn.Dropout(head_drop_rate)
         if use_learnable_pos_emb:
             trunc_normal_(self.pos_embed, std=.02)
 
@@ -465,6 +482,7 @@ class VisionTransformer(nn.Module):
 
     def forward(self, x, **kwargs):
         x = self.forward_features(x)
+        x = self.head_dropout(x)
         return [[x]]
 
 
