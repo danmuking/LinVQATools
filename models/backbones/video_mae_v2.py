@@ -333,8 +333,7 @@ def get_sinusoid_encoding_table(n_position, d_hid):
     coords = coords - (coords.max() / 2)
     coords = coords / coords.max()
     coords = coords.reshape(1, -1)
-    sinusoid_table = sinusoid_table +coords[:,:,None]
-    sinusoid_table = sinusoid_table/2
+    sinusoid_table = 0.8*sinusoid_table + 0.2*coords[:,:,None]
     return sinusoid_table
 
 
