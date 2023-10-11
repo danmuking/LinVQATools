@@ -50,8 +50,8 @@ class SingleBranchDataset(Dataset):
         # 用于获取的训练集/测试集信息
         self.data: List[Dict] = self.video_info[self.phase]
 
-        self.mean = torch.FloatTensor([123.675, 116.28, 103.53])
-        self.std = torch.FloatTensor([58.395, 57.12, 57.375])
+        self.mean = torch.FloatTensor([0.485, 0.456, 0.406])
+        self.std = torch.FloatTensor([0.229, 0.224, 0.225])
 
         # 视频加载器
         self.video_loader = getattr(loader, video_loader['name'])(**video_loader)
@@ -65,6 +65,7 @@ class SingleBranchDataset(Dataset):
         video = self.video_loader(video_path=video_path, frame_num=frame_num)
 
         if self.norm:
+            video = video/255.0
             video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
         data = {
             "inputs": video, "num_clips": {},
