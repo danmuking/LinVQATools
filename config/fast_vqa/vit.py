@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = '10121446 vit gpi'
+name = '10121724 vit gpi'
 work_dir = 'work_dir/faster_vqa/' + name
 visualizer = dict(
     type='Visualizer',
