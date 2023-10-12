@@ -541,7 +541,8 @@ class VisionTransformer(nn.Module):
 
         x = self.patch_embed(x)
 
-        if self.pos_embed is not None:
+        # if self.pos_embed is not None:
+        if False:
             x = x + self.pos_embed.expand(B, -1, -1).type_as(x).to(
                 x.device).clone().detach()
         x = self.pos_drop(x)
