@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10120835 vit gpi'
+work_dir = 'work_dir/faster_vqa/10121057 vit gpi'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10120835 vit gpi')
+            init_kwargs=dict(project='faster vqa消融', name='10121057 vit gpi')
         ),
     ],
 )
