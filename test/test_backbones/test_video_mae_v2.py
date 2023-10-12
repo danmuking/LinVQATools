@@ -67,6 +67,6 @@ class TestVisionTransformer(TestCase):
         # # print(coords.shape)
         # # print(coords.max(), coords.min())
         #
-        # cax = plt.matshow(((pos))[0])
-        # plt.gcf().colorbar(cax)
-        # plt.show()
+        cax = plt.matshow(((pos))[0])
+        plt.gcf().colorbar(cax)
+        plt.show()

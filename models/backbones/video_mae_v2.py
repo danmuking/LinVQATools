@@ -324,14 +324,20 @@ def get_sinusoid_encoding_table(n_position, d_hid):
         .long()
         .permute(0, 2, 3, 4, 1)
     )
-    coords = coords.abs().sum(-1).reshape(-1)
+    coords = coords.abs().sum(-1)
+
+    coords = coords - (coords.max() / 2)
+    coords = coords / coords.max()
+    coords = coords.reshape(1, -1)
 
     sinusoid_table = np.array(
-        [get_position_angle_vec(pos_i+coords[pos_i]) for pos_i in range(n_position)])
+        [get_position_angle_vec(pos_i) for pos_i in range(n_position)])
     sinusoid_table[:, 0::2] = np.sin(sinusoid_table[:, 0::2])  # dim 2i
     sinusoid_table[:, 1::2] = np.cos(sinusoid_table[:, 1::2])  # dim 2i+1
     sinusoid_table = torch.tensor(
         sinusoid_table, dtype=torch.float, requires_grad=False).unsqueeze(0)
+
+    sinusoid_table = 0.5 * sinusoid_table + 0.5 * coords[:, :, None]
     return sinusoid_table
 
 
