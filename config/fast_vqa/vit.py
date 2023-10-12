@@ -3,7 +3,7 @@ custom_imports = dict(
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
 name = '10121446 vit gpi'
-work_dir = 'work_dir/faster_vqa/1' + name
+work_dir = 'work_dir/faster_vqa/' + name
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
