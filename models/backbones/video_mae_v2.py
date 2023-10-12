@@ -173,82 +173,9 @@ class Attention(nn.Module):
         self.proj = nn.Linear(all_head_dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)
 
-        self.window_size = (8,14,14)
-        self.relative_position_bias_table = nn.Parameter(
-            torch.zeros(
-                (2 * self.window_size[0] - 1)
-                * (2 * self.window_size[1] - 1)
-                * (2 * self.window_size[2] - 1),
-                num_heads,
-            )
-        )  # 2*Wd-1 * 2*Wh-1 * 2*Ww-1, nH
-        self.fragment_position_bias_table = nn.Parameter(
-            torch.zeros(
-                (2 * self.window_size[0] - 1)
-                * (2 * self.window_size[1] - 1)
-                * (2 * self.window_size[2] - 1),
-                num_heads,
-            )
-        )
-
-        # get pair-wise relative position index for each token inside the window
-        coords_d = torch.arange(self.window_size[0])
-        coords_h = torch.arange(self.window_size[1])
-        coords_w = torch.arange(self.window_size[2])
-        coords = torch.stack(
-            torch.meshgrid(coords_d, coords_h, coords_w)
-        )  # 3, Wd, Wh, Ww
-        coords_flatten = torch.flatten(coords, 1)  # 3, Wd*Wh*Ww
-        relative_coords = (
-                coords_flatten[:, :, None] - coords_flatten[:, None, :]
-        )  # 3, Wd*Wh*Ww, Wd*Wh*Ww
-        relative_coords = relative_coords.permute(
-            1, 2, 0
-        ).contiguous()  # Wd*Wh*Ww, Wd*Wh*Ww, 3
-        relative_coords[:, :, 0] += self.window_size[0] - 1  # shift to start from 0
-        relative_coords[:, :, 1] += self.window_size[1] - 1
-        relative_coords[:, :, 2] += self.window_size[2] - 1
-
-        relative_coords[:, :, 0] *= (2 * self.window_size[1] - 1) * (
-                2 * self.window_size[2] - 1
-        )
-        relative_coords[:, :, 1] *= 2 * self.window_size[2] - 1
-        relative_position_index = relative_coords.sum(-1)  # Wd*Wh*Ww, Wd*Wh*Ww
-        self.register_buffer("relative_position_index", relative_position_index)
-        trunc_normal_(self.relative_position_bias_table, std=0.02)
-
     def forward(self, x):
         B, N, C = x.shape
         qkv_bias = None
-
-        rpi = self.relative_position_index[:N, :N]
-        relative_position_bias = self.relative_position_bias_table[
-            rpi.reshape(-1)
-        ].reshape(
-            N, N, -1
-        )  # Wd*Wh*Ww,Wd*Wh*Ww,nH
-        relative_position_bias = relative_position_bias.permute(
-            2, 0, 1
-        ).contiguous()  # nH, Wd*Wh*Ww, Wd*Wh*Ww
-        fragment_position_bias = self.fragment_position_bias_table[
-            rpi.reshape(-1)
-        ].reshape(
-            N, N, -1
-        )  # Wd*Wh*Ww,Wd*Wh*Ww,nH
-        fragment_position_bias = fragment_position_bias.permute(
-            2, 0, 1
-        ).contiguous()  # nH, Wd*Wh*Ww, Wd*Wh*Ww
-
-        fmask = global_position_index(8,14,14,fragments=(1,14,14),window_size=self.window_size,device=x.device)
-        fgate = fmask.abs().sum(-1)
-        relative_position_bias = relative_position_bias.unsqueeze(0)
-        fgate = fgate.unsqueeze(1)
-        if hasattr(self, "fragment_position_bias_table"):
-            relative_position_bias = (
-                    relative_position_bias * fgate
-                    + fragment_position_bias * (1 - fgate)
-            )
-
         if self.q_bias is not None:
             qkv_bias = torch.cat(
                 (self.q_bias,
@@ -261,11 +188,6 @@ class Attention(nn.Module):
 
         q = q * self.scale
         attn = (q @ k.transpose(-2, -1))
-        attn = attn+ relative_position_bias
-        attn = attn.view(
-            B // 1, 1, self.num_heads, N, N
-        ) + relative_position_bias.unsqueeze(0)
-        attn = attn.view(-1, self.num_heads, N, N)
 
         attn = attn.softmax(dim=-1)
         attn = self.attn_drop(attn)
@@ -391,28 +313,25 @@ def get_sinusoid_encoding_table(n_position, d_hid):
             for hid_j in range(d_hid)
         ]
 
+    frags_d = torch.arange(1)
+    frags_h = torch.arange(7)
+    frags_w = torch.arange(7)
+    frags = torch.stack(
+        torch.meshgrid(frags_d, frags_h, frags_w)
+    ).float()  # 3, Fd, Fh, Fw
+    coords = (
+        torch.nn.functional.interpolate(frags[None], size=(8, 14, 14))
+        .long()
+        .permute(0, 2, 3, 4, 1)
+    )
+    coords = coords.abs().sum(-1).reshape(-1)
+
     sinusoid_table = np.array(
-        [get_position_angle_vec(pos_i) for pos_i in range(n_position)])
+        [get_position_angle_vec(pos_i+coords[pos_i]) for pos_i in range(n_position)])
     sinusoid_table[:, 0::2] = np.sin(sinusoid_table[:, 0::2])  # dim 2i
     sinusoid_table[:, 1::2] = np.cos(sinusoid_table[:, 1::2])  # dim 2i+1
     sinusoid_table = torch.tensor(
         sinusoid_table, dtype=torch.float, requires_grad=False).unsqueeze(0)
-    # frags_d = torch.arange(1)
-    # frags_h = torch.arange(14)
-    # frags_w = torch.arange(14)
-    # frags = torch.stack(
-    #     torch.meshgrid(frags_d, frags_h, frags_w)
-    # ).float()  # 3, Fd, Fh, Fw
-    # coords = (
-    #     torch.nn.functional.interpolate(frags[None], size=(8, 14, 14))
-    #     .long()
-    #     .permute(0, 2, 3, 4, 1)
-    # )
-    # coords = coords.abs().sum(-1)
-    # coords = coords - (coords.max() / 2)
-    # coords = coords / coords.max()
-    # coords = coords.reshape(1, -1)
-    # sinusoid_table = 0.8*sinusoid_table + 0.2*coords[:,:,None]
     return sinusoid_table
 
 
@@ -541,8 +460,7 @@ class VisionTransformer(nn.Module):
 
         x = self.patch_embed(x)
 
-        # if self.pos_embed is not None:
-        if False:
+        if self.pos_embed is not None:
             x = x + self.pos_embed.expand(B, -1, -1).type_as(x).to(
                 x.device).clone().detach()
         x = self.pos_drop(x)
