@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = '10121724 vit gpi'
+name = '10122309 vit gpi'
 work_dir = 'work_dir/faster_vqa/' + name
 visualizer = dict(
     type='Visualizer',
@@ -103,7 +103,7 @@ optim_wrapper = dict(
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
-            'model.fragments_backbone': dict(lr_mult=0.1),
+            # 'model.fragments_backbone': dict(lr_mult=0.1),
         })
 )
 param_scheduler = [
@@ -122,7 +122,7 @@ param_scheduler = [
         by_epoch=True,
         begin=10,
         T_max=epochs,
-        eta_min=base_lr*0.001,
+        eta_min=base_lr*0.1,
         convert_to_iter_based=True
     )
 ]
