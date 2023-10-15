@@ -94,7 +94,7 @@ def makedir(path: str):
 
 def get_save_path(video_path, frame_num, epoch):
     video_path = video_path.split('/')
-    video_path.insert(3, 'fragment2')
+    video_path.insert(3, '4frame')
     video_path.insert(4, str(epoch))
     video_path[0] = "/data"
     video_path[1] = ""
@@ -108,7 +108,7 @@ def get_save_path(video_path, frame_num, epoch):
 def sampler(video_path: str, epoch: int):
     vreader = VideoReader(video_path)
     # frame_index = [x for x in range(len(vreader))]
-    frame_sampler = FragmentSampleFrames(fsize_t=8, fragments_t=4, frame_interval=2, num_clips=1, )
+    frame_sampler = FragmentSampleFrames(fsize_t=4, fragments_t=8, frame_interval=2, num_clips=1, )
     frame_index = frame_sampler(len(vreader))
 
     fragments_h = 7
@@ -134,13 +134,13 @@ def sampler(video_path: str, epoch: int):
     hlength, wlength = res_h // fragments_h, res_w // fragments_w
     if hlength > fsize_h:
         rnd_h = torch.randint(
-            hlength - fsize_h, (len(hgrids), len(wgrids), 1)
+            hlength - fsize_h, (len(hgrids), len(wgrids), 8)
         )
     else:
         rnd_h = torch.zeros((len(hgrids), len(wgrids)).int())
     if wlength > fsize_w:
         rnd_w = torch.randint(
-            wlength - fsize_w, (len(hgrids), len(wgrids), 1)
+            wlength - fsize_w, (len(hgrids), len(wgrids), 8)
         )
     else:
         rnd_w = torch.zeros((len(hgrids), len(wgrids)).int())
@@ -158,8 +158,8 @@ def sampler(video_path: str, epoch: int):
             for j, ws in enumerate(wgrids):
                 h_s, h_e = i * fsize_h, (i + 1) * fsize_h
                 w_s, w_e = j * fsize_w, (j + 1) * fsize_w
-                h_so, h_eo = hs + rnd_h[i][j][0], hs + rnd_h[i][j][0] + fsize_h
-                w_so, w_eo = ws + rnd_w[i][j][0], ws + rnd_w[i][j][0] + fsize_w
+                h_so, h_eo = hs + rnd_h[i][j][int(index/4)], hs + rnd_h[i][j][int(index/4)] + fsize_h
+                w_so, w_eo = ws + rnd_w[i][j][int(index/4)], ws + rnd_w[i][j][int(index/4)] + fsize_w
                 # print(i,j,int(index/8))
                 # print(rnd_h[i][j][int(index/8)],rnd_w[i][j][int(index/8)])
                 # print(h_so, w_so)
