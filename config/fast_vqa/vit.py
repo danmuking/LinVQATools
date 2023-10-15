@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10142132 vit_patch16_fragment32'
+work_dir = 'work_dir/faster_vqa/10151146 vit_patch16_fragment32'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10142132 vit patch16 fragment32')
+            init_kwargs=dict(project='faster vqa消融', name='10151146 vit patch16 fragment32')
         ),
     ],
 )
@@ -24,7 +24,7 @@ model = dict(
 epochs = 600
 batch_size = 4
 num_workers = 5
-prefix = 'fragment2'
+prefix = 'fragment'
 argument = [
         dict(
             name='FragmentShuffler',
