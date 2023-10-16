@@ -7,6 +7,7 @@ from .backbones.mvit import MViT
 from .backbones.swin_backbone import SwinTransformer3D as VideoBackbone
 from .backbones.video_mae_v2 import VisionTransformer
 import models.heads as heads
+from .heads.classification import ClassificationHead
 
 
 class DiViDeAddEvaluator(nn.Module):
@@ -51,6 +52,7 @@ class DiViDeAddEvaluator(nn.Module):
         print("Setting backbone:", 'fragments' + "_backbone")
         setattr(self, 'fragments' + "_backbone", b)
         self.vqa_head = getattr(heads, vqa_head['name'])(**vqa_head)
+        self.classification_head = ClassificationHead(in_channels=384)
 
     def forward(self, vclips, inference=False, return_pooled_feats=False, reduce_scores=True, pooled=False, **kwargs):
         vclips = {
@@ -67,6 +69,7 @@ class DiViDeAddEvaluator(nn.Module):
                     feat = getattr(self, key.split("_")[0] + "_backbone")(vclips[key], multi=self.multi,
                                                                           layer=self.layer, **kwargs)
                     scores += [getattr(self, "vqa_head")(feat)]
+                    # scores += [self.classification_head(feat)]
             self.train()
             return scores
         else:
@@ -78,4 +81,5 @@ class DiViDeAddEvaluator(nn.Module):
                 feat = getattr(self, key.split("_")[0] + "_backbone")(vclips[key], multi=self.multi, layer=self.layer,
                                                                       **kwargs)
                 scores += [getattr(self, "vqa_head")(feat)]
+                scores += [self.classification_head(feat)]
             return scores

@@ -9,7 +9,7 @@ from decord import VideoReader
 
 from data.file_reader.base_reader import BaseReader
 from data.loader.base_loader import BaseLoader
-from data.shuffler import BaseShuffler
+from data.shuffler import BaseShuffler, SpatialShuffler
 import data.sampler as sampler
 import data.file_reader as reader
 import data.shuffler as shuffler
@@ -71,7 +71,9 @@ class FragmentLoader(BaseLoader):
             video = torch.stack(imgs, 0).permute(3, 0, 1, 2)
             if self.spatial_sampler is not None:
                 video = self.spatial_sampler(video)
+        argument = SpatialShuffler(fragment_size=32)
+        video,sort_list = argument(video)
         # 视频后处理
         for item in self.argument:
             video = item(video)
-        return video
+        return video,sort_list

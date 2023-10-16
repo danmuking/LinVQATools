@@ -62,13 +62,14 @@ class SingleBranchDataset(Dataset):
         score = video_info["score"]
         frame_num = video_info['frame_num']
 
-        video = self.video_loader(video_path=video_path, frame_num=frame_num)
+        video,sort_list = self.video_loader(video_path=video_path, frame_num=frame_num)
 
         if self.norm:
             video = video/255.0
             video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
         data = {
             "inputs": video, "num_clips": {},
+            'sort_list':sort_list,
             # "frame_inds": frame_idxs,
             "gt_label": score,
             "name": osp.basename(video_path)

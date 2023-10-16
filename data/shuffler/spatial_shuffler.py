@@ -1,5 +1,6 @@
 import random
 
+import numpy as np
 import torch
 from mmengine import MMLogger
 
@@ -21,9 +22,11 @@ class SpatialShuffler(BaseShuffler):
         assert h % self.fragment_size == 0, '视频高度无法被fragment_size整除,H:{} fragment_size:{}'.format(h, self.fragment_size)
         num_w = w // self.fragment_size
         num_h =  h//self.fragment_size
+        count=0
         for i in range(num_h):
             for j in range(num_w):
-                    matrix.append((i, j))
+                matrix.append((i, j,count))
+                count = count+1
         random.shuffle(matrix)
         count = 0
         target_video = torch.zeros_like(video)
@@ -37,4 +40,5 @@ class SpatialShuffler(BaseShuffler):
                                                                  :, :, h_so:h_eo, w_so:w_eo
                                                                  ]
                     count = count + 1
-        return target_video
+        matrix = np.array(matrix)[:,2]
+        return target_video,matrix
