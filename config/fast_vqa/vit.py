@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10160125 vit_patch16_fragment32'
+work_dir = 'work_dir/faster_vqa/10161142 vit_patch16_fragment32 4frame'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10160125 vit patch16 fragment32')
+            init_kwargs=dict(project='faster vqa消融', name='10161142 vit patch16 fragment32 4frame')
         ),
     ],
 )
@@ -24,16 +24,18 @@ model = dict(
 epochs = 600
 batch_size = 4
 num_workers = 5
-prefix = 'temp'
+prefix = '4frame'
 argument = [
-        dict(
-            name='FragmentShuffler',
-            fragment_size=32,
-        ),
-        dict(
-            name='PostProcessSampler',
-            num=2
-        )
+    dict(
+        name='FragmentShuffler',
+        fragment_size=32,
+        frame_cube=4
+    ),
+    dict(
+        name='PostProcessSampler',
+        num=4,
+        frame_cube=4
+    )
 ]
 train_video_loader = dict(
     name='FragmentLoader',
@@ -97,7 +99,7 @@ train_cfg = dict(
 val_cfg = dict()
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.00005, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
@@ -120,7 +122,7 @@ param_scheduler = [
         by_epoch=True,
         begin=10,
         T_max=epochs,
-        eta_min=0.00005*0.01,
+        eta_min=0.0001*0.01,
         convert_to_iter_based=True
     )
 ]
