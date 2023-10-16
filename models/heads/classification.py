@@ -18,27 +18,20 @@ class ClassificationHead(nn.Module):
         else:
             self.dropout = None
         self.layer1 = nn.Sequential(
-            nn.Conv3d(in_channels, in_channels, (1, 1, 1)),
-            Rearrange('b c t h w -> b t h w c'),
-            layer_norm(in_channels),
-            Rearrange('b t h w c -> b c t h w'),
-            nn.GELU(),
-        )
-        self.layer2 = nn.Sequential(
             nn.Conv3d(in_channels, in_channels, (1, 2, 2), stride=(1, 2, 2)),
             Rearrange('b c t h w -> b t h w c'),
             layer_norm(in_channels),
             Rearrange('b t h w c -> b c t h w'),
             nn.GELU(),
         )
-        self.layer3 = nn.Sequential(
-            nn.Conv3d(in_channels, hidden_channels, (1, 1, 1)),
+        self.layer2 = nn.Sequential(
+            nn.Conv3d(in_channels, in_channels, (1, 1, 1)),
             Rearrange('b c t h w -> b t h w c'),
-            layer_norm(hidden_channels),
+            layer_norm(in_channels),
             Rearrange('b t h w c -> b c t h w'),
             nn.GELU(),
             Rearrange('b c t h w -> (b h w) (c t)'),
-            nn.Linear(hidden_channels * 8, 49)
+            nn.Linear(in_channels * 8, 49)
         )
 
     def forward(self, x):
@@ -48,6 +41,5 @@ class ClassificationHead(nn.Module):
         x = self.dropout(x)
         x = self.layer1(x)
         x = self.layer2(x)
-        x = self.layer3(x)
 
         return x
