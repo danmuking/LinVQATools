@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10161918 vit_patch16_fragment32 cls'
+work_dir = 'work_dir/faster_vqa/10171006 vit_patch16_fragment32 cls'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10161918 vit patch16 fragment32 cls')
+            init_kwargs=dict(project='faster vqa消融', name='10171006 vit patch16 fragment32 cls')
         ),
     ],
 )
@@ -94,7 +94,7 @@ train_cfg = dict(
 val_cfg = dict()
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=0.001, weight_decay=0.05),
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
