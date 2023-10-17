@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10110840 vit_patch16_fragment32'
+work_dir = 'work_dir/faster_vqa/10162152 vit_patch16_fragment32 4frame'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10110840 vit patch16 fragment32')
+            init_kwargs=dict(project='faster vqa消融', name='10162152 vit patch16 fragment32 4frame')
         ),
     ],
 )
@@ -21,18 +21,20 @@ model = dict(
     # vqa_head=dict(name='FcHead', in_channels=384, drop_rate=0.5),
     load_path="./pretrained_weights/vit_s_k710_dl_from_giant.pth"
 )
-epochs = 600
+epochs = 1200
 batch_size = 4
 num_workers = 5
-prefix = 'temp'
+prefix = '4frame'
 argument = [
         dict(
             name='FragmentShuffler',
             fragment_size=32,
+            frame_cube=4
         ),
         dict(
             name='PostProcessSampler',
-            num=2
+            frame_cube=4,
+            num=4
         )
 ]
 train_video_loader = dict(
@@ -120,7 +122,7 @@ param_scheduler = [
         by_epoch=True,
         begin=10,
         T_max=epochs,
-        # eta_min=0.00002,
+        eta_min=0.0001*0.02,
         convert_to_iter_based=True
     )
 ]
