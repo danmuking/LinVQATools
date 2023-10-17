@@ -1,6 +1,8 @@
 import torch.nn as nn
 from mmengine import MMLogger
 
+from models.utils.common import ChannelAttention, SpatialAttention
+
 logger = MMLogger.get_instance('model', log_level='DEBUG')
 
 class VQAHead(nn.Module):
@@ -15,6 +17,10 @@ class VQAHead(nn.Module):
             self, in_channels=768, hidden_channels=64, dropout_ratio=0.5,fc_in=1568, **kwargs
     ):
         super().__init__()
+        self.atte = nn.Sequential(
+            ChannelAttention(in_channels,reduction_ratio=8),
+            SpatialAttention(),
+        )
         self.dropout_ratio = dropout_ratio
         self.in_channels = in_channels
         self.hidden_channels = hidden_channels
@@ -31,6 +37,7 @@ class VQAHead(nn.Module):
         x = x[0][0]
         logger.debug("head层输入维度: {}".format(x.shape))
         x = self.dropout(x)
+        x = self.atte(x)
         qlt_score = self.fc_hid(x)
         logger.debug('head: channel {}->{}'.format(x.shape[1],qlt_score.shape[1]))
         qlt_score = self.gelu(qlt_score)
