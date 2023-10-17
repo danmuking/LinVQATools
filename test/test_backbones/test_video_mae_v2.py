@@ -5,6 +5,7 @@ import torch
 from torch import nn
 
 from models.backbones.video_mae_v2 import VisionTransformer, vit_small_patch16_224
+from models.utils.common import SpatialAttention
 
 
 class TestVisionTransformer(TestCase):
@@ -41,3 +42,7 @@ class TestVisionTransformer(TestCase):
             num_classes=0,
             use_mean_pooling=False
         )
+    def testst(self):
+        model = SpatialAttention()
+        x = torch.zeros((2, 384, 8, 14, 14))
+        model(x)

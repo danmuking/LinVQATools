@@ -1,4 +1,5 @@
 import torch
+from einops import rearrange
 from torch import nn
 from torch.nn import Flatten
 import torch.nn.functional as F
@@ -37,10 +38,10 @@ class ChannelAttention(nn.Module):
 
 
 class SpatialAttention(nn.Module):
-    def __init__(self, kernel_size=7):
+    def __init__(self, kernel_size=2):
         super(SpatialAttention, self).__init__()
 
-        self.conv1 = nn.Conv3d(2, 1, (1, kernel_size, kernel_size), padding=(0,kernel_size // 2,kernel_size // 2), bias=False)
+        self.conv1 = nn.Conv3d(2, 1, (1, kernel_size, kernel_size),stride=(1,2,2), bias=False)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
@@ -49,4 +50,8 @@ class SpatialAttention(nn.Module):
         scale = torch.cat([avg_out, max_out], dim=1)
         scale = self.conv1(scale)
         scale = self.sigmoid(scale)
-        return scale * x
+        x = rearrange(x, 'b c (t n3) (h n1) (w n2) -> b c t h w (n3 n1 n2)', n1=7,n2=7,n3=4)
+        scale = rearrange(scale, 'b c (t n3) (h n1) (w n2) -> b c t h w (n3 n1 n2)', n1=7,n2=7,n3=4)
+        x = scale * x
+        x = rearrange(x, 'b c t h w (n3 n1 n2) -> b c (t n3) (h n1) (w n2)', n1=7, n2=7, n3=4)
+        return x
