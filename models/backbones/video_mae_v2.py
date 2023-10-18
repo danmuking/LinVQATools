@@ -394,9 +394,9 @@ class VisionTransformer(nn.Module):
         self.norm = nn.Identity() if use_mean_pooling else norm_layer(
             embed_dim)
         self.fc_norm = norm_layer(embed_dim) if use_mean_pooling else None
-        self.head_dropout = nn.Dropout(head_drop_rate)
-        self.head = nn.Linear(
-            embed_dim, num_classes) if num_classes > 0 else nn.Identity()
+        # self.head_dropout = nn.Dropout(head_drop_rate)
+        # self.head = nn.Linear(
+        #     embed_dim, num_classes) if num_classes > 0 else nn.Identity()
 
         if use_learnable_pos_emb:
             trunc_normal_(self.pos_embed, std=.02)
@@ -468,8 +468,8 @@ class VisionTransformer(nn.Module):
 
     def forward(self, x, **kwargs):
         x = self.forward_features(x)
-        x = self.head_dropout(x)
-        x = self.head(x)
+        # x = self.head_dropout(x)
+        # x = self.head(x)
         return [[x]]
 
 

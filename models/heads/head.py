@@ -36,8 +36,8 @@ class VQAHead(nn.Module):
     def forward(self, x):
         x = x[0][0]
         logger.debug("head层输入维度: {}".format(x.shape))
-        x = self.dropout(x)
         x = self.atte(x)
+        x = self.dropout(x)
         qlt_score = self.fc_hid(x)
         logger.debug('head: channel {}->{}'.format(x.shape[1],qlt_score.shape[1]))
         qlt_score = self.gelu(qlt_score)
