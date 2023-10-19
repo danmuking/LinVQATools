@@ -94,7 +94,7 @@ def makedir(path: str):
 
 def get_save_path(video_path, frame_num, epoch):
     video_path = video_path.split('/')
-    video_path.insert(3, '4frame')
+    video_path.insert(3, '4frame2')
     video_path.insert(4, str(epoch))
     video_path[0] = "/data"
     video_path[1] = ""
@@ -123,7 +123,7 @@ def sampler(video_path: str, epoch: int):
     img = rearrange(img, 'h w c -> c h w ')
     res_h, res_w = img.shape[-2:]
     size = size_h, size_w
-
+    res_h = int(res_h*0.7)
     ## make sure that sampling will not run out of the picture
     hgrids = torch.LongTensor(
         [min(res_h // fragments_h * i, res_h - fsize_h) for i in range(fragments_h)]
@@ -158,7 +158,7 @@ def sampler(video_path: str, epoch: int):
             for j, ws in enumerate(wgrids):
                 h_s, h_e = i * fsize_h, (i + 1) * fsize_h
                 w_s, w_e = j * fsize_w, (j + 1) * fsize_w
-                h_so, h_eo = hs + rnd_h[i][j][int(index/4)], hs + rnd_h[i][j][int(index/4)] + fsize_h
+                h_so, h_eo = int(img.shape[-2]*0.3)+hs + rnd_h[i][j][int(index/4)], int(img.shape[-2]*0.3)+hs + rnd_h[i][j][int(index/4)] + fsize_h
                 w_so, w_eo = ws + rnd_w[i][j][int(index/4)], ws + rnd_w[i][j][int(index/4)] + fsize_w
                 # print(i,j,int(index/8))
                 # print(rnd_h[i][j][int(index/8)],rnd_w[i][j][int(index/8)])
@@ -191,6 +191,6 @@ if __name__ == '__main__':
             pool.apply_async(func=sampler, kwds={'video_path': video_path, 'epoch': i})
     pool.close()
     pool.join()
-    # for video_info in data_anno[:1]:
+    # for video_info in data_anno[10:11]:
     #     video_path = video_info['video_path']
     #     sampler(video_path, 0)
