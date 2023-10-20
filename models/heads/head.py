@@ -1,4 +1,5 @@
 import torch.nn as nn
+from einops.layers.torch import Rearrange
 from mmengine import MMLogger
 
 from models.utils.common import ChannelAttention, SpatialAttention, ChannelSelfAttention
@@ -20,7 +21,7 @@ class VQAHead(nn.Module):
         self.atte = nn.Sequential(
             # ChannelAttention(in_channels,reduction_ratio=8),
             # SpatialAttention(),
-            ChannelSelfAttention()
+            # ChannelSelfAttention()
         )
         self.dropout_ratio = dropout_ratio
         self.in_channels = in_channels
@@ -28,6 +29,9 @@ class VQAHead(nn.Module):
         self.fc_hid = nn.Sequential(
             nn.Dropout(p=self.dropout_ratio) if self.dropout_ratio > 0 else nn.Identity(),
             nn.Conv3d(self.in_channels, self.hidden_channels, (1, 1, 1)),
+            Rearrange("b c t h w -> b t h w c"),
+            nn.LayerNorm(self.hidden_channels),
+            Rearrange("b t h w c -> b c t h w"),
             nn.GELU()
         )
         self.fc_last = nn.Sequential(
