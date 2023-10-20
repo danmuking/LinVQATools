@@ -39,7 +39,7 @@ class DiViDeAddEvaluator(nn.Module):
             b = VisionTransformer(
                 patch_size=16,
                 embed_dim=384,
-                depth=3,
+                depth=12,
                 num_heads=6,
                 mlp_ratio=4,
                 qkv_bias=True,

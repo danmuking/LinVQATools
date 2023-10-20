@@ -20,6 +20,7 @@ class VQAHead(nn.Module):
         self.atte = nn.Sequential(
             # ChannelAttention(in_channels,reduction_ratio=8),
             # SpatialAttention(),
+            ChannelSelfAttention()
         )
         self.dropout_ratio = dropout_ratio
         self.in_channels = in_channels
