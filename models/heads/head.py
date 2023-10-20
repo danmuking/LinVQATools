@@ -1,7 +1,7 @@
 import torch.nn as nn
 from mmengine import MMLogger
 
-from models.utils.common import ChannelAttention, SpatialAttention
+from models.utils.common import ChannelAttention, SpatialAttention, ChannelSelfAttention
 
 logger = MMLogger.get_instance('model', log_level='DEBUG')
 
@@ -18,8 +18,7 @@ class VQAHead(nn.Module):
     ):
         super().__init__()
         self.atte = nn.Sequential(
-            ChannelAttention(in_channels,reduction_ratio=8),
-            # SpatialAttention(),
+            ChannelSelfAttention(),
         )
         self.dropout_ratio = dropout_ratio
         self.in_channels = in_channels

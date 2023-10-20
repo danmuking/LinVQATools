@@ -4,6 +4,8 @@ from torch import nn
 from torch.nn import Flatten
 import torch.nn.functional as F
 
+from models.backbones.video_mae_v2 import Attention
+
 
 class ChannelAttention(nn.Module):
     def __init__(self, gate_channels, reduction_ratio=16, pool_types=['avg', 'max']):
@@ -36,6 +38,22 @@ class ChannelAttention(nn.Module):
         scale = F.sigmoid(channel_att_raw).unsqueeze(2).unsqueeze(3).unsqueeze(4).expand_as(x)
         return x * scale
 
+
+class ChannelSelfAttention(nn.Module):
+    def __init__(self, dim=1568):
+        super(ChannelSelfAttention, self).__init__()
+        self.atte = Attention(dim,num_heads=1)
+
+    def forward(self, x):
+        """
+        :param x: (b,c,t,h,w)
+        """
+        B, C, T, H, W = x.shape
+        x = rearrange(x, 'b c t h w -> b c (t h w)')
+        x = self.atte(x)
+        x = rearrange(x, 'b c (t h w) -> b c t h w', t=T, h=H, w=W)
+
+        return x
 
 class SpatialAttention(nn.Module):
     def __init__(self, kernel_size=2):
