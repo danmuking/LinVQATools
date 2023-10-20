@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10201729 vit_patch16_fragment32 4frame atte'
+work_dir = 'work_dir/faster_vqa/10201957 vit_patch16_fragment32 4frame atte'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10201729 vit patch16 fragment32 4frame atte')
+            init_kwargs=dict(project='faster vqa消融', name='10201957 vit patch16 fragment32 4frame atte')
         ),
     ],
 )
@@ -22,7 +22,7 @@ model = dict(
     load_path="./pretrained_weights/vit_s_k710_dl_from_giant.pth"
 )
 epochs = 600
-batch_size = 4
+batch_size = 8
 num_workers = 5
 prefix = '4frame'
 argument = [
@@ -122,7 +122,7 @@ param_scheduler = [
         by_epoch=True,
         begin=10,
         T_max=epochs,
-        eta_min=0.0001*0.01,
+        eta_min=0.0001*0.02,
         convert_to_iter_based=True
     ),
 ]
