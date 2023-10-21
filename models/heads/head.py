@@ -29,9 +29,6 @@ class VQAHead(nn.Module):
         self.fc_hid = nn.Sequential(
             nn.Dropout(p=self.dropout_ratio) if self.dropout_ratio > 0 else nn.Identity(),
             nn.Conv3d(self.in_channels, self.hidden_channels, (1, 1, 1)),
-            Rearrange("b c t h w -> b t h w c"),
-            nn.LayerNorm(self.hidden_channels),
-            Rearrange("b t h w c -> b c t h w"),
             nn.GELU()
         )
         self.fc_last = nn.Sequential(
