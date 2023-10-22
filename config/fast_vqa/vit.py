@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10221821 vit_patch16_fragment16 4frame atte'
+work_dir = 'work_dir/faster_vqa/10222151 vit_patch16_fragment16 4frame atte'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10221821 vit patch16 fragment16 4frame atte')
+            init_kwargs=dict(project='faster vqa消融', name='10222151 vit patch16 fragment16 4frame atte')
         ),
     ],
 )
