@@ -4,6 +4,9 @@ from torch import nn
 from torch.nn import Flatten
 import torch.nn.functional as F
 
+from models.backbones.base_swin_backbone import PatchMerging
+from models.backbones.video_mae_v2 import Block
+
 
 class ChannelAttention(nn.Module):
     def __init__(self, gate_channels, reduction_ratio=16, pool_types=['avg', 'max']):
@@ -126,4 +129,23 @@ class SpatialAttention(nn.Module):
         scale = rearrange(scale, 'b c (t n3) (h n1) (w n2) -> b c t h w (n3 n1 n2)', n1=7,n2=7,n3=4)
         x = scale * x
         x = rearrange(x, 'b c t h w (n3 n1 n2) -> b c (t n3) (h n1) (w n2)', n1=7, n2=7, n3=4)
+        return x
+
+
+class SpatialSelfAttention(nn.Module):
+    def __init__(self, dim=384):
+        super(SpatialSelfAttention, self).__init__()
+
+        self.reduce = PatchMerging(embed_dims=dim)
+        self.block = Block(dim=dim*2,num_heads=12,init_values=0.,)
+        self.norm = nn.LayerNorm(dim*2)
+
+    def forward(self, x):
+        B,C,D,H,W = x.shape
+        x = rearrange(x,"b c d h w -> b d h w c")
+        x= self.reduce(x)
+        x = rearrange(x, "b d h w c -> b (d h w) c")
+        x = self.block(x)
+        x = self.norm(x)
+        x = rearrange(x, "b (d h w) c -> b c d h w",d=D,h=7,w=7)
         return x

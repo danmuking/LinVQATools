@@ -2,7 +2,7 @@ import torch.nn as nn
 from einops.layers.torch import Rearrange
 from mmengine import MMLogger
 
-from models.utils.common import ChannelAttention, SpatialAttention, ChannelSelfAttention
+from models.utils.common import ChannelAttention, SpatialAttention, ChannelSelfAttention, SpatialSelfAttention
 
 logger = MMLogger.get_instance('model', log_level='DEBUG')
 
@@ -19,8 +19,9 @@ class VQAHead(nn.Module):
     ):
         super().__init__()
         self.atte = nn.Sequential(
-            ChannelAttention(in_channels,reduction_ratio=8),
+            # ChannelAttention(in_channels,reduction_ratio=8),
             # SpatialAttention(),
+            SpatialSelfAttention(dim=384)
         )
         self.dropout_ratio = dropout_ratio
         self.in_channels = in_channels
