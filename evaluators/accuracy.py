@@ -4,7 +4,7 @@ from mmengine.evaluator import BaseMetric
 @METRICS.register_module()
 class Accuracy(BaseMetric):
     def process(self, data_batch, data_samples):
-        score, gt = data_samples
+        score, gt = data_samples[2:]
         # 将一个批次的中间结果保存至 `self.results`
         self.results.append({
             'batch_size': len(gt),

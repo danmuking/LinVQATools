@@ -7,7 +7,7 @@ from mmengine.evaluator import BaseMetric
 @METRICS.register_module()
 class RMSE(BaseMetric):
     def process(self, data_batch, data_samples):
-        score, gt = data_samples
+        score, gt = data_samples[:2]
         if torch.is_tensor(score) and torch.is_tensor(gt):
             score = score.detach().cpu().numpy()
             gt = gt.detach().cpu().numpy()

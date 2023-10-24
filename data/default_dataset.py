@@ -69,6 +69,7 @@ class SingleBranchDataset(Dataset):
             video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
         data = {
             "inputs": video, "num_clips": {},
+            'cls_label': int(score/0.2),
             # "frame_inds": frame_idxs,
             "gt_label": score,
             "name": osp.basename(video_path)

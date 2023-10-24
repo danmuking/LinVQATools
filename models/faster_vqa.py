@@ -5,10 +5,8 @@ from mmengine.model import BaseModel
 from mmengine.optim import OptimWrapper
 from torch import nn
 
-from global_class.train_recorder import TrainResultRecorder
 from models.evaluators import DiViDeAddEvaluator
 from mmengine import MODELS
-from models import logger
 
 
 def rank_loss(y_pred, y):
@@ -66,22 +64,28 @@ class FasterVQA(BaseModel):
             Union[
                 Dict[str, torch.Tensor], list]:
         y = kargs['gt_label'].float().unsqueeze(-1)
+        cls_gt = kargs['cls_label'].long().flatten()
         # print(y.shape)
         if mode == 'loss':
             scores = self.model(inputs, inference=False,
                                 reduce_scores=False)
-            y_pred = scores[0]
+            y_pred = scores[0][1]
             criterion = nn.MSELoss()
             mse_loss = criterion(y_pred, y)
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
-            loss = mse_loss + p_loss + 3 * r_loss
-            return {'loss': loss, 'mse_loss': mse_loss, 'p_loss': p_loss, 'r_loss': r_loss}
+            cls_scores = scores[0][0]
+            cls = torch.nn.CrossEntropyLoss()
+            cls_loss = cls(cls_scores, cls_gt)
+
+            loss = mse_loss + p_loss + 3 * r_loss + 0.1*cls_loss
+            return {'loss': loss, 'mse_loss': mse_loss, 'p_loss': p_loss, 'r_loss': r_loss,'cls_loss':cls_loss}
         elif mode == 'predict':
             scores = self.model(inputs, inference=True,
                                 reduce_scores=False)
-            y_pred = scores[0]
-            return y_pred, y
+            y_pred = scores[0][1]
+            cls_scores = scores[0][0]
+            return y_pred, y, cls_scores, cls_gt
 
     def train_step(self, data: Union[dict, tuple, list],
                    optim_wrapper: OptimWrapper) -> Dict[str, torch.Tensor]:
@@ -122,7 +126,7 @@ class FasterVQA(BaseModel):
         # recorder.iter_y = result[1]
 
         losses = {'loss': losses['loss'], 'mse_loss': losses['mse_loss'], 'p_loss': losses['p_loss'],
-                  'r_loss': losses['r_loss']}
+                  'r_loss': losses['r_loss'],'cls_loss':losses['cls_loss']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
         optim_wrapper.update_params(parsed_losses)
         return log_vars

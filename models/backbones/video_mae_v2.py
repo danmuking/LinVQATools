@@ -394,17 +394,10 @@ class VisionTransformer(nn.Module):
         self.norm = nn.Identity() if use_mean_pooling else norm_layer(
             embed_dim)
         self.fc_norm = norm_layer(embed_dim) if use_mean_pooling else None
-        # self.head_dropout = nn.Dropout(head_drop_rate)
-        # self.head = nn.Linear(
-        #     embed_dim, num_classes) if num_classes > 0 else nn.Identity()
-
         if use_learnable_pos_emb:
             trunc_normal_(self.pos_embed, std=.02)
 
         self.apply(self._init_weights)
-        #
-        # self.head.weight.data.mul_(init_scale)
-        # self.head.bias.data.mul_(init_scale)
 
         if load_path is not None:
             self.load(load_path)
@@ -463,7 +456,6 @@ class VisionTransformer(nn.Module):
             return self.fc_norm(x.mean(1))
         else:
             x = self.norm(x)
-            x = rearrange(x, 'b (t h w) c -> b c t h w', t=8, h=14, w=14)
             return x
 
     def forward(self, x, **kwargs):

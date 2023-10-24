@@ -15,11 +15,11 @@ class TestFasterVQA(TestCase):
         model = FasterVQA(
             backbone='vit',
             base_x_size=(16, 224, 224),
-            vqa_head=dict(name='VQAHead',in_channels=768,drop_rate=0.8,fc_in=392),
+            vqa_head=dict(name='ClsMseHead',in_channels=384,drop_rate=0.8,fc_in=1568),
             # load_path="/data/ly/code/LinVQATools/pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
         )
         video = torch.ones((2, 3, 16, 224, 224))
-        scores = model(inputs=video, mode="loss", gt_label=torch.tensor(1))
+        scores = model(inputs=video, mode="predict", gt_label=torch.tensor(1),cls_label=torch.zeros((2,1)))
         print(scores)
         # if len(scores) > 1:
         #     y_pred = reduce(lambda x, y: x + y, scores)

@@ -10,6 +10,8 @@ from mmengine import Config
 
 from mmengine.runner import Runner
 
+import models.faster_vqa
+
 config = Config.fromfile('./config/fast_vqa/vit.py')
 runner = Runner.from_cfg(config)
 runner.train()
