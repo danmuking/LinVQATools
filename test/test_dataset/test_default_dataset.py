@@ -40,3 +40,5 @@ class TestSingleBranchDataset(TestCase):
             fra = cv2.cvtColor(fra, cv2.COLOR_RGB2BGR)
             out.write(fra)
         out.release()
+    def test_torch(self):
+        print(int(0.99/0.2))
