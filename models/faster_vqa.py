@@ -66,27 +66,27 @@ class FasterVQA(BaseModel):
             Union[
                 Dict[str, torch.Tensor], list]:
         y = kargs['gt_label'].float().unsqueeze(-1)
+        y_c = kargs['y_c'].long().reshape(-1)
+        y_r = kargs['y_r'].long().reshape(-1)
         # print(y.shape)
         if mode == 'loss':
             scores = self.model(inputs, inference=False,
                                 reduce_scores=False)
-            y_pred = scores[0]
-            criterion = nn.MSELoss()
-            mse_loss = criterion(y_pred, y)
-            p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
-            sort_list = kargs['sort_list'].long().reshape(-1)
-            cel = nn.CrossEntropyLoss()
-            cls_loss = cel(scores[1], sort_list)
+            # y_pred = scores[0]
+            # criterion = nn.MSELoss()
+            # mse_loss = criterion(y_pred, y)
+            # p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
-            r_loss = 3 * r_loss
-            cls_loss = 0.1*cls_loss
-            loss = mse_loss + p_loss + r_loss + cls_loss
-            return {'loss': loss, 'mse_loss': mse_loss, 'p_loss': p_loss, 'r_loss': r_loss, 'cls_loss': cls_loss}
+            cel = nn.CrossEntropyLoss()
+            cls_loss_c = cel(scores[0], y_c)
+            cls_loss_r = cel(scores[1], y_r)
+            loss = cls_loss_c + cls_loss_r
+            return {'loss': loss, 'cls_loss_r': cls_loss_r, 'cls_loss_c': cls_loss_c}
         elif mode == 'predict':
             scores = self.model(inputs, inference=True,
                                 reduce_scores=False)
-            y_pred = scores[0]
-            return y_pred, y
+            # y_pred = scores[0]
+            return (scores,y_c,y_r)
 
     def train_step(self, data: Union[dict, tuple, list],
                    optim_wrapper: OptimWrapper) -> Dict[str, torch.Tensor]:

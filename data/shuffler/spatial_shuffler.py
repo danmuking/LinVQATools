@@ -22,11 +22,9 @@ class SpatialShuffler(BaseShuffler):
         assert h % self.fragment_size == 0, '视频高度无法被fragment_size整除,H:{} fragment_size:{}'.format(h, self.fragment_size)
         num_w = w // self.fragment_size
         num_h =  h//self.fragment_size
-        count=0
         for i in range(num_h):
             for j in range(num_w):
-                matrix.append((i, j,count))
-                count = count+1
+                matrix.append((i, j))
         random.shuffle(matrix)
         count = 0
         target_video = torch.zeros_like(video)
@@ -40,5 +38,5 @@ class SpatialShuffler(BaseShuffler):
                                                                  :, :, h_so:h_eo, w_so:w_eo
                                                                  ]
                     count = count + 1
-        matrix = np.array(matrix)[:,2]
+        matrix = np.array(matrix)
         return target_video,matrix

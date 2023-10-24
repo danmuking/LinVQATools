@@ -1,14 +1,14 @@
 custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
-             'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
+             'plcc', 'krcc','accuracy', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10171006 vit_patch16_fragment32 cls'
+work_dir = 'work_dir/cls/10211229 vit_patch16_fragment32 cls'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10171006 vit patch16 fragment32 cls')
+            init_kwargs=dict(project='cls', name='10211229 vit patch16 fragment32 cls')
         ),
     ],
 )
@@ -123,14 +123,15 @@ param_scheduler = [
 ]
 
 val_evaluator = [
-    dict(type='SROCC'),
-    dict(type='KRCC'),
-    dict(type='PLCC'),
-    dict(type='RMSE'),
+    # dict(type='SROCC'),
+    # dict(type='KRCC'),
+    # dict(type='PLCC'),
+    # dict(type='RMSE'),
+    dict(type="Accuracy")
 ]
 
 default_hooks = dict(
-    checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=10, save_best='SROCC', rule='greater'))
+    checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=10))
 custom_hooks = [
     # dict(type='TrainEvaluatorHook'),
     # dict(type='CustomEMAHook',momentum=0.01)

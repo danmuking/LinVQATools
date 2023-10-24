@@ -31,7 +31,7 @@ class ClassificationHead(nn.Module):
             Rearrange('b t h w c -> b c t h w'),
             nn.GELU(),
             Rearrange('b c t h w -> (b h w) (c t)'),
-            nn.Linear(in_channels * 8, 49)
+            nn.Linear(in_channels * 8, 7)
         )
 
     def forward(self, x):

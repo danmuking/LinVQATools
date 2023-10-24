@@ -70,6 +70,8 @@ class SingleBranchDataset(Dataset):
         data = {
             "inputs": video, "num_clips": {},
             'sort_list':sort_list,
+            'y_c':sort_list[:,0],
+            'y_r': sort_list[:, 1],
             # "frame_inds": frame_idxs,
             "gt_label": score,
             "name": osp.basename(video_path)
