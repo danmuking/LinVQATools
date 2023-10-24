@@ -94,7 +94,7 @@ def makedir(path: str):
 
 def get_save_path(video_path, frame_num, epoch):
     video_path = video_path.split('/')
-    video_path.insert(3, '2frame')
+    video_path.insert(3, 'normal')
     video_path.insert(4, str(epoch))
     video_path[0] = "/data"
     video_path[1] = ""
@@ -108,13 +108,13 @@ def get_save_path(video_path, frame_num, epoch):
 def sampler(video_path: str, epoch: int):
     vreader = VideoReader(video_path)
     # frame_index = [x for x in range(len(vreader))]
-    frame_sampler = FragmentSampleFrames(fsize_t=2, fragments_t=16, frame_interval=2, num_clips=1, )
+    frame_sampler = FragmentSampleFrames(fsize_t=4, fragments_t=8, frame_interval=2, num_clips=1, )
     frame_index = frame_sampler(len(vreader))
 
-    fragments_h = 7
-    fragments_w = 7
-    fsize_h = 32
-    fsize_w = 32
+    fragments_h = 2
+    fragments_w = 2
+    fsize_h = 112
+    fsize_w = 112
     # 采样图片的高
     size_h = fragments_h * fsize_h
     # 采样图片的长
@@ -124,28 +124,21 @@ def sampler(video_path: str, epoch: int):
     res_h, res_w = img.shape[-2:]
     size = size_h, size_w
 
-    ## make sure that sampling will not run out of the picture
-    hgrids = torch.LongTensor(
-        [min(res_h // fragments_h * i, res_h - fsize_h) for i in range(fragments_h)]
-    )
-    wgrids = torch.LongTensor(
-        [min(res_w // fragments_w * i, res_w - fsize_w) for i in range(fragments_w)]
-    )
-    hlength, wlength = res_h // fragments_h, res_w // fragments_w
-    if hlength > fsize_h:
-        rnd_h = torch.randint(
-            hlength - fsize_h, (len(hgrids), len(wgrids), 16)
-        )
-    else:
-        rnd_h = torch.zeros((len(hgrids), len(wgrids)).int())
-    if wlength > fsize_w:
-        rnd_w = torch.randint(
-            wlength - fsize_w, (len(hgrids), len(wgrids), 16)
-        )
-    else:
-        rnd_w = torch.zeros((len(hgrids), len(wgrids)).int())
-
-    # softpool = SoftPool2d()
+    # 正态分布采样
+    center = []
+    w = torch.empty(8*8)
+    center.append(torch.nn.init.trunc_normal_(w,a=0))
+    center = torch.stack(center)
+    center = center/2.
+    center = center.reshape(32,-1)
+    center_h = (res_h-224)/2
+    center_w = (res_w - 224) / 2
+    center = center * torch.tensor([center_h,center_w])
+    center = center.reshape(4,8,-1)
+    center = center * torch.tensor([[-1,-1],[-1,1],[1,-1],[1,1]]).reshape(4,1,2)
+    center = center + torch.tensor([res_h/2,res_w/2])
+    left_top = center - torch.tensor([112,112])
+    left_top = left_top.view(2,2,8,2).int()
 
     for index, frame_num in enumerate(frame_index):
         save_path = get_save_path(video_path, frame_num, epoch)
@@ -154,21 +147,15 @@ def sampler(video_path: str, epoch: int):
         # img = torchvision.transforms.CenterCrop((h, w))(img)
         target_img = torch.zeros((3, 224, 224))
 
-        for i, hs in enumerate(hgrids):
-            for j, ws in enumerate(wgrids):
+        for i in range(2):
+            for j in range(2):
                 h_s, h_e = i * fsize_h, (i + 1) * fsize_h
                 w_s, w_e = j * fsize_w, (j + 1) * fsize_w
-                h_so, h_eo = hs + rnd_h[i][j][int(index/2)], hs + rnd_h[i][j][int(index/2)] + fsize_h
-                w_so, w_eo = ws + rnd_w[i][j][int(index/2)], ws + rnd_w[i][j][int(index/2)] + fsize_w
+                h_so, h_eo = left_top[i][j][index//4][0], left_top[i][j][index//4][0] + fsize_h
+                w_so, w_eo = left_top[i][j][index//4][1], left_top[i][j][index//4][1] + fsize_w
                 # print(i,j,int(index/8))
                 # print(rnd_h[i][j][int(index/8)],rnd_w[i][j][int(index/8)])
-                # print(h_so, w_so)
                 target_img[:, h_s:h_e, w_s:w_e] = img[:, h_so:h_eo, w_so:w_eo]
-
-        # target_img = rearrange(target_img, '(b c) h w -> b c h w', b=1)
-        # target_img = target_img / 255
-        # target_img = softpool(target_img)
-        # target_img = rearrange(target_img, 'b c h w -> (b c) h w', b=1)
 
         target_img = rearrange(target_img, 'c h w -> h w c ')
         target_img = target_img.numpy()
@@ -183,7 +170,7 @@ if __name__ == '__main__':
     file = os.path.dirname(os.path.abspath(__file__))
     anno_path = os.path.join(file, './data/odv_vqa')
     data_anno = ODVVQAReader(anno_path).read()
-    pool = Pool(6)
+    pool = Pool(8)
     for i in tqdm(range(0, 40)):
         for video_info in data_anno:
             video_path = video_info['video_path']
@@ -191,6 +178,6 @@ if __name__ == '__main__':
             pool.apply_async(func=sampler, kwds={'video_path': video_path, 'epoch': i})
     pool.close()
     pool.join()
-    # for video_info in data_anno[10:11]:
+    # for video_info in data_anno[0:1]:
     #     video_path = video_info['video_path']
     #     sampler(video_path, 0)
