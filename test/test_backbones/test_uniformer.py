@@ -16,7 +16,7 @@ class TestUniformer(TestCase):
         path = "/data/ly/code/LinVQATools/pretrained_weights/uniformer_small_k600_16x4.pth"
         weight = torch.load(path)
         info = model.load_state_dict(weight,strict=False)
-        print(y.shape)
+        print(y[0][0].shape)
         print(info)
 
     def test_load(self):
