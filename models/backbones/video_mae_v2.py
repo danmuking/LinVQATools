@@ -17,6 +17,7 @@ from timm.models.layers import drop_path, to_2tuple, trunc_normal_
 from timm.models.registry import register_model
 
 from models import logger
+from models.backbones.conv_backbone import LayerNorm
 
 
 def _cfg(url='', **kwargs):
@@ -321,6 +322,62 @@ def get_sinusoid_encoding_table(n_position, d_hid):
         sinusoid_table, dtype=torch.float, requires_grad=False).unsqueeze(0)
 
 
+class FusionBlock(nn.Module):
+    r""" ConvNeXt Block. There are two equivalent implementations:
+    (1) DwConv -> LayerNorm (channels_first) -> 1x1 Conv -> GELU -> 1x1 Conv; all in (N, C, H, W)
+    (2) DwConv -> Permute to (N, H, W, C); LayerNorm (channels_last) -> Linear -> GELU -> Linear; Permute back
+    We use (2) as we find it slightly faster in PyTorch
+
+    Args:
+        dim (int): Number of input channels.
+        drop_path (float): Stochastic depth rate. Default: 0.0
+        layer_scale_init_value (float): Init value for Layer Scale. Default: 1e-6.
+    """
+
+    def __init__(self, dim, drop_path=0., layer_scale_init_value=1e-6):
+        super().__init__()
+        self.dwconv = nn.Conv2d(dim, dim, kernel_size=1, padding=0, groups=dim)  # depthwise conv
+        self.norm = LayerNorm(dim, eps=1e-6)
+        self.pwconv1 = nn.Linear(dim, 4 * dim)  # pointwise/1x1 convs, implemented with linear layers
+        self.act = nn.GELU()
+        self.pwconv2 = nn.Linear(4 * dim, dim)
+        self.gamma = nn.Parameter(layer_scale_init_value * torch.ones((dim)),
+                                  requires_grad=True) if layer_scale_init_value > 0 else None
+        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+
+    def forward(self, x):
+        input = x
+        x = self.dwconv(x)
+        x = x.permute(0, 2, 3, 1)  # (N, C, H, W) -> (N, H, W, C)
+        x = self.norm(x)
+        x = self.pwconv1(x)
+        x = self.act(x)
+        x = self.pwconv2(x)
+        if self.gamma is not None:
+            x = self.gamma * x
+        x = x.permute(0, 3, 1, 2)  # (N, H, W, C) -> (N, C, H, W)
+
+        x = input + self.drop_path(x)
+        return x
+
+
+class FusionNet(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.block = nn.Sequential(
+            FusionBlock(384*8),
+            FusionBlock(384*8),
+            FusionBlock(384*8),
+            FusionBlock(384*8),
+        )
+
+    def forward(self,x):
+        x = rearrange(x, 'b (t h w) c -> b (c t) h w', t=8, h=14, w=14)
+        x = self.block(x)
+        x = rearrange(x, 'b (c t) h w -> b (t h w) c', t=8, h=14, w=14)
+        return x
+
+
 class VisionTransformer(nn.Module):
     """ Vision Transformer with support for patch or hybrid CNN input stage
     """
@@ -409,6 +466,8 @@ class VisionTransformer(nn.Module):
         if load_path is not None:
             self.load(load_path)
 
+        self.fusion = FusionNet()
+
     def load(self, load_path):
         weight = torch.load(load_path)['module']
         from collections import OrderedDict
@@ -466,8 +525,39 @@ class VisionTransformer(nn.Module):
             x = rearrange(x, 'b (t h w) c -> b c t h w', t=8, h=14, w=14)
             return x
 
+    def forward_part1(self, x):
+        B = x.size(0)
+
+        if self.pos_embed is not None:
+            x = x + self.pos_embed.expand(B, -1, -1).type_as(x).to(
+                x.device).clone().detach()
+        x = self.pos_drop(x)
+
+        for blk in self.blocks[:6]:
+            if self.with_cp:
+                x = cp.checkpoint(blk, x)
+            else:
+                x = blk(x)
+        return x
+
+    def forward_part2(self, x):
+        for blk in self.blocks[6:]:
+            if self.with_cp:
+                x = cp.checkpoint(blk, x)
+            else:
+                x = blk(x)
+        if self.fc_norm is not None:
+            return self.fc_norm(x.mean(1))
+        else:
+            x = self.norm(x)
+            x = rearrange(x, 'b (t h w) c -> b c t h w', t=8, h=14, w=14)
+        return x
+
     def forward(self, x, **kwargs):
-        x = self.forward_features(x)
+        conv_feat = self.patch_embed(x)
+        x = self.forward_part1(conv_feat)
+        x = self.fusion(x+conv_feat)
+        x = self.forward_part2(x)
         # x = self.head_dropout(x)
         # x = self.head(x)
         return [[x]]
