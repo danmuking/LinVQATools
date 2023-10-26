@@ -5,6 +5,7 @@ from functools import partial, reduce
 from .backbones.base_swin_backbone import SwinTransformer3D
 from .backbones.mvit import MViT
 from .backbones.swin_backbone import SwinTransformer3D as VideoBackbone
+from .backbones.uniformerv1 import uniformer_x
 from .backbones.video_mae_v2 import VisionTransformer
 import models.heads as heads
 
@@ -48,6 +49,8 @@ class DiViDeAddEvaluator(nn.Module):
                 num_classes=0,
                 use_mean_pooling=False
             )
+        elif backbone == 'uniformerv1':
+            b = uniformer_x()
         print("Setting backbone:", 'fragments' + "_backbone")
         setattr(self, 'fragments' + "_backbone", b)
         self.vqa_head = getattr(heads, vqa_head['name'])(**vqa_head)
