@@ -532,7 +532,7 @@ class VisionTransformer(nn.Module):
                 x.device).clone().detach()
         x = self.pos_drop(x)
 
-        for blk in self.blocks[:6]:
+        for blk in self.blocks[:9]:
             if self.with_cp:
                 x = cp.checkpoint(blk, x)
             else:
@@ -540,7 +540,7 @@ class VisionTransformer(nn.Module):
         return x
 
     def forward_part2(self, x):
-        for blk in self.blocks[6:]:
+        for blk in self.blocks[9:]:
             if self.with_cp:
                 x = cp.checkpoint(blk, x)
             else:
