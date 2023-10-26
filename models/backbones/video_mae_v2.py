@@ -336,7 +336,7 @@ class FusionBlock(nn.Module):
 
     def __init__(self, dim, drop_path=0., layer_scale_init_value=1e-6):
         super().__init__()
-        self.dwconv = nn.Conv2d(dim, dim, kernel_size=1, padding=0, groups=dim)  # depthwise conv
+        self.dwconv = nn.Conv3d(dim, dim, kernel_size=1, padding=0, groups=dim)  # depthwise conv
         self.norm = LayerNorm(dim, eps=1e-6)
         self.pwconv1 = nn.Linear(dim, 4 * dim)  # pointwise/1x1 convs, implemented with linear layers
         self.act = nn.GELU()
@@ -348,14 +348,14 @@ class FusionBlock(nn.Module):
     def forward(self, x):
         input = x
         x = self.dwconv(x)
-        x = x.permute(0, 2, 3, 1)  # (N, C, H, W) -> (N, H, W, C)
+        x = x.permute(0, 2, 3, 4, 1)  # (N, C, H, W) -> (N, H, W, C)
         x = self.norm(x)
         x = self.pwconv1(x)
         x = self.act(x)
         x = self.pwconv2(x)
         if self.gamma is not None:
             x = self.gamma * x
-        x = x.permute(0, 3, 1, 2)  # (N, H, W, C) -> (N, C, H, W)
+        x = x.permute(0, 4, 1, 2,3)  # (N,T, H, W, C) -> (N, C,T, H, W)
 
         x = input + self.drop_path(x)
         return x
@@ -365,16 +365,15 @@ class FusionNet(nn.Module):
     def __init__(self):
         super().__init__()
         self.block = nn.Sequential(
-            FusionBlock(384*8),
-            FusionBlock(384*8),
-            FusionBlock(384*8),
-            FusionBlock(384*8),
+            FusionBlock(384),
+            FusionBlock(384),
+            FusionBlock(384),
         )
 
-    def forward(self,x):
-        x = rearrange(x, 'b (t h w) c -> b (c t) h w', t=8, h=14, w=14)
+    def forward(self, x):
+        x = rearrange(x, 'b (t h w) c -> b c t h w', t=8, h=14, w=14)
         x = self.block(x)
-        x = rearrange(x, 'b (c t) h w -> b (t h w) c', t=8, h=14, w=14)
+        x = rearrange(x, 'b c t h w -> b (t h w) c', t=8, h=14, w=14)
         return x
 
 
@@ -556,7 +555,7 @@ class VisionTransformer(nn.Module):
     def forward(self, x, **kwargs):
         conv_feat = self.patch_embed(x)
         x = self.forward_part1(conv_feat)
-        x = self.fusion(x+conv_feat)
+        x = self.fusion(x + conv_feat)
         x = self.forward_part2(x)
         # x = self.head_dropout(x)
         # x = self.head(x)

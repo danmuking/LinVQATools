@@ -22,8 +22,8 @@ model = dict(
     load_path="./pretrained_weights/vit_s_k710_dl_from_giant.pth"
 )
 epochs = 800
-batch_size = 6
-num_workers = 6
+batch_size = 4
+num_workers = 4
 prefix = '4frame'
 argument = [
         dict(
