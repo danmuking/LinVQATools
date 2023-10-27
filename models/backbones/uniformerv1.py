@@ -449,7 +449,7 @@ class Uniformer(nn.Module):
             return None
 
     def forward_features(self, x):
-        x = rearrange(x, 'b c (t p0) (h p1) (w p2) -> (b p0 p1 p2) c t h w', p0=4, p1=7, p2=7)
+        x = rearrange(x, 'b c (p0 t) (p1 h) (p2 w) -> (b p0 p1 p2) c t h w', p0=4, p1=7, p2=7)
         x = self.patch_embed1(x)
         x = self.pos_drop(x)
         for i, blk in enumerate(self.blocks1):
@@ -463,7 +463,7 @@ class Uniformer(nn.Module):
                 x = checkpoint.checkpoint(blk, x)
             else:
                 x = blk(x)
-        x = rearrange(x, '(b p0 p1 p2) c t h w -> b c (t p0) (h p1) (w p2)', p0=4, p1=7, p2=7)
+        x = rearrange(x, '(b p0 p1 p2) c t h w -> b c (p0 t) (p1 h) (p2 w)', p0=4, p1=7, p2=7)
         x = self.patch_embed3(x)
         for i, blk in enumerate(self.blocks3):
             if self.use_checkpoint and i < self.checkpoint_num[2]:
