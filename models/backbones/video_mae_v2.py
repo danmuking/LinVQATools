@@ -336,7 +336,7 @@ class FusionBlock(nn.Module):
 
     def __init__(self, dim, drop_path=0., layer_scale_init_value=1e-6):
         super().__init__()
-        self.dwconv = nn.Conv3d(dim, dim, kernel_size=7, padding=3, groups=dim)  # depthwise conv
+        self.dwconv = nn.Conv3d(dim, dim, kernel_size=5, padding=2, groups=dim)  # depthwise conv
         self.norm = LayerNorm(dim, eps=1e-6)
         self.pwconv1 = nn.Linear(dim, 4 * dim)  # pointwise/1x1 convs, implemented with linear layers
         self.act = nn.GELU()
@@ -532,7 +532,7 @@ class VisionTransformer(nn.Module):
                 x.device).clone().detach()
         x = self.pos_drop(x)
 
-        for blk in self.blocks[:9]:
+        for blk in self.blocks:
             if self.with_cp:
                 x = cp.checkpoint(blk, x)
             else:
@@ -556,7 +556,12 @@ class VisionTransformer(nn.Module):
         conv_feat = self.patch_embed(x)
         x = self.forward_part1(conv_feat)
         x = self.fusion(x + conv_feat)
-        x = self.forward_part2(x)
+        if self.fc_norm is not None:
+            return self.fc_norm(x.mean(1))
+        else:
+            x = self.norm(x)
+            x = rearrange(x, 'b (t h w) c -> b c t h w', t=8, h=14, w=14)
+        # x = self.forward_part2(x)
         # x = self.head_dropout(x)
         # x = self.head(x)
         return [[x]]
