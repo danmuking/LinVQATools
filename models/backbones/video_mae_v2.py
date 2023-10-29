@@ -355,7 +355,7 @@ class FusionBlock(nn.Module):
         x = self.pwconv2(x)
         if self.gamma is not None:
             x = self.gamma * x
-        x = x.permute(0, 4, 1, 2,3)  # (N,T, H, W, C) -> (N, C,T, H, W)
+        x = x.permute(0, 4, 1, 2, 3)  # (N,T, H, W, C) -> (N, C,T, H, W)
 
         x = input + self.drop_path(x)
         return x
@@ -368,7 +368,7 @@ class FusionNet(nn.Module):
             FusionBlock(384),
             FusionBlock(384),
             FusionBlock(384),
-            FusionBlock(384),
+            # FusionBlock(384),
         )
 
     def forward(self, x):
@@ -549,12 +549,23 @@ class VisionTransformer(nn.Module):
                 x = blk(x)
         return x
 
+    def forward_stage(self, x, stage):
+        for blk in self.blocks[stage * 3:(stage + 1) * 3]:
+            if self.with_cp:
+                x = cp.checkpoint(blk, x)
+            else:
+                x = blk(x)
+        return x
+
     def forward(self, x, **kwargs):
         x = self.patch_embed(x)
-        x = self.forward_part1(x)
-        conv_feat = self.fusion1(x)
-        x = self.forward_part2(x+conv_feat)
-        x= self.fusion2(x)
+        conv_feat = self.fusion2(x)
+        x = self.forward_stage(x, 0)
+        res_feat = self.fusion1(x)
+        x = self.forward_stage(x, 1)
+        x = self.forward_stage(x, 2)
+        x = self.forward_stage(x + res_feat, 3)
+        x = x+conv_feat
         if self.fc_norm is not None:
             return self.fc_norm(x.mean(1))
         else:

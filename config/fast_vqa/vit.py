@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10291352 vit_patch16_fragment32 4frame'
+work_dir = 'work_dir/faster_vqa/10291841 vit_patch16_fragment32 4frame'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10291352 vit patch16 fragment32 4frame')
+            init_kwargs=dict(project='faster vqa消融', name='10291841 vit patch16 fragment32 4frame')
         ),
     ],
 )
@@ -113,14 +113,14 @@ param_scheduler = [
         start_factor=0.001,
         by_epoch=True,
         begin=0,
-        end=10,
+        end=epochs//10,
         convert_to_iter_based=True
     ),
     # 在 [100, 900) 迭代时使用余弦学习率
     dict(
         type='CosineAnnealingLR',
         by_epoch=True,
-        begin=10,
+        begin=epochs//10,
         T_max=epochs,
         eta_min=0.0001*0.02,
         convert_to_iter_based=True
