@@ -574,6 +574,7 @@ class VisionTransformer(nn.Module):
         self.norm = nn.Identity() if use_mean_pooling else norm_layer(
             embed_dim)
         self.fc_norm = norm_layer(embed_dim) if use_mean_pooling else None
+        self.norm = norm_layer(embed_dim)
         # self.head_dropout = nn.Dropout(head_drop_rate)
         # self.head = nn.Linear(
         #     embed_dim, num_classes) if num_classes > 0 else nn.Identity()
@@ -589,8 +590,6 @@ class VisionTransformer(nn.Module):
         if load_path is not None:
             self.load(load_path)
 
-        self.fusion1 = FusionNet()
-        self.fusion2 = FusionNet()
 
     def load(self, load_path):
         weight = torch.load(load_path)['module']
@@ -628,6 +627,7 @@ class VisionTransformer(nn.Module):
             self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
 
     def forward_features(self, x):
+        feat = []
         B = x.size(0)
 
         x = self.patch_embed(x)
@@ -642,48 +642,19 @@ class VisionTransformer(nn.Module):
                 x = cp.checkpoint(blk, x)
             else:
                 x = blk(x)
-        if self.fc_norm is not None:
-            return self.fc_norm(x.mean(1))
-        else:
-            x = self.norm(x)
-            x = rearrange(x, 'b (t h w) c -> b c t h w', t=8, h=14, w=14)
-            return x
-
-    def forward_part1(self, x):
-        B = x.size(0)
-
-        if self.pos_embed is not None:
-            x = x + self.pos_embed.expand(B, -1, -1).type_as(x).to(
-                x.device).clone().detach()
-        x = self.pos_drop(x)
-
-        for blk in self.blocks[:6]:
-            if self.with_cp:
-                x = cp.checkpoint(blk, x)
-            else:
-                x = blk(x)
-        return x
-
-    def forward_part2(self, x):
-        for blk in self.blocks[6:]:
-            if self.with_cp:
-                x = cp.checkpoint(blk, x)
-            else:
-                x = blk(x)
-        return x
+            feat.append(x)
+        return feat
+        # if self.fc_norm is not None:
+        #     return self.fc_norm(x.mean(1))
+        # else:
+        #     x = self.norm(x)
+        #     x = rearrange(x, 'b (t h w) c -> b c t h w', t=8, h=14, w=14)
+        #     return x
 
     def forward(self, x, **kwargs):
-        x = self.patch_embed(x)
-        x = self.forward_part1(x)
-        conv_feat = self.fusion1(x)
-        x = self.forward_part2(x+conv_feat)
-        x= self.fusion2(x)
-        if self.fc_norm is not None:
-            return self.fc_norm(x.mean(1))
-        else:
-            x = self.norm(x)
-            x = rearrange(x, 'b (t h w) c -> b c t h w', t=8, h=14, w=14)
-
+        feat = self.forward_features(x)
+        x = feat[2::3]
+        x = [self.norm(torch.mean(i, dim=1)) for i in x]
         # x = self.head_dropout(x)
         # x = self.head(x)
         return [[x]]
