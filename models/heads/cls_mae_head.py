@@ -52,11 +52,8 @@ class VQAHead(nn.Module):
             nn.Dropout(p=self.dropout_ratio) if self.dropout_ratio > 0 else nn.Identity(),
             nn.Linear(fc_in, 1)
         )
-
-        self.linear = nn.Linear(5, 1)
-        self.regression = nn.Linear(2, 1)
-
-    def forward(self, x, cls_x):
+        self.cls_fc = nn.Linear(fc_in, 5)
+    def forward(self, x):
         x = x[0][0]
         x = rearrange(x, "b (t h w) c -> b c t h w", t=8, h=14, w=14)
         logger.debug("head层输入维度: {}".format(x.shape))
@@ -71,17 +68,16 @@ class VQAHead(nn.Module):
         qlt_score = qlt_score.reshape(qlt_score.shape[0], -1)
         channel_out = qlt_score.shape
         logger.debug('head: 展开 {}->{}'.format(channel_in, channel_out))
+        cls_x = qlt_score
 
         channel_in = qlt_score.shape[1]
         qlt_score = self.fc(qlt_score)
         channel_out = qlt_score.shape[1]
         logger.debug('head: Liner {}->{}'.format(channel_in, channel_out))
 
-        x = qlt_score + self.linear(cls_x)
-        x = torch.cat([x, qlt_score], dim=-1)
-        x = self.regression(x)
+        cls_score = self.cls_fc(cls_x)
 
-        return x
+        return qlt_score,cls_score
 
 
 class ClsMseHead(nn.Module):
@@ -96,11 +92,11 @@ class ClsMseHead(nn.Module):
             self, in_channels=768, hidden_channels=64, dropout_ratio=0.5, fc_in=1568, **kwargs
     ):
         super().__init__()
-        self.cls_head = ClsHead(in_channels)
+        # self.cls_head = ClsHead(in_channels)
         self.vqa_head = VQAHead(in_channels, hidden_channels, dropout_ratio, fc_in)
 
     def forward(self, x):
-        cls_score = self.cls_head(x)
-        vqa_score = self.vqa_head(x, cls_score)
+        # cls_score = self.cls_head(x)
+        vqa_score,cls_score = self.vqa_head(x)
 
         return cls_score, vqa_score
