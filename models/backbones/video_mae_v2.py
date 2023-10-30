@@ -6,6 +6,7 @@
 # https://github.com/facebookresearch/dino
 # --------------------------------------------------------'
 from functools import partial
+from typing import Optional, Callable
 
 import numpy as np
 import torch
@@ -15,6 +16,7 @@ import torch.utils.checkpoint as cp
 from einops import rearrange
 from timm.models.layers import drop_path, to_2tuple, trunc_normal_
 from timm.models.registry import register_model
+from torch import Tensor
 
 from models import logger
 from models.backbones.conv_backbone import LayerNorm
@@ -360,15 +362,136 @@ class FusionBlock(nn.Module):
         x = input + self.drop_path(x)
         return x
 
+class ConvBNAct(nn.Module):
+    def __init__(self,
+                 in_planes: int,
+                 out_planes: int,
+                 kernel_size: int = 3,
+                 stride: int = 1,
+                 groups: int = 1,
+                 norm_layer: Optional[Callable[..., nn.Module]] = None,
+                 activation_layer: Optional[Callable[..., nn.Module]] = None):
+        super(ConvBNAct, self).__init__()
+
+        padding = (kernel_size - 1) // 2
+        if norm_layer is None:
+            norm_layer = nn.BatchNorm3d
+        if activation_layer is None:
+            activation_layer = nn.SiLU  # alias Swish  (torch>=1.7)
+
+        self.conv = nn.Conv3d(in_channels=in_planes,
+                              out_channels=out_planes,
+                              kernel_size=kernel_size,
+                              stride=stride,
+                              padding=padding,
+                              groups=groups,
+                              bias=False)
+
+        self.bn = norm_layer(out_planes)
+        self.act = activation_layer()
+
+    def forward(self, x):
+        result = self.conv(x)
+        result = self.bn(result)
+        result = self.act(result)
+
+        return result
+
+
+class SqueezeExcite(nn.Module):
+    def __init__(self,
+                 input_c: int,   # block input channel
+                 expand_c: int,  # block expand channel
+                 se_ratio: float = 0.25):
+        super(SqueezeExcite, self).__init__()
+        squeeze_c = int(input_c * se_ratio)
+        self.conv_reduce = nn.Conv3d(expand_c, squeeze_c, 1)
+        self.act1 = nn.SiLU()  # alias Swish
+        self.conv_expand = nn.Conv3d(squeeze_c, expand_c, 1)
+        self.act2 = nn.Sigmoid()
+
+    def forward(self, x: Tensor) -> Tensor:
+        scale = x.mean((2, 3), keepdim=True)
+        scale = self.conv_reduce(scale)
+        scale = self.act1(scale)
+        scale = self.conv_expand(scale)
+        scale = self.act2(scale)
+        return scale * x
+
+class MBConv(nn.Module):
+    def __init__(self,
+                 kernel_size: int,
+                 input_c: int,
+                 out_c: int,
+                 expand_ratio: int,
+                 stride: int,
+                 se_ratio: float,
+                 drop_rate: float,
+                 norm_layer=partial(nn.BatchNorm3d, eps=1e-3, momentum=0.1)):
+        super(MBConv, self).__init__()
+
+        if stride not in [1, 2]:
+            raise ValueError("illegal stride value.")
+
+        self.has_shortcut = (stride == 1 and input_c == out_c)
+
+        activation_layer = nn.SiLU  # alias Swish
+        expanded_c = input_c * expand_ratio
+
+        # 在EfficientNetV2中，MBConv中不存在expansion=1的情况所以conv_pw肯定存在
+        assert expand_ratio != 1
+        # Point-wise expansion
+        self.expand_conv = ConvBNAct(input_c,
+                                     expanded_c,
+                                     kernel_size=1,
+                                     norm_layer=norm_layer,
+                                     activation_layer=activation_layer)
+
+        # Depth-wise convolution
+        self.dwconv = ConvBNAct(expanded_c,
+                                expanded_c,
+                                kernel_size=kernel_size,
+                                stride=stride,
+                                groups=expanded_c,
+                                norm_layer=norm_layer,
+                                activation_layer=activation_layer)
+
+        self.se = SqueezeExcite(input_c, expanded_c, se_ratio) if se_ratio > 0 else nn.Identity()
+
+        # Point-wise linear projection
+        self.project_conv = ConvBNAct(expanded_c,
+                                      out_planes=out_c,
+                                      kernel_size=1,
+                                      norm_layer=norm_layer,
+                                      activation_layer=nn.Identity)  # 注意这里没有激活函数，所有传入Identity
+
+        self.out_channels = out_c
+
+        # 只有在使用shortcut连接时才使用dropout层
+        self.drop_rate = drop_rate
+        if self.has_shortcut and drop_rate > 0:
+            self.dropout = DropPath(drop_rate)
+
+    def forward(self, x: Tensor) -> Tensor:
+        result = self.expand_conv(x)
+        result = self.dwconv(result)
+        result = self.se(result)
+        result = self.project_conv(result)
+
+        if self.has_shortcut:
+            if self.drop_rate > 0:
+                result = self.dropout(result)
+            result += x
+
+        return result
 
 class FusionNet(nn.Module):
     def __init__(self):
         super().__init__()
         self.block = nn.Sequential(
-            FusionBlock(384),
-            FusionBlock(384),
-            FusionBlock(384),
-            FusionBlock(384),
+            MBConv(3,384,384,2,1,0.25,0.3),
+            MBConv(3, 384, 384, 2, 1, 0.25, 0.3),
+            MBConv(3, 384, 384, 2, 1, 0.25, 0.3)
         )
 
     def forward(self, x):
@@ -553,7 +676,7 @@ class VisionTransformer(nn.Module):
         x = self.patch_embed(x)
         x = self.forward_part1(x)
         conv_feat = self.fusion1(x)
-        x = self.forward_part2(x*conv_feat)
+        x = self.forward_part2(x+conv_feat)
         x= self.fusion2(x)
         if self.fc_norm is not None:
             return self.fc_norm(x.mean(1))
