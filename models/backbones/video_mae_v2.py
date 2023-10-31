@@ -17,6 +17,7 @@ from einops import rearrange
 from timm.models.layers import drop_path, to_2tuple, trunc_normal_
 from timm.models.registry import register_model
 from torch import Tensor
+from torch.utils import checkpoint
 
 from models import logger
 from models.backbones.conv_backbone import LayerNorm
@@ -324,181 +325,59 @@ def get_sinusoid_encoding_table(n_position, d_hid):
         sinusoid_table, dtype=torch.float, requires_grad=False).unsqueeze(0)
 
 
-class FusionBlock(nn.Module):
-    r""" ConvNeXt Block. There are two equivalent implementations:
-    (1) DwConv -> LayerNorm (channels_first) -> 1x1 Conv -> GELU -> 1x1 Conv; all in (N, C, H, W)
-    (2) DwConv -> Permute to (N, H, W, C); LayerNorm (channels_last) -> Linear -> GELU -> Linear; Permute back
-    We use (2) as we find it slightly faster in PyTorch
 
-    Args:
-        dim (int): Number of input channels.
-        drop_path (float): Stochastic depth rate. Default: 0.0
-        layer_scale_init_value (float): Init value for Layer Scale. Default: 1e-6.
+class VisionTransformerDecoder(nn.Module):
+    """ Vision Transformer with support for patch or hybrid CNN input stage
     """
-
-    def __init__(self, dim, drop_path=0., layer_scale_init_value=1e-6):
+    def __init__(self, patch_size=16, num_classes=768, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4.,
+                 qkv_bias=False, qk_scale=None, drop_rate=0., attn_drop_rate=0., drop_path_rate=0.,
+                 norm_layer=nn.LayerNorm, init_values=0, num_patches=196, tubelet_size=2, use_checkpoint=False
+                 ):
         super().__init__()
-        self.dwconv = nn.Conv3d(dim, dim, kernel_size=5, padding=2, groups=dim)  # depthwise conv
-        self.norm = LayerNorm(dim, eps=1e-6)
-        self.pwconv1 = nn.Linear(dim, 4 * dim)  # pointwise/1x1 convs, implemented with linear layers
-        self.act = nn.GELU()
-        self.pwconv2 = nn.Linear(4 * dim, dim)
-        self.gamma = nn.Parameter(layer_scale_init_value * torch.ones((dim)),
-                                  requires_grad=True) if layer_scale_init_value > 0 else None
-        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+        self.patch_size = patch_size
+        self.use_checkpoint = use_checkpoint
+
+
+        dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]  # stochastic depth decay rule
+        self.blocks = nn.ModuleList([
+            Block(
+                dim=embed_dim, num_heads=num_heads, mlp_ratio=mlp_ratio, qkv_bias=qkv_bias, qk_scale=qk_scale,
+                drop=drop_rate, attn_drop=attn_drop_rate, drop_path=dpr[i], norm_layer=norm_layer,
+                init_values=init_values)
+            for i in range(depth)])
+        self.norm =  norm_layer(embed_dim)
+
+        self.apply(self._init_weights)
+
+
+    def _init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            nn.init.xavier_uniform_(m.weight)
+            if isinstance(m, nn.Linear) and m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.LayerNorm):
+            nn.init.constant_(m.bias, 0)
+            nn.init.constant_(m.weight, 1.0)
+
+    def get_num_layers(self):
+        return len(self.blocks)
+
+    @torch.jit.ignore
+    def no_weight_decay(self):
+        return {'pos_embed', 'cls_token'}
+
+    def get_classifier(self):
+        return self.head
 
     def forward(self, x):
-        input = x
-        x = self.dwconv(x)
-        x = x.permute(0, 2, 3, 4, 1)  # (N, C, H, W) -> (N, H, W, C)
-        x = self.norm(x)
-        x = self.pwconv1(x)
-        x = self.act(x)
-        x = self.pwconv2(x)
-        if self.gamma is not None:
-            x = self.gamma * x
-        x = x.permute(0, 4, 1, 2, 3)  # (N,T, H, W, C) -> (N, C,T, H, W)
+        feat = []
+        x1 =  self.norm(self.blocks[0](x[-1]))
+        x2 = self.norm(self.blocks[1](x1+x[-2]))
+        x3 = self.norm(self.blocks[2](x2+x[-3]))
+        x4 = self.norm(self.blocks[3](x3+x[-4]))
+        feat+=[x1,x2,x3,x4]
 
-        x = input + self.drop_path(x)
-        return x
-
-class ConvBNAct(nn.Module):
-    def __init__(self,
-                 in_planes: int,
-                 out_planes: int,
-                 kernel_size: int = 3,
-                 stride: int = 1,
-                 groups: int = 1,
-                 norm_layer: Optional[Callable[..., nn.Module]] = None,
-                 activation_layer: Optional[Callable[..., nn.Module]] = None):
-        super(ConvBNAct, self).__init__()
-
-        padding = (kernel_size - 1) // 2
-        if norm_layer is None:
-            norm_layer = nn.BatchNorm3d
-        if activation_layer is None:
-            activation_layer = nn.SiLU  # alias Swish  (torch>=1.7)
-
-        self.conv = nn.Conv3d(in_channels=in_planes,
-                              out_channels=out_planes,
-                              kernel_size=kernel_size,
-                              stride=stride,
-                              padding=padding,
-                              groups=groups,
-                              bias=False)
-
-        self.bn = norm_layer(out_planes)
-        self.act = activation_layer()
-
-    def forward(self, x):
-        result = self.conv(x)
-        result = self.bn(result)
-        result = self.act(result)
-
-        return result
-
-
-class SqueezeExcite(nn.Module):
-    def __init__(self,
-                 input_c: int,   # block input channel
-                 expand_c: int,  # block expand channel
-                 se_ratio: float = 0.25):
-        super(SqueezeExcite, self).__init__()
-        squeeze_c = int(input_c * se_ratio)
-        self.conv_reduce = nn.Conv3d(expand_c, squeeze_c, 1)
-        self.act1 = nn.SiLU()  # alias Swish
-        self.conv_expand = nn.Conv3d(squeeze_c, expand_c, 1)
-        self.act2 = nn.Sigmoid()
-
-    def forward(self, x: Tensor) -> Tensor:
-        scale = x.mean((2, 3), keepdim=True)
-        scale = self.conv_reduce(scale)
-        scale = self.act1(scale)
-        scale = self.conv_expand(scale)
-        scale = self.act2(scale)
-        return scale * x
-
-class MBConv(nn.Module):
-    def __init__(self,
-                 kernel_size: int,
-                 input_c: int,
-                 out_c: int,
-                 expand_ratio: int,
-                 stride: int,
-                 se_ratio: float,
-                 drop_rate: float,
-                 norm_layer=partial(nn.BatchNorm3d, eps=1e-3, momentum=0.1)):
-        super(MBConv, self).__init__()
-
-        if stride not in [1, 2]:
-            raise ValueError("illegal stride value.")
-
-        self.has_shortcut = (stride == 1 and input_c == out_c)
-
-        activation_layer = nn.SiLU  # alias Swish
-        expanded_c = input_c * expand_ratio
-
-        # 在EfficientNetV2中，MBConv中不存在expansion=1的情况所以conv_pw肯定存在
-        assert expand_ratio != 1
-        # Point-wise expansion
-        self.expand_conv = ConvBNAct(input_c,
-                                     expanded_c,
-                                     kernel_size=1,
-                                     norm_layer=norm_layer,
-                                     activation_layer=activation_layer)
-
-        # Depth-wise convolution
-        self.dwconv = ConvBNAct(expanded_c,
-                                expanded_c,
-                                kernel_size=kernel_size,
-                                stride=stride,
-                                groups=expanded_c,
-                                norm_layer=norm_layer,
-                                activation_layer=activation_layer)
-
-        self.se = SqueezeExcite(input_c, expanded_c, se_ratio) if se_ratio > 0 else nn.Identity()
-
-        # Point-wise linear projection
-        self.project_conv = ConvBNAct(expanded_c,
-                                      out_planes=out_c,
-                                      kernel_size=1,
-                                      norm_layer=norm_layer,
-                                      activation_layer=nn.Identity)  # 注意这里没有激活函数，所有传入Identity
-
-        self.out_channels = out_c
-
-        # 只有在使用shortcut连接时才使用dropout层
-        self.drop_rate = drop_rate
-        if self.has_shortcut and drop_rate > 0:
-            self.dropout = DropPath(drop_rate)
-
-    def forward(self, x: Tensor) -> Tensor:
-        result = self.expand_conv(x)
-        result = self.dwconv(result)
-        result = self.se(result)
-        result = self.project_conv(result)
-
-        if self.has_shortcut:
-            if self.drop_rate > 0:
-                result = self.dropout(result)
-            result += x
-
-        return result
-
-class FusionNet(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.block = nn.Sequential(
-            MBConv(3,384,384,2,1,0.25,0.3),
-            MBConv(3, 384, 384, 2, 1, 0.25, 0.3),
-            MBConv(3, 384, 384, 2, 1, 0.25, 0.3)
-        )
-
-    def forward(self, x):
-        x = rearrange(x, 'b (t h w) c -> b c t h w', t=8, h=14, w=14)
-        x = self.block(x)
-        x = rearrange(x, 'b c t h w -> b (t h w) c', t=8, h=14, w=14)
-        return x
+        return feat
 
 
 class VisionTransformer(nn.Module):
@@ -571,10 +450,10 @@ class VisionTransformer(nn.Module):
                 init_values=init_values,
                 cos_attn=cos_attn) for i in range(depth)
         ])
-        self.norm = nn.Identity() if use_mean_pooling else norm_layer(
-            embed_dim)
-        self.fc_norm = norm_layer(embed_dim) if use_mean_pooling else None
-        self.norm = norm_layer(embed_dim)
+        # self.norm = nn.Identity() if use_mean_pooling else norm_layer(
+        #     embed_dim)
+        # self.fc_norm = norm_layer(embed_dim) if use_mean_pooling else None
+        # self.norm = norm_layer(embed_dim)
         # self.head_dropout = nn.Dropout(head_drop_rate)
         # self.head = nn.Linear(
         #     embed_dim, num_classes) if num_classes > 0 else nn.Identity()
@@ -644,20 +523,12 @@ class VisionTransformer(nn.Module):
                 x = blk(x)
             feat.append(x)
         return feat
-        # if self.fc_norm is not None:
-        #     return self.fc_norm(x.mean(1))
-        # else:
-        #     x = self.norm(x)
-        #     x = rearrange(x, 'b (t h w) c -> b c t h w', t=8, h=14, w=14)
-        #     return x
 
     def forward(self, x, **kwargs):
         feat = self.forward_features(x)
-        x = feat[2::3]
-        x = [self.norm(torch.mean(i, dim=1)) for i in x]
         # x = self.head_dropout(x)
         # x = self.head(x)
-        return [[x]]
+        return [[feat]]
 
 
 @register_model

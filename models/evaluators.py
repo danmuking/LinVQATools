@@ -5,7 +5,7 @@ from functools import partial, reduce
 from .backbones.base_swin_backbone import SwinTransformer3D
 from .backbones.mvit import MViT
 from .backbones.swin_backbone import SwinTransformer3D as VideoBackbone
-from .backbones.video_mae_v2 import VisionTransformer
+from .backbones.video_mae_v2 import VisionTransformer, VisionTransformerDecoder
 import models.heads as heads
 
 
@@ -50,6 +50,17 @@ class DiViDeAddEvaluator(nn.Module):
             )
         print("Setting backbone:", 'fragments' + "_backbone")
         setattr(self, 'fragments' + "_backbone", b)
+        self.decoder = VisionTransformerDecoder(patch_size=16,
+                embed_dim=384,
+                depth=4,
+                num_heads=6,
+                mlp_ratio=4,
+                qkv_bias=True,
+                norm_layer=partial(nn.LayerNorm, eps=1e-6),)
+        self.mlp = nn.ModuleList([nn.Sequential(
+            nn.Linear(384, 384),
+            nn.GELU(),
+        ) for x in range(4)])
         self.vqa_head = getattr(heads, vqa_head['name'])(**vqa_head)
 
     def forward(self, vclips, inference=False, return_pooled_feats=False, reduce_scores=True, pooled=False, **kwargs):
@@ -66,7 +77,15 @@ class DiViDeAddEvaluator(nn.Module):
                     # key = 'fragments'
                     feat = getattr(self, key.split("_")[0] + "_backbone")(vclips[key], multi=self.multi,
                                                                           layer=self.layer, **kwargs)
-                    scores += [getattr(self, "vqa_head")(feat)]
+                    feat = feat[0][0]
+                    feat = feat[2::3]
+                    for i in range(4):
+                        feat[i] = self.mlp[i](feat[i])
+                    feat = self.decoder(feat)
+                    score = 0
+                    for i in range(4):
+                        score += getattr(self, "vqa_head")([[feat[i]]])
+                    scores += [score / 4]
             self.train()
             return scores
         else:
@@ -77,5 +96,13 @@ class DiViDeAddEvaluator(nn.Module):
                 # key = 'fragments_backbone'
                 feat = getattr(self, key.split("_")[0] + "_backbone")(vclips[key], multi=self.multi, layer=self.layer,
                                                                       **kwargs)
-                scores += [getattr(self, "vqa_head")(feat)]
+                feat = feat[0][0]
+                feat = feat[2::3]
+                for i in range(4):
+                    feat[i] = self.mlp[i](feat[i])
+                feat = self.decoder(feat)
+                score = 0
+                for i in range(4):
+                    score += getattr(self, "vqa_head")([[feat[i]]])
+                scores += [score/4]
             return scores
