@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10302232 vitb_patch16_fragment32 4frame'
+work_dir = 'work_dir/faster_vqa/11011209 vit_patch16_fragment32 4frame blur'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10302232 vitb patch16 fragment32 4frame')
+            init_kwargs=dict(project='faster vqa消融', name='11011209 vit patch16 fragment32 4frame blur')
         ),
     ],
 )
@@ -19,7 +19,7 @@ model = dict(
     window_size=(8, 7, 7),
     vqa_head=dict(name='VQAHead',in_channels=768,drop_rate=0.5,fc_in=1568),
     # vqa_head=dict(name='FcHead', in_channels=384, drop_rate=0.5),
-    load_path="./pretrained_weights/vit_b_k710_dl_from_giant.pth"
+    load_path="./pretrained_weights/vit_s_k710_dl_from_giant.pth"
 )
 epochs = 600
 batch_size = 3
@@ -141,7 +141,7 @@ custom_hooks = [
     # dict(type='CustomEMAHook',momentum=0.01)
     # dict(type='EmptyCacheHook', after_epoch=True)
 ]
-launcher = 'pytorch'
+launcher = 'none'
 randomness = dict(seed=42)
 # randomness = dict(seed=3407)
 # randomness = dict(seed=114514)
