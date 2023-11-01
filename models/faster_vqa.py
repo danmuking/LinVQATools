@@ -9,6 +9,7 @@ from global_class.train_recorder import TrainResultRecorder
 from models.evaluators import DiViDeAddEvaluator
 from mmengine import MODELS
 from models import logger
+from models.stable_net import Stablev2Evaluator
 
 
 def rank_loss(y_pred, y):
@@ -46,15 +47,7 @@ class FasterVQA(BaseModel):
             **kwargs
     ):
         super().__init__()
-        self.model = DiViDeAddEvaluator(
-            window_size=window_size,
-            base_x_size=base_x_size,
-            vqa_head=vqa_head,
-            multi=multi,
-            layer=layer,
-            backbone=backbone,
-            load_path=load_path
-        )
+        self.model = Stablev2Evaluator()
         # self.logger = MMLogger.get_instance('mmengine', log_level='INFO')
         # TODO: 将权重加载交给骨干网络完成，vit已实现
         # 加载预训练权重
@@ -67,6 +60,7 @@ class FasterVQA(BaseModel):
                 Dict[str, torch.Tensor], list]:
         y = kargs['gt_label'].float().unsqueeze(-1)
         # print(y.shape)
+        inputs = {'resize': inputs}
         if mode == 'loss':
             scores = self.model(inputs, inference=False,
                                 reduce_scores=False)

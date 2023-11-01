@@ -19,7 +19,8 @@ class TestFasterVQA(TestCase):
             load_path="/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth"
         )
         video = torch.ones((2, 3, 16, 224, 224))
-        scores = model(inputs=video, mode="loss", gt_label=torch.tensor(1))
+        # video = dict(resize=video)
+        scores = model(inputs=video, mode="predict", gt_label=torch.tensor(1))
         print(scores)
         # if len(scores) > 1:
         #     y_pred = reduce(lambda x, y: x + y, scores)
