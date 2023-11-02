@@ -447,6 +447,15 @@ class VisionTransformer(nn.Module):
     def forward_features(self, x):
         B = x.size(0)
 
+        # shuffler
+        n0 = 4
+        n1 = 7
+        n2 = 7
+        x = rearrange(x, 'b c (n0 t) (n1 h) (n2 w) -> b (n0 n1 n2) c t h w', n0=n0, n1=n1, n2=n2)
+        indices = torch.randperm(n0*n1*n2)
+        x = x[:, indices, ...]
+        x = rearrange(x,'b (n0 n1 n2) c t h w -> b c (n0 t) (n1 h) (n2 w)',n0=n0, n1=n1, n2=n2)
+
         x = self.patch_embed(x)
 
         if self.pos_embed is not None:

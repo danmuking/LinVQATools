@@ -15,7 +15,7 @@ class TestFasterVQA(TestCase):
         model = FasterVQA(
             backbone='vit',
             base_x_size=(16, 224, 224),
-            vqa_head=dict(name='VQAHead',in_channels=768,drop_rate=0.8,fc_in=1568),
+            vqa_head=dict(name='VQAHead',in_channels=384,drop_rate=0.8,fc_in=1568),
             load_path="/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth"
         )
         video = torch.ones((2, 3, 16, 224, 224))
@@ -29,30 +29,8 @@ class TestFasterVQA(TestCase):
         # print(y_pred)
 
     def test_torch(self):
-        window_size = (2,2,2)
-        shift_size = (2,2,2)
-        D,H,W=4,4,4
-        img_mask = torch.zeros((1, D, H, W, 1))  # 1 Dp Hp Wp 1
-        cnt = 0
-        for d in (
-                slice(-window_size[0]),
-                slice(-window_size[0], -shift_size[0]),
-                slice(-shift_size[0], None),
-        ):
-            for h in (
-                    slice(-window_size[1]),
-                    slice(-window_size[1], -shift_size[1]),
-                    slice(-shift_size[1], None),
-            ):
-                for w in (
-                        slice(-window_size[2]),
-                        slice(-window_size[2], -shift_size[2]),
-                        slice(-shift_size[2], None),
-                ):
-                    img_mask[:, d, h, w, :] = cnt
-                    cnt += 1
-        x = [i for i in range(4)]
-        test = slice(-window_size[0])
-        print(test.start,test.stop,test.step)
-        print(x[test])
-        # print(img_mask.view(D, H, W))
+        x = [x for x in range(224)]
+        x = torch.tensor(x).reshape((1,1,224))
+        indices = torch.randperm(224)
+        x = x[:, :, [123,0]]
+        print(x)
