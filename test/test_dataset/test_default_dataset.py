@@ -22,7 +22,7 @@ class TestSingleBranchDataset(TestCase):
                 #     frame_cube=4
                 # ),
                 dict(
-                    name='MixShuffler',
+                    name='SpatialShuffler',
                     fragment_size=32,
                 ),
                 dict(

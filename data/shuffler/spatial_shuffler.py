@@ -6,38 +6,43 @@ from mmengine import MMLogger
 
 from data import logger
 from .base_shuffler import BaseShuffler
+
+
 class SpatialShuffler(BaseShuffler):
     """
     实现数据空间维度上的打乱
     """
+
     def __init__(self, fragment_size: int = 32, **kargs):
         super().__init__(**kargs)
         self.fragment_size = fragment_size
 
-    def __call__(self,video:torch.Tensor):
-        c,t,h,w = video.shape
+    def __call__(self, video: torch.Tensor):
+        c, t, h, w = video.shape
         logger.debug("从空间维度打乱视频")
         matrix = []
-        assert w % self.fragment_size == 0, '视频宽度无法被fragment_size整除,W:{} fragment_size:{}'.format(w, self.fragment_size)
-        assert h % self.fragment_size == 0, '视频高度无法被fragment_size整除,H:{} fragment_size:{}'.format(h, self.fragment_size)
+        assert w % self.fragment_size == 0, '视频宽度无法被fragment_size整除,W:{} fragment_size:{}'.format(w,
+                                                                                                           self.fragment_size)
+        assert h % self.fragment_size == 0, '视频高度无法被fragment_size整除,H:{} fragment_size:{}'.format(h,
+                                                                                                           self.fragment_size)
         num_w = w // self.fragment_size
-        num_h =  h//self.fragment_size
+        num_h = h // self.fragment_size
         for i in range(num_h):
             for j in range(num_w):
-                    matrix.append((i, j))
+                matrix.append((i, j))
         random.shuffle(matrix)
         count = 0
         target_video = torch.zeros_like(video)
         for i in range(num_w):
             for j in range(num_h):
-                    h_s, h_e = i * self.fragment_size, (i + 1) * self.fragment_size
-                    w_s, w_e = j * self.fragment_size, (j + 1) * self.fragment_size
-                    h_so, h_eo = matrix[count][0] * self.fragment_size, (matrix[count][0] + 1) * self.fragment_size
-                    w_so, w_eo = matrix[count][1] * self.fragment_size, (matrix[count][1] + 1) * self.fragment_size
-                    target_video[:, :, h_s:h_e, w_s:w_e] = video[
-                                                                 :, :, h_so:h_eo, w_so:w_eo
-                                                                 ]
-                    count = count + 1
+                h_s, h_e = i * self.fragment_size, (i + 1) * self.fragment_size
+                w_s, w_e = j * self.fragment_size, (j + 1) * self.fragment_size
+                h_so, h_eo = matrix[count][0] * self.fragment_size, (matrix[count][0] + 1) * self.fragment_size
+                w_so, w_eo = matrix[count][1] * self.fragment_size, (matrix[count][1] + 1) * self.fragment_size
+                target_video[:, :, h_s:h_e, w_s:w_e] = video[
+                                                       :, :, h_so:h_eo, w_so:w_eo
+                                                       ]
+                count = count + 1
         return target_video
 
 
@@ -46,17 +51,17 @@ class MixShuffler(BaseShuffler):
         super().__init__(**kargs)
         self.fragment_size = fragment_size
 
-    def __call__(self,video:torch.Tensor):
-        c,t,h,w = video.shape
-        fragment_num = h//self.fragment_size
-        fragment_col = rearrange(video,'c t h (p0 w) -> c t h p0 w',p0=fragment_num,w=self.fragment_size)
-        part = fragment_col[:,:,:,1::2,:] # c t 3 32 w
+    def __call__(self, video: torch.Tensor):
+        c, t, h, w = video.shape
+        fragment_num = h // self.fragment_size
+        fragment_col = rearrange(video, 'c t h (p0 w) -> c t h p0 w', p0=fragment_num, w=self.fragment_size)
+        part = fragment_col[:, :, :, 1::2, :]  # c t 3 32 w
         # c t 3 32 7 32
-        part_row = rearrange(part,'c t (p1 h) p0 w -> c t p1 h p0 w',p1=fragment_num,w=self.fragment_size)
-        part_row = torch.flip(part_row,dims=[2])
-        part = rearrange(part_row,'c t p1 h p0 w -> c t (p1 h) p0 w') # c t 3 32 224
-        fragment_col[:, :, :,1::2, :] = part
-        video = rearrange(fragment_col,'c t h p0 w -> c t h (p0 w)')
+        part_row = rearrange(part, 'c t (p1 h) p0 w -> c t p1 h p0 w', p1=fragment_num, w=self.fragment_size)
+        part_row = torch.flip(part_row, dims=[2])
+        part = rearrange(part_row, 'c t p1 h p0 w -> c t (p1 h) p0 w')  # c t 3 32 224
+        fragment_col[:, :, :, 1::2, :] = part
+        video = rearrange(fragment_col, 'c t h p0 w -> c t h (p0 w)')
 
         fragment_row = rearrange(video, 'c t (p0 h) w -> c t p0 h w', p0=fragment_num, h=self.fragment_size)
         part = fragment_row[:, :, 1::2, :, :]  # c t 3 32 w
@@ -66,7 +71,5 @@ class MixShuffler(BaseShuffler):
         part = rearrange(part_col, 'c t p0 h p1 w -> c t p0 h (p1 w)')  # c t 3 32 224
         fragment_row[:, :, 1::2, :, :] = part
         video = rearrange(fragment_row, 'c t p0 h w -> c t (p0 h) w')
-
-
 
         return video

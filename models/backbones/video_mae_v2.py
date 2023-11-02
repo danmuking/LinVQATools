@@ -447,18 +447,18 @@ class VisionTransformer(nn.Module):
     def forward_features(self, x):
         B = x.size(0)
 
-        # shuffler
-        for i in range(B):
-            video = x[i, ...]
-            n0 = 8
-            n1 = 7
-            n2 = 7
-            video = rearrange(video, 'c (n0 t) (n1 h) (n2 w) -> (n0 n1 n2) c t h w', n0=n0, n1=n1, n2=n2)
-            indices = torch.randperm(n0 * n1 * n2)
-            video = video[indices, ...]
-            video = rearrange(video, '(n0 n1 n2) c t h w -> c (n0 t) (n1 h) (n2 w)', n0=n0, n1=n1, n2=n2)
-            x[i] = video
-        x = x[:, :, :16, ...]
+        # # shuffler
+        # for i in range(B):
+        #     video = x[i, ...]
+        #     n0 = 8
+        #     n1 = 7
+        #     n2 = 7
+        #     video = rearrange(video, 'c (n0 t) (n1 h) (n2 w) -> (n0 n1 n2) c t h w', n0=n0, n1=n1, n2=n2)
+        #     indices = torch.randperm(n0 * n1 * n2)
+        #     video = video[indices, ...]
+        #     video = rearrange(video, '(n0 n1 n2) c t h w -> c (n0 t) (n1 h) (n2 w)', n0=n0, n1=n1, n2=n2)
+        #     x[i] = video
+        # x = x[:, :, :16, ...]
 
         x = self.patch_embed(x)
 

@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/11021636 vit_patch16_fragment32 4frame'
+work_dir = 'work_dir/faster_vqa/11022230 vit_patch16_fragment32 4frame spatial'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='11021636 vit patch16 fragment32 4frame')
+            init_kwargs=dict(project='faster vqa消融', name='11022230 vit patch16 fragment32 4frame spatial')
         ),
     ],
 )
@@ -26,15 +26,15 @@ batch_size = 4
 num_workers = 4
 prefix = '4frame'
 argument = [
-        # dict(
-        #     name='MixShuffler',
-        #     fragment_size=32,
-        # ),
-        # dict(
-        #     name='PostProcessSampler',
-        #     frame_cube=4,
-        #     num=4
-        # )
+        dict(
+            name='SpatialShuffler',
+            fragment_size=32,
+        ),
+        dict(
+            name='PostProcessSampler',
+            frame_cube=4,
+            num=4
+        )
 ]
 train_video_loader = dict(
     name='FragmentLoader',
