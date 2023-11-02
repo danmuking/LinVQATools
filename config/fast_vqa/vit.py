@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/10260918 vit_patch16_fragment32 4frame'
+work_dir = 'work_dir/faster_vqa/11021051 vit_patch16_fragment32 4frame mixshuffler'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='10260918 vit patch16 fragment32 4frame')
+            init_kwargs=dict(project='faster vqa消融', name='11021051 vit patch16 fragment32 4frame mixshuffler')
         ),
     ],
 )
@@ -21,15 +21,14 @@ model = dict(
     # vqa_head=dict(name='FcHead', in_channels=384, drop_rate=0.5),
     load_path="./pretrained_weights/vit_s_k710_dl_from_giant.pth"
 )
-epochs = 800
-batch_size = 6
-num_workers = 6
-prefix = 'normal'
+epochs = 600
+batch_size = 4
+num_workers = 4
+prefix = '4frame'
 argument = [
         dict(
-            name='FragmentShuffler',
-            fragment_size=112,
-            frame_cube=4
+            name='MixShuffler',
+            fragment_size=32,
         ),
         dict(
             name='PostProcessSampler',

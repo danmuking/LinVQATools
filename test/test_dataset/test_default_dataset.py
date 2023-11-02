@@ -3,8 +3,10 @@ from unittest import TestCase
 
 import cv2
 import numpy as np
+import torch
 
 from data.default_dataset import SingleBranchDataset
+from data.shuffler import MixShuffler
 
 
 class TestSingleBranchDataset(TestCase):
@@ -12,12 +14,16 @@ class TestSingleBranchDataset(TestCase):
         os.chdir('../../')
         video_loader = dict(
             name='FragmentLoader',
-            prefix='normal',
+            prefix='fragment',
             argument=[
+                # dict(
+                #     name='FragmentShuffler',
+                #     fragment_size=112,
+                #     frame_cube=4
+                # ),
                 dict(
-                    name='FragmentShuffler',
-                    fragment_size=112,
-                    frame_cube=4
+                    name='MixShuffler',
+                    fragment_size=32,
                 ),
                 dict(
                     name='PostProcessSampler',
@@ -45,3 +51,9 @@ class TestSingleBranchDataset(TestCase):
             fra = cv2.cvtColor(fra, cv2.COLOR_RGB2BGR)
             out.write(fra)
         out.release()
+
+    def test_mix(self):
+        shuffler = MixShuffler(32)
+        video = [x for x in range(224*224)]
+        video = torch.tensor(video).reshape(1,1,224,224)
+        shuffler(video)

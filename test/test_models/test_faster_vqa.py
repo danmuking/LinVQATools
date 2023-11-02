@@ -15,8 +15,8 @@ class TestFasterVQA(TestCase):
         model = FasterVQA(
             backbone='vit',
             base_x_size=(16, 224, 224),
-            vqa_head=dict(name='VQAHead',in_channels=384,drop_rate=0.8,fc_in=1568),
-            # load_path="/data/ly/code/LinVQATools/pretrained_weights/swin_tiny_patch244_window877_kinetics400_1k.pth"
+            vqa_head=dict(name='VQAHead',in_channels=768,drop_rate=0.8,fc_in=1568),
+            load_path="/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth"
         )
         video = torch.ones((2, 3, 16, 224, 224))
         scores = model(inputs=video, mode="loss", gt_label=torch.tensor(1))
