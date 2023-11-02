@@ -1,4 +1,6 @@
+import torch
 import torch.nn as nn
+from einops import rearrange
 from einops.layers.torch import Rearrange
 from mmengine import MMLogger
 
@@ -23,43 +25,24 @@ class VQAHead(nn.Module):
             # SpatialAttention(),
             # SpatialSelfAttention(dim=384)
         )
+        self.dimension_reduction = nn.Linear(14*14*384, 128)
+        self.feature_aggregation = nn.GRU(128, 32)
+
         self.dropout_ratio = dropout_ratio
-        self.in_channels = in_channels
-        self.hidden_channels = hidden_channels
-        self.fc_hid = nn.Sequential(
-            nn.Dropout(p=self.dropout_ratio) if self.dropout_ratio > 0 else nn.Identity(),
-            nn.Conv3d(self.in_channels, self.hidden_channels, (1, 1, 1)),
-            nn.GELU()
-        )
-        self.fc_last = nn.Sequential(
-            nn.Dropout(p=self.dropout_ratio) if self.dropout_ratio > 0 else nn.Identity(),
-            nn.Conv3d(self.hidden_channels, 1, (1, 1, 1)),
-            nn.GELU()
-        )
+
         self.fc = nn.Sequential(
             nn.Dropout(p=self.dropout_ratio) if self.dropout_ratio > 0 else nn.Identity(),
-            nn.Linear(fc_in, 1)
+            nn.Linear(32, 1)
         )
 
     def forward(self, x):
         x = x[0][0]
         logger.debug("head层输入维度: {}".format(x.shape))
         x = self.atte(x)
-        qlt_score = self.fc_hid(x)
-        logger.debug('head: channel {}->{}'.format(x.shape[1],qlt_score.shape[1]))
-        channel_in = qlt_score.shape[1]
-        qlt_score = self.fc_last(qlt_score)
-        channel_out = qlt_score.shape[1]
-        logger.debug('head: channel {}->{}'.format(channel_in,channel_out))
-
-        channel_in = qlt_score.shape
-        qlt_score = qlt_score.reshape(qlt_score.shape[0], -1)
-        channel_out = qlt_score.shape
-        logger.debug('head: 展开 {}->{}'.format(channel_in, channel_out))
-
-        channel_in = qlt_score.shape[1]
-        qlt_score = self.fc(qlt_score)
-        channel_out = qlt_score.shape[1]
-        logger.debug('head: Liner {}->{}'.format(channel_in, channel_out))
+        x = rearrange(x,'b c t h w -> b t (c h w)')
+        x = self.dimension_reduction(x)
+        x,_ = self.feature_aggregation(x)
+        qlt_score = self.fc(x)
+        qlt_score = torch.mean(qlt_score, dim=1)
 
         return qlt_score

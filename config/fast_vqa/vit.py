@@ -26,15 +26,16 @@ batch_size = 4
 num_workers = 4
 prefix = '4frame'
 argument = [
-        # dict(
-        #     name='MixShuffler',
-        #     fragment_size=32,
-        # ),
-        # dict(
-        #     name='PostProcessSampler',
-        #     frame_cube=4,
-        #     num=4
-        # )
+        dict(
+            name='FragmentShuffler',
+            fragment_size=32,
+            frame_cube=4
+        ),
+        dict(
+            name='PostProcessSampler',
+            frame_cube=4,
+            num=4
+        )
 ]
 train_video_loader = dict(
     name='FragmentLoader',
