@@ -9,7 +9,7 @@ from decord import VideoReader
 
 from data.file_reader.base_reader import BaseReader
 from data.loader.base_loader import BaseLoader
-from data.shuffler import BaseShuffler, SpatialShuffler
+from data.shuffler import BaseShuffler
 import data.sampler as sampler
 import data.file_reader as reader
 import data.shuffler as shuffler
@@ -72,8 +72,6 @@ class FragmentLoader(BaseLoader):
             if self.spatial_sampler is not None:
                 video = self.spatial_sampler(video)
         # 视频后处理
-        argument = SpatialShuffler()
-        video,pos_embed = argument(video)
         for item in self.argument:
             video = item(video)
-        return video,pos_embed
+        return video

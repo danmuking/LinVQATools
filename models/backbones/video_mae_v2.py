@@ -444,7 +444,7 @@ class VisionTransformer(nn.Module):
         self.head = nn.Linear(
             self.embed_dim, num_classes) if num_classes > 0 else nn.Identity()
 
-    def forward_features(self, x,pos_embed=None):
+    def forward_features(self, x):
         B = x.size(0)
 
         # # shuffler
@@ -462,12 +462,9 @@ class VisionTransformer(nn.Module):
 
         x = self.patch_embed(x)
 
-        if pos_embed is not None:
-            x = x + pos_embed.expand(B, -1, -1).type_as(x).to(
+        if self.pos_embed is not None:
+            x = x + self.pos_embed.expand(B, -1, -1).type_as(x).to(
                 x.device).clone().detach()
-        # if self.pos_embed is not None:
-        #     x = x + self.pos_embed.expand(B, -1, -1).type_as(x).to(
-        #         x.device).clone().detach()
         x = self.pos_drop(x)
 
         for blk in self.blocks:
@@ -482,8 +479,8 @@ class VisionTransformer(nn.Module):
             x = rearrange(x, 'b (t h w) c -> b c t h w', t=8, h=14, w=14)
             return x
 
-    def forward(self, x,pos_embed, **kwargs):
-        x = self.forward_features(x,pos_embed)
+    def forward(self, x, **kwargs):
+        x = self.forward_features(x)
         # x = self.head_dropout(x)
         # x = self.head(x)
         return [[x]]
