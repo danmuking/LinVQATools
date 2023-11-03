@@ -66,10 +66,11 @@ class FasterVQA(BaseModel):
             Union[
                 Dict[str, torch.Tensor], list]:
         y = kargs['gt_label'].float().unsqueeze(-1)
+        pos_embed = kargs['pos_embed']
         # print(y.shape)
         if mode == 'loss':
             scores = self.model(inputs, inference=False,
-                                reduce_scores=False)
+                                reduce_scores=False,pos_embed=pos_embed)
             y_pred = scores[0]
             criterion = nn.MSELoss()
             mse_loss = criterion(y_pred, y)
@@ -79,7 +80,7 @@ class FasterVQA(BaseModel):
             return {'loss': loss, 'mse_loss': mse_loss, 'p_loss': p_loss, 'r_loss': r_loss}
         elif mode == 'predict':
             scores = self.model(inputs, inference=True,
-                                reduce_scores=False)
+                                reduce_scores=False,pos_embed=pos_embed)
             y_pred = scores[0]
             return y_pred, y
 

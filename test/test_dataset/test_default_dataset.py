@@ -18,13 +18,13 @@ class TestSingleBranchDataset(TestCase):
             argument=[
                 # dict(
                 #     name='FragmentShuffler',
-                #     fragment_size=112,
+                #     fragment_size=32,
                 #     frame_cube=4
                 # ),
-                dict(
-                    name='SpatialShuffler',
-                    fragment_size=32,
-                ),
+                # dict(
+                #     name='SpatialShuffler',
+                #     fragment_size=32,
+                # ),
                 dict(
                     name='PostProcessSampler',
                     num=4,
@@ -36,6 +36,8 @@ class TestSingleBranchDataset(TestCase):
         data = dataset[0]
         # video = torch.from_numpy(np.load("temp.npy"))
         video = data['inputs']
+        pos_embed = data['pos_embed']
+        print(pos_embed.shape)
         # print(data)
         print(video.shape)
         fourcc = cv2.VideoWriter_fourcc(*'XVID')

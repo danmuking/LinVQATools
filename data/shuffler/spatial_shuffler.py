@@ -5,6 +5,7 @@ from einops import rearrange
 from mmengine import MMLogger
 
 from data import logger
+from models.backbones.video_mae_v2 import get_sinusoid_encoding_table
 from .base_shuffler import BaseShuffler
 
 
@@ -43,7 +44,23 @@ class SpatialShuffler(BaseShuffler):
                                                        :, :, h_so:h_eo, w_so:w_eo
                                                        ]
                 count = count + 1
-        return target_video
+
+        pos_embed = get_sinusoid_encoding_table(1568, 384)
+        pos_embed = rearrange(pos_embed, 'b (t h w) c -> (b c) t h w',t=8, h=14, w=14)
+        target_pos_embed = torch.zeros_like(pos_embed)
+        count = 0
+        for i in range(num_w):
+            for j in range(num_h):
+                h_s, h_e = i * 2, (i + 1) * 2
+                w_s, w_e = j * 2, (j + 1) * 2
+                h_so, h_eo = matrix[count][0] * 2, (matrix[count][0] + 1) * 2
+                w_so, w_eo = matrix[count][1] * 2, (matrix[count][1] + 1) * 2
+                target_pos_embed[:, :, h_s:h_e, w_s:w_e] = pos_embed[
+                                                       :, :, h_so:h_eo, w_so:w_eo
+                                                       ]
+                count = count + 1
+        target_pos_embed = rearrange(target_pos_embed, 'c t h w -> (t h w) c',t=8, h=14, w=14)
+        return target_video,target_pos_embed
 
 
 class MixShuffler(BaseShuffler):
