@@ -16,11 +16,11 @@ class TestSingleBranchDataset(TestCase):
             name='FragmentLoader',
             prefix='fragment',
             argument=[
-                # dict(
-                #     name='FragmentShuffler',
-                #     fragment_size=32,
-                #     frame_cube=4
-                # ),
+                dict(
+                    name='FragmentShuffler',
+                    fragment_size=32,
+                    frame_cube=4
+                ),
                 # dict(
                 #     name='SpatialShuffler',
                 #     fragment_size=32,
@@ -36,8 +36,8 @@ class TestSingleBranchDataset(TestCase):
         data = dataset[0]
         # video = torch.from_numpy(np.load("temp.npy"))
         video = data['inputs']
-        pos_embed = data['pos_embed']
-        print(pos_embed.shape)
+        # pos_embed = data['pos_embed']
+        # print(pos_embed.shape)
         # print(data)
         print(video.shape)
         fourcc = cv2.VideoWriter_fourcc(*'XVID')
