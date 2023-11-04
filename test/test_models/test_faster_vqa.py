@@ -7,6 +7,7 @@ import torch
 from torch import nn
 
 from models.faster_vqa import FasterVQA
+from models.heads.head import global_std_pool3d
 
 
 class TestFasterVQA(TestCase):
@@ -29,8 +30,6 @@ class TestFasterVQA(TestCase):
         # print(y_pred)
 
     def test_torch(self):
-        rnn = nn.GRU(2048, 2048, 2)
-        input = torch.randn(3, 8, 2048)
-        output, hn = rnn(input)
-        print(output.shape)
-        print(hn.shape)
+        x = torch.rand((2,1384,8,14,14))
+        y = global_std_pool3d(x)
+        print(y.shape)

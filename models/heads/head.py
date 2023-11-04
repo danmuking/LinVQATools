@@ -8,6 +8,11 @@ from models.utils.common import ChannelAttention, SpatialAttention, ChannelSelfA
 
 logger = MMLogger.get_instance('model', log_level='DEBUG')
 
+
+
+def global_std_pool3d(x):
+    """3D global standard variation pooling"""
+    return torch.std(x.view(x.size()[0], x.size()[1], x.size()[2], -1, 1), dim=3, keepdim=True)
 class VQAHead(nn.Module):
     """MLP Regression Head for VQA.
     Args:
@@ -25,7 +30,8 @@ class VQAHead(nn.Module):
             # SpatialAttention(),
             # SpatialSelfAttention(dim=384)
         )
-        self.dimension_reduction = nn.Linear(14*14*384, 128)
+
+        self.dimension_reduction = nn.Linear(384*2, 128)
         self.feature_aggregation = nn.GRU(128, 32)
 
         self.dropout_ratio = dropout_ratio
@@ -39,7 +45,10 @@ class VQAHead(nn.Module):
         x = x[0][0]
         logger.debug("head层输入维度: {}".format(x.shape))
         x = self.atte(x)
-        x = rearrange(x,'b c t h w -> b t (c h w)')
+        features_mean = nn.functional.adaptive_avg_pool2d(x, 1).flatten(2).permute(0, 2, 1)
+        features_std = global_std_pool3d(x).flatten(2).permute(0, 2, 1)
+        x = torch.cat([features_mean, features_std], dim=2)
+        # x = rearrange(x,'b c t-> b t c')
         x = self.dimension_reduction(x)
         x,_ = self.feature_aggregation(x)
         qlt_score = self.fc(x)
