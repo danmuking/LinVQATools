@@ -1,13 +1,16 @@
 import random
+from copy import deepcopy
 
 import torch
 from einops import rearrange
 from mmengine import MMLogger
 
 from data import logger
+from models.backbones.video_mae_v2 import get_sinusoid_encoding_table
 from .base_shuffler import BaseShuffler
 
 
+def_pos_embed = get_sinusoid_encoding_table(1568, 384)
 class FragmentShuffler(BaseShuffler):
     """
     从fragment cube上打乱数据
@@ -56,5 +59,10 @@ class FragmentShuffler(BaseShuffler):
         video = rearrange(video, 'c (p0 t) (p1 h) (p2 w) -> c (p0 p1 p2) t h w', p0=p0, p1=p1, p2=p2)
         indices = torch.randperm(video.shape[1])
         video = video[:, indices, :, :, :]
+        pos_embed = deepcopy(def_pos_embed)
+        pos_embed = rearrange(pos_embed, 'b (p0 t p1 w p2 h) c -> (b c) (p0 p1 p2) t h w', p0=p0, p1=p1, p2=p2,
+                              t=1,h=2,w=2)
+        pos_embed = pos_embed[:, indices,...]
+        pos_embed = rearrange(pos_embed, 'c (p0 p1 p2) t h w -> (p0 t p1 w p2 h) c', p0=p0, p1=p1, p2=p2)
         target_video = rearrange(video, 'c (p0 p1 p2) t h w -> c (p0 t) (p1 h) (p2 w)', p0=p0, p1=p1, p2=p2)
-        return target_video
+        return target_video,pos_embed

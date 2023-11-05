@@ -52,7 +52,7 @@ class DiViDeAddEvaluator(nn.Module):
         setattr(self, 'fragments' + "_backbone", b)
         self.vqa_head = getattr(heads, vqa_head['name'])(**vqa_head)
 
-    def forward(self, vclips, inference=False, return_pooled_feats=False, reduce_scores=True, pooled=False, **kwargs):
+    def forward(self, vclips, inference=False, pos_embed=None, **kwargs):
         vclips = {
             'fragments': vclips
         }
@@ -65,7 +65,7 @@ class DiViDeAddEvaluator(nn.Module):
                 for key in vclips:
                     # key = 'fragments'
                     feat = getattr(self, key.split("_")[0] + "_backbone")(vclips[key], multi=self.multi,
-                                                                          layer=self.layer, **kwargs)
+                                                                          layer=self.layer,pos_embed=pos_embed, **kwargs)
                     scores += [getattr(self, "vqa_head")(feat)]
             self.train()
             return scores
@@ -76,6 +76,6 @@ class DiViDeAddEvaluator(nn.Module):
             for key in vclips:
                 # key = 'fragments_backbone'
                 feat = getattr(self, key.split("_")[0] + "_backbone")(vclips[key], multi=self.multi, layer=self.layer,
-                                                                      **kwargs)
+                                                                      pos_embed=pos_embed,**kwargs)
                 scores += [getattr(self, "vqa_head")(feat)]
             return scores
