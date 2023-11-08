@@ -9,7 +9,7 @@ from decord import VideoReader
 
 from data.file_reader.base_reader import BaseReader
 from data.loader.base_loader import BaseLoader
-from data.shuffler import BaseShuffler, FragmentShuffler
+from data.shuffler import BaseShuffler
 import data.sampler as sampler
 import data.file_reader as reader
 import data.shuffler as shuffler
@@ -17,8 +17,6 @@ import decord
 from data import logger
 
 decord.bridge.set_bridge("torch")
-
-
 
 
 class FragmentLoader(BaseLoader):
@@ -51,7 +49,7 @@ class FragmentLoader(BaseLoader):
         if self.spatial_sampler is not None:
             self.spatial_sampler = getattr(sampler, spatial_sampler['name'])(**spatial_sampler)
 
-    def __call__(self, video_path: str, *args, **kwargs) -> torch.Tensor:
+    def __call__(self, video_path: str,*args, **kwargs) -> torch.Tensor:
         if self.use_preprocess:
             if self.phase == 'train':
                 video = self.file_reader.read(video_path)
@@ -74,8 +72,6 @@ class FragmentLoader(BaseLoader):
             if self.spatial_sampler is not None:
                 video = self.spatial_sampler(video)
         # 视频后处理
-        argument = FragmentShuffler(fragment_size=32,frame_cube=4)
-        video, pos_embed = argument(video)
         for item in self.argument:
             video = item(video)
-        return video, pos_embed
+        return video
