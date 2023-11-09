@@ -223,7 +223,10 @@ class VideoMAEVQAWrapper(BaseModel):
         self.model = VideoMAEVQA(model_type=model_type)
         self.agent = CellRunningMaskAgent()
 
-        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth")
+        if model_type=='b':
+            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth")
+        elif model_type=='s':
+            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth")
         weight = weight['module']
         t_state_dict = OrderedDict()
         for key in weight.keys():
