@@ -25,6 +25,9 @@ class VideoMAEVQA(nn.Module):
         elif model_type == 'b':
             self.backbone_embed_dim = 384 * 2
             self.backbone, self.decoder = build_video_mae_b()
+
+        self.decoder = nn.Identity()
+
         self.mean = nn.Parameter(torch.Tensor([0.45, 0.45, 0.45])[None, :, None, None, None], requires_grad=False)
         self.std = nn.Parameter(torch.Tensor([0.225, 0.225, 0.225])[None, :, None, None, None], requires_grad=False)
         self.normlize_target = True
@@ -41,9 +44,9 @@ class VideoMAEVQA(nn.Module):
                            (self.patches_shape[2] // self.mask_stride[2])]
 
         self.vqa_head = VQAMlpHead()
-        self.mask_token = nn.Parameter(torch.zeros(1, 1, 384))
-        self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, 384,
-                                            bias=False)
+        # self.mask_token = nn.Parameter(torch.zeros(1, 1, 384))
+        # self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, 384,
+        #                                     bias=False)
         self.encoder_to_cls_decoder = nn.Linear(self.backbone_embed_dim,
                                                 512, bias=False)
 
@@ -72,32 +75,34 @@ class VideoMAEVQA(nn.Module):
         # x_data_mask = x_data * new_mask.to(x_data.device)
         ####################################
         if self.training:
-            with torch.no_grad():
-                # calculate the predict label
-                mean = self.mean.data.clone().detach()
-                std = self.std.data.clone().detach()
-                unnorm_frames = x_data * std + mean
-                t, h, w = unnorm_frames.size(2) // self.tubelet_size, unnorm_frames.size(
-                    3) // self.patch_size, unnorm_frames.size(4) // self.patch_size
-                if self.normlize_target:
-                    images_squeeze = rearrange(unnorm_frames, 'b c (t p0) (h p1) (w p2) -> b (t h w) (p0 p1 p2) c',
-                                               p0=self.tubelet_size, p1=self.patch_size, p2=self.patch_size)
-                    images_norm = (images_squeeze - images_squeeze.mean(dim=-2, keepdim=True)
-                                   ) / (images_squeeze.var(dim=-2, unbiased=True, keepdim=True).sqrt() + 1e-6)
-                    # we find that the mean is about 0.48 and standard deviation is about 0.08.
-                    frames_patch = rearrange(images_norm, 'b n p c -> b n (p c)')
-                else:
-                    frames_patch = rearrange(unnorm_frames, 'b c (t p0) (h p1) (w p2) -> b (t h w) (p0 p1 p2 c)',
-                                             p0=self.tubelet_size, p1=self.patch_size, p2=self.patch_size)
-                frames_patch = rearrange(frames_patch, 'b (t s0 h s1 w s2) c -> b (t h w) (s0 s1 s2 c)',
-                                         s0=self.mask_stride[0],
-                                         s1=self.mask_stride[1],
-                                         s2=self.mask_stride[2],
-                                         t=t // self.mask_stride[0],
-                                         h=h // self.mask_stride[1],
-                                         w=w // self.mask_stride[2])
-                B, _, C = frames_patch.shape
-                labels = frames_patch[(~mask).flatten(1, 2)].reshape(B, -1, C)
+            B = x_data.size(0)
+            labels = None
+            # with torch.no_grad():
+            #     # calculate the predict label
+            #     mean = self.mean.data.clone().detach()
+            #     std = self.std.data.clone().detach()
+            #     unnorm_frames = x_data * std + mean
+            #     t, h, w = unnorm_frames.size(2) // self.tubelet_size, unnorm_frames.size(
+            #         3) // self.patch_size, unnorm_frames.size(4) // self.patch_size
+            #     if self.normlize_target:
+            #         images_squeeze = rearrange(unnorm_frames, 'b c (t p0) (h p1) (w p2) -> b (t h w) (p0 p1 p2) c',
+            #                                    p0=self.tubelet_size, p1=self.patch_size, p2=self.patch_size)
+            #         images_norm = (images_squeeze - images_squeeze.mean(dim=-2, keepdim=True)
+            #                        ) / (images_squeeze.var(dim=-2, unbiased=True, keepdim=True).sqrt() + 1e-6)
+            #         # we find that the mean is about 0.48 and standard deviation is about 0.08.
+            #         frames_patch = rearrange(images_norm, 'b n p c -> b n (p c)')
+            #     else:
+            #         frames_patch = rearrange(unnorm_frames, 'b c (t p0) (h p1) (w p2) -> b (t h w) (p0 p1 p2 c)',
+            #                                  p0=self.tubelet_size, p1=self.patch_size, p2=self.patch_size)
+            #     frames_patch = rearrange(frames_patch, 'b (t s0 h s1 w s2) c -> b (t h w) (s0 s1 s2 c)',
+            #                              s0=self.mask_stride[0],
+            #                              s1=self.mask_stride[1],
+            #                              s2=self.mask_stride[2],
+            #                              t=t // self.mask_stride[0],
+            #                              h=h // self.mask_stride[1],
+            #                              w=w // self.mask_stride[2])
+            #     B, _, C = frames_patch.shape
+            #     labels = frames_patch[(~mask).flatten(1, 2)].reshape(B, -1, C)
         else:
             B = x_data.size(0)
             labels = None
@@ -107,21 +112,22 @@ class VideoMAEVQA(nn.Module):
         encoder_logits_backbone, patch_embed, x_vis_list = self.backbone(x_data, ~(full_mask.flatten(1)))
         b, t, p = full_mask.size()
         if self.training:
-            encoder_logits = self.encoder_to_decoder(encoder_logits_backbone)
-            c = encoder_logits.size(-1)
-            full_mask = full_mask.flatten(1, 2)
-            mask_token = self.mask_token.type_as(encoder_logits).repeat(b, t * p, 1)
-            mask_token[full_mask, :] = encoder_logits.flatten(0, 1)
-            logits_full = mask_token + self.pos_embed.detach().clone()
-            pred_pixels = self.decoder(logits_full, -1)
-            pred_pixels = rearrange(pred_pixels, 'b (t s0 h s1 w s2) c -> b (t h w) (s0 s1 s2 c)',
-                                    s0=self.mask_stride[0],
-                                    s1=self.mask_stride[1],
-                                    s2=self.mask_stride[2],
-                                    t=t // self.mask_stride[0],
-                                    h=h // self.mask_stride[1],
-                                    w=w // self.mask_stride[2])
-            pred_pixels = pred_pixels[(~mask).flatten(1, 2)].reshape(B, -1, C)
+            pred_pixels = None
+            # encoder_logits = self.encoder_to_decoder(encoder_logits_backbone)
+            # c = encoder_logits.size(-1)
+            # full_mask = full_mask.flatten(1, 2)
+            # mask_token = self.mask_token.type_as(encoder_logits).repeat(b, t * p, 1)
+            # mask_token[full_mask, :] = encoder_logits.flatten(0, 1)
+            # logits_full = mask_token + self.pos_embed.detach().clone()
+            # pred_pixels = self.decoder(logits_full, -1)
+            # pred_pixels = rearrange(pred_pixels, 'b (t s0 h s1 w s2) c -> b (t h w) (s0 s1 s2 c)',
+            #                         s0=self.mask_stride[0],
+            #                         s1=self.mask_stride[1],
+            #                         s2=self.mask_stride[2],
+            #                         t=t // self.mask_stride[0],
+            #                         h=h // self.mask_stride[1],
+            #                         w=w // self.mask_stride[2])
+            # pred_pixels = pred_pixels[(~mask).flatten(1, 2)].reshape(B, -1, C)
         else:
             pred_pixels = None
         preds_score = self.vqa_head(self.encoder_to_cls_decoder(encoder_logits_backbone))
@@ -133,7 +139,7 @@ class CellRunningMaskAgent(nn.Module):
     def __init__(self):
         super(CellRunningMaskAgent, self).__init__()
         self.patch_num = 8 * 14 * 14
-        self.mask_num = (8 * 14 * 14) // 2  # 8*7*7*mark radio
+        self.mask_num = int((8 * 14 * 14) * 0)  # 8*7*7*mark radio
         self.mask_shape = [16 // 2, 14, 14]
         self.mask_stride = [1, 2, 2]
         self.spatial_small_patch_num = (self.mask_shape[1] // self.mask_stride[1]) * (
@@ -253,10 +259,11 @@ class VideoMAEVQAWrapper(BaseModel):
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
             vqa_loss = mse_loss + p_loss + 3 * r_loss
-            mae_loss = nn.MSELoss(reduction='none')(output['preds_pixel'], output['labels_pixel']).mean()
-            total_loss = mae_loss * 0 + vqa_loss.mean()
-            return {'total_loss': total_loss, "vqa_loss": vqa_loss, 'mae_loss': mae_loss, 'mse_loss': mse_loss,
-                    'p_loss': p_loss, 'r_loss': r_loss}
+            # mae_loss = nn.MSELoss(reduction='none')(output['preds_pixel'], output['labels_pixel']).mean()
+            # total_loss = mae_loss * 0 + vqa_loss.mean()
+            total_loss = vqa_loss.mean()
+            return {'total_loss': total_loss, "vqa_lozz": vqa_loss, 'mse_lozz': mse_loss,
+                    'p_lozz': p_loss, 'r_lozz': r_loss}
         elif mode == 'predict':
             self.agent.eval()
             mask = self.agent(inputs, [8, 14, 14])['mask']
@@ -303,9 +310,9 @@ class VideoMAEVQAWrapper(BaseModel):
         # recorder.iter_y_pre = result[0]
         # recorder.iter_y = result[1]
 
-        losses = {'total_loss': losses['total_loss'], 'vqa_lozz': losses['vqa_loss'], "mae_lozz": losses["mae_loss"],
-                  'mse_lozz': losses['mse_loss'], 'p_lozz': losses['p_loss'],
-                  'r_lozz': losses['r_loss']}
+        losses = {'total_loss': losses['total_loss'], 'vqa_lozz': losses['vqa_lozz'],
+                  'mse_lozz': losses['mse_lozz'], 'p_lozz': losses['p_lozz'],
+                  'r_lozz': losses['r_lozz']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
         optim_wrapper.update_params(parsed_losses)
         return log_vars
