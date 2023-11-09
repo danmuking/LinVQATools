@@ -10,12 +10,15 @@ from torch import nn
 
 from models.faster_vqa import plcc_loss, rank_loss
 from models.heads.vqa_mlp_head import VQAMlpHead
-from models.backbones.vit_videomae import PretrainVisionTransformerEncoder, PretrainVisionTransformerDecoder
+from models.backbones.vit_videomae import PretrainVisionTransformerEncoder, PretrainVisionTransformerDecoder, \
+    build_video_mae_s
 from models.backbones.vit_videomae import get_sinusoid_encoding_table
+
 
 class VideoMAEVQA(nn.Module):
     def __init__(self):
         super(VideoMAEVQA, self).__init__()
+        self.backbone_embed_dim = 384
 
         self.mean = nn.Parameter(torch.Tensor([0.45, 0.45, 0.45])[None, :, None, None, None], requires_grad=False)
         self.std = nn.Parameter(torch.Tensor([0.225, 0.225, 0.225])[None, :, None, None, None], requires_grad=False)
@@ -32,13 +35,12 @@ class VideoMAEVQA(nn.Module):
                            (self.patches_shape[1] // self.mask_stride[1]),
                            (self.patches_shape[2] // self.mask_stride[2])]
 
-        self.backbone = PretrainVisionTransformerEncoder()
-        self.decoder = PretrainVisionTransformerDecoder()
+        self.backbone, self.decoder = build_video_mae_s()
         self.vqa_head = VQAMlpHead()
         self.mask_token = nn.Parameter(torch.zeros(1, 1, 384))
-        self.encoder_to_decoder = nn.Linear(768, 384,
+        self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, 384,
                                             bias=False)
-        self.encoder_to_cls_decoder = nn.Linear(768,
+        self.encoder_to_cls_decoder = nn.Linear(self.backbone_embed_dim,
                                                 512, bias=False)
 
         self.pos_embed = get_sinusoid_encoding_table(self.backbone.pos_embed.shape[1],
@@ -55,9 +57,9 @@ class VideoMAEVQA(nn.Module):
         if self.mask_token_for_cls_decoder:
             self.mask_token_cls = nn.Parameter(torch.zeros(1, 1, 512))
         if self.fc_norm_mean_pooling:
-            self.fc_norm = nn.LayerNorm(768, eps=1e-6)
+            self.fc_norm = nn.LayerNorm(self.backbone_embed_dim, eps=1e-6)
 
-    def forward(self, video,mask):
+    def forward(self, video, mask):
         x_data = video
         mask = mask.bool()
         ####################################
@@ -216,7 +218,7 @@ class VideoMAEVQAWrapper(BaseModel):
         self.model = VideoMAEVQA()
         self.agent = CellRunningMaskAgent()
 
-        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth")
+        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth")
         weight = weight['module']
         t_state_dict = OrderedDict()
         for key in weight.keys():
@@ -245,12 +247,13 @@ class VideoMAEVQAWrapper(BaseModel):
             vqa_loss = mse_loss + p_loss + 3 * r_loss
             mae_loss = nn.MSELoss(reduction='none')(output['preds_pixel'], output['labels_pixel']).mean()
             total_loss = mae_loss * 0.1 + vqa_loss.mean()
-            return {'loss': total_loss, "vqa_loss": vqa_loss,'mae_loss':mae_loss, 'mse_loss': mse_loss, 'p_loss': p_loss, 'r_loss': r_loss}
+            return {'loss': total_loss, "vqa_loss": vqa_loss, 'mae_loss': mae_loss, 'mse_loss': mse_loss,
+                    'p_loss': p_loss, 'r_loss': r_loss}
         elif mode == 'predict':
             self.agent.eval()
             mask = self.agent(inputs, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
-            output = self.model(inputs,mask)
+            output = self.model(inputs, mask)
             y_pred = output['preds_score']
             return y_pred, y
 
@@ -292,7 +295,8 @@ class VideoMAEVQAWrapper(BaseModel):
         # recorder.iter_y_pre = result[0]
         # recorder.iter_y = result[1]
 
-        losses = {'loss': losses['loss'],'vqa_loss': losses['vqa_loss'],"mae_loss":losses["mae_loss"], 'mse_loss': losses['mse_loss'], 'p_loss': losses['p_loss'],
+        losses = {'loss': losses['loss'], 'vqa_loss': losses['vqa_loss'], "mae_loss": losses["mae_loss"],
+                  'mse_loss': losses['mse_loss'], 'p_loss': losses['p_loss'],
                   'r_loss': losses['r_loss']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
         optim_wrapper.update_params(parsed_losses)

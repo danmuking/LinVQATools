@@ -647,21 +647,29 @@ class PretrainVisionTransformerEncoder(nn.Module):
     """ Vision Transformer with support for patch or hybrid CNN input stage
     """
 
-    def __init__(self):
+    def __init__(self,
+                 embed_dim,
+                 depth,
+                 num_heads,
+                 mlp_ratio,
+                 drop_rate,
+                 attn_drop_rate,
+                 drop_path_rate
+                 ):
         super().__init__()
         img_size = 224
         patch_size = 16
         in_chans = 3
         num_classes = 0
-        embed_dim = 768
-        depth = 12
-        num_heads = 12
-        mlp_ratio = 4
+        embed_dim = embed_dim
+        depth = depth
+        num_heads = num_heads
+        mlp_ratio = mlp_ratio
         qkv_bias = True
         qk_scale = None
-        drop_rate = 0.0
-        attn_drop_rate = 0.0
-        drop_path_rate = 0.1
+        drop_rate = drop_rate
+        attn_drop_rate = attn_drop_rate
+        drop_path_rate = drop_path_rate
         norm_layer = partial(nn.LayerNorm, eps=1e-6)
         init_values = 0.0
         tubelet_size = 2
@@ -755,8 +763,7 @@ class PretrainVisionTransformerDecoder(nn.Module):
     """ Vision Transformer with support for patch or hybrid CNN input stage
     """
 
-    def __init__(self
-                 ):
+    def __init__(self):
         super().__init__()
         img_size = 224
         patch_size = 16
@@ -826,3 +833,21 @@ class PretrainVisionTransformerDecoder(nn.Module):
             x = self.head(self.norm(x))
 
         return x
+
+
+def build_video_mae_s():
+    encoder = PretrainVisionTransformerEncoder(embed_dim=384, depth=12, num_heads=6, mlp_ratio=4,
+                                               drop_rate=0.0,
+                                               attn_drop_rate=0.0,
+                                               drop_path_rate=0.1)
+    decoder = PretrainVisionTransformerDecoder()
+    return encoder, decoder
+
+
+def build_video_mae_b():
+    encoder = PretrainVisionTransformerEncoder(embed_dim=768, depth=12, num_heads=12, mlp_ratio=4,
+                                               drop_rate=0.0,
+                                               attn_drop_rate=0.0,
+                                               drop_path_rate=0.1)
+    decoder = PretrainVisionTransformerDecoder()
+    return encoder, decoder
