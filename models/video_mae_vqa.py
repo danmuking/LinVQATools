@@ -11,14 +11,14 @@ from torch import nn
 from models.faster_vqa import plcc_loss, rank_loss
 from models.heads.vqa_mlp_head import VQAMlpHead
 from models.backbones.vit_videomae import PretrainVisionTransformerEncoder, PretrainVisionTransformerDecoder, \
-    build_video_mae_s
+    build_video_mae_s, build_video_mae_b
 from models.backbones.vit_videomae import get_sinusoid_encoding_table
 
 
 class VideoMAEVQA(nn.Module):
     def __init__(self):
         super(VideoMAEVQA, self).__init__()
-        self.backbone_embed_dim = 384
+        self.backbone_embed_dim = 384*2
 
         self.mean = nn.Parameter(torch.Tensor([0.45, 0.45, 0.45])[None, :, None, None, None], requires_grad=False)
         self.std = nn.Parameter(torch.Tensor([0.225, 0.225, 0.225])[None, :, None, None, None], requires_grad=False)
@@ -35,7 +35,7 @@ class VideoMAEVQA(nn.Module):
                            (self.patches_shape[1] // self.mask_stride[1]),
                            (self.patches_shape[2] // self.mask_stride[2])]
 
-        self.backbone, self.decoder = build_video_mae_s()
+        self.backbone, self.decoder = build_video_mae_b()
         self.vqa_head = VQAMlpHead()
         self.mask_token = nn.Parameter(torch.zeros(1, 1, 384))
         self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, 384,
@@ -218,7 +218,7 @@ class VideoMAEVQAWrapper(BaseModel):
         self.model = VideoMAEVQA()
         self.agent = CellRunningMaskAgent()
 
-        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth")
+        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth")
         weight = weight['module']
         t_state_dict = OrderedDict()
         for key in weight.keys():
@@ -228,6 +228,7 @@ class VideoMAEVQAWrapper(BaseModel):
             #     key = key.replace('encoder', 'backbone')
             t_state_dict[key] = weight_value
         info = self.load_state_dict(t_state_dict, strict=False)
+        print(info)
 
     def forward(self, inputs: torch.Tensor, gt_label, data_samples: Optional[list] = None, mode: str = 'tensor',
                 **kargs) -> \
