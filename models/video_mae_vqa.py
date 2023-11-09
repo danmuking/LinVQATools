@@ -19,11 +19,11 @@ class VideoMAEVQA(nn.Module):
     def __init__(self,
                  model_type='s'):
         super(VideoMAEVQA, self).__init__()
-        if model_type=='s':
+        if model_type == 's':
             self.backbone_embed_dim = 384
             self.backbone, self.decoder = build_video_mae_s()
-        elif model_type=='b':
-            self.backbone_embed_dim = 384*2
+        elif model_type == 'b':
+            self.backbone_embed_dim = 384 * 2
             self.backbone, self.decoder = build_video_mae_b()
         self.mean = nn.Parameter(torch.Tensor([0.45, 0.45, 0.45])[None, :, None, None, None], requires_grad=False)
         self.std = nn.Parameter(torch.Tensor([0.225, 0.225, 0.225])[None, :, None, None, None], requires_grad=False)
@@ -223,9 +223,9 @@ class VideoMAEVQAWrapper(BaseModel):
         self.model = VideoMAEVQA(model_type=model_type)
         self.agent = CellRunningMaskAgent()
 
-        if model_type=='b':
+        if model_type == 'b':
             weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth")
-        elif model_type=='s':
+        elif model_type == 's':
             weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth")
         weight = weight['module']
         t_state_dict = OrderedDict()
@@ -236,7 +236,6 @@ class VideoMAEVQAWrapper(BaseModel):
             #     key = key.replace('encoder', 'backbone')
             t_state_dict[key] = weight_value
         info = self.load_state_dict(t_state_dict, strict=False)
-        print(info)
 
     def forward(self, inputs: torch.Tensor, gt_label, data_samples: Optional[list] = None, mode: str = 'tensor',
                 **kargs) -> \
@@ -255,7 +254,7 @@ class VideoMAEVQAWrapper(BaseModel):
 
             vqa_loss = mse_loss + p_loss + 3 * r_loss
             mae_loss = nn.MSELoss(reduction='none')(output['preds_pixel'], output['labels_pixel']).mean()
-            total_loss = mae_loss * 0.1 + vqa_loss.mean()
+            total_loss = mae_loss * 0 + vqa_loss.mean()
             return {'loss': total_loss, "vqa_loss": vqa_loss, 'mae_loss': mae_loss, 'mse_loss': mse_loss,
                     'p_loss': p_loss, 'r_loss': r_loss}
         elif mode == 'predict':
