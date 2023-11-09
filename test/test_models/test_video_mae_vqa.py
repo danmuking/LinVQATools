@@ -29,16 +29,16 @@ class TestVideoMAEVQA(TestCase):
         print(y)
 
     def test_load(self):
-        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_k400.pth")
+        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth")
         print(weight.keys())
-        print(weight['model'].keys())
-        weight = weight['model']
+        print(weight['module'].keys())
+        weight = weight['module']
         t_state_dict = OrderedDict()
         for key in weight.keys():
             weight_value = weight[key]
-            key = "model." + key
-            if 'encoder' in key:
-                key = key.replace('encoder', 'backbone')
+            key = "model.backbone." + key
+            # if 'encoder' in key:
+            #     key = key.replace('encoder', 'backbone')
             t_state_dict[key] = weight_value
         print(t_state_dict.keys())
         model = VideoMAEVQAWrapper()

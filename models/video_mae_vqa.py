@@ -216,14 +216,14 @@ class VideoMAEVQAWrapper(BaseModel):
         self.model = VideoMAEVQA()
         self.agent = CellRunningMaskAgent()
 
-        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_k400.pth")
-        weight = weight['model']
+        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth")
+        weight = weight['module']
         t_state_dict = OrderedDict()
         for key in weight.keys():
             weight_value = weight[key]
-            key = "model." + key
-            if 'encoder' in key:
-                key = key.replace('encoder', 'backbone')
+            key = "model.backbone." + key
+            # if 'encoder' in key:
+            #     key = key.replace('encoder', 'backbone')
             t_state_dict[key] = weight_value
         info = self.load_state_dict(t_state_dict, strict=False)
 
