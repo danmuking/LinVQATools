@@ -16,10 +16,15 @@ from models.backbones.vit_videomae import get_sinusoid_encoding_table
 
 
 class VideoMAEVQA(nn.Module):
-    def __init__(self):
+    def __init__(self,
+                 model_type='s'):
         super(VideoMAEVQA, self).__init__()
-        self.backbone_embed_dim = 384*2
-
+        if model_type=='s':
+            self.backbone_embed_dim = 384
+            self.backbone, self.decoder = build_video_mae_s()
+        elif model_type=='b':
+            self.backbone_embed_dim = 384*2
+            self.backbone, self.decoder = build_video_mae_b()
         self.mean = nn.Parameter(torch.Tensor([0.45, 0.45, 0.45])[None, :, None, None, None], requires_grad=False)
         self.std = nn.Parameter(torch.Tensor([0.225, 0.225, 0.225])[None, :, None, None, None], requires_grad=False)
         self.normlize_target = True
@@ -35,7 +40,6 @@ class VideoMAEVQA(nn.Module):
                            (self.patches_shape[1] // self.mask_stride[1]),
                            (self.patches_shape[2] // self.mask_stride[2])]
 
-        self.backbone, self.decoder = build_video_mae_b()
         self.vqa_head = VQAMlpHead()
         self.mask_token = nn.Parameter(torch.zeros(1, 1, 384))
         self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, 384,
@@ -212,10 +216,11 @@ class CellRunningMaskAgent(nn.Module):
 class VideoMAEVQAWrapper(BaseModel):
     def __init__(
             self,
+            model_type="s",
             **kwargs
     ):
         super().__init__()
-        self.model = VideoMAEVQA()
+        self.model = VideoMAEVQA(model_type=model_type)
         self.agent = CellRunningMaskAgent()
 
         weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth")
