@@ -255,7 +255,7 @@ class VideoMAEVQAWrapper(BaseModel):
             vqa_loss = mse_loss + p_loss + 3 * r_loss
             mae_loss = nn.MSELoss(reduction='none')(output['preds_pixel'], output['labels_pixel']).mean()
             total_loss = mae_loss * 0 + vqa_loss.mean()
-            return {'loss': total_loss, "vqa_loss": vqa_loss, 'mae_loss': mae_loss, 'mse_loss': mse_loss,
+            return {'total_loss': total_loss, "vqa_loss": vqa_loss, 'mae_loss': mae_loss, 'mse_loss': mse_loss,
                     'p_loss': p_loss, 'r_loss': r_loss}
         elif mode == 'predict':
             self.agent.eval()
@@ -303,9 +303,9 @@ class VideoMAEVQAWrapper(BaseModel):
         # recorder.iter_y_pre = result[0]
         # recorder.iter_y = result[1]
 
-        losses = {'loss': losses['loss'], 'vqa_loss': losses['vqa_loss'], "mae_loss": losses["mae_loss"],
-                  'mse_loss': losses['mse_loss'], 'p_loss': losses['p_loss'],
-                  'r_loss': losses['r_loss']}
+        losses = {'total_loss': losses['total_loss'], 'vqa_lozz': losses['vqa_loss'], "mae_lozz": losses["mae_loss"],
+                  'mse_lozz': losses['mse_loss'], 'p_lozz': losses['p_loss'],
+                  'r_lozz': losses['r_loss']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
         optim_wrapper.update_params(parsed_losses)
         return log_vars
