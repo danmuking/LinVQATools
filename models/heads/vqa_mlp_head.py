@@ -12,12 +12,9 @@ class VQAMlpHead(nn.Module):
     """
 
     def __init__(
-            self, in_channels=384, hidden_channels=64, dropout_ratio=0.5,fc_in=784*2, **kwargs
+            self, in_channels=512, hidden_channels=64, dropout_ratio=0.5,fc_in=784*2, **kwargs
     ):
         super().__init__()
-        self.atte = nn.Sequential(
-            ChannelAttention(in_channels, reduction_ratio=8),
-        )
         self.dropout_ratio = dropout_ratio
         self.in_channels = in_channels
         self.hidden_channels = hidden_channels
@@ -37,7 +34,6 @@ class VQAMlpHead(nn.Module):
         )
 
     def forward(self, x):
-        x = self.atte(x)
         qlt_score = self.fc_hid(x)
         qlt_score = self.fc_last(qlt_score)
         qlt_score = qlt_score.reshape(qlt_score.shape[0], -1)
