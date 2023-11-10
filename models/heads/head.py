@@ -15,7 +15,7 @@ class VQAHead(nn.Module):
     """
 
     def __init__(
-            self, in_channels=768, hidden_channels=64, dropout_ratio=0.5,fc_in=1568, **kwargs
+            self, in_channels=384, hidden_channels=64, dropout_ratio=0.5,fc_in=1568, **kwargs
     ):
         super().__init__()
         self.atte = nn.Sequential(

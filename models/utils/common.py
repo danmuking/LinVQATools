@@ -12,8 +12,8 @@ class ChannelAttention(nn.Module):
     def __init__(self, gate_channels, reduction_ratio=16, pool_types=['avg', 'max']):
         super(ChannelAttention, self).__init__()
         self.gate_channels = gate_channels
-        self.avg_pool = nn.AdaptiveAvgPool1d(1)
-        self.max_pool = nn.AdaptiveMaxPool1d(1)
+        self.avg_pool = nn.AdaptiveAvgPool3d(1)
+        self.max_pool = nn.AdaptiveMaxPool3d(1)
         self.mlp = nn.Sequential(
             Flatten(),
             nn.Linear(gate_channels, gate_channels // reduction_ratio),
@@ -23,7 +23,6 @@ class ChannelAttention(nn.Module):
         self.pool_types = pool_types
 
     def forward(self, x):
-        x = x.permute(0, 2, 1)
         channel_att_sum = None
         for pool_type in self.pool_types:
             if pool_type == 'avg':
@@ -36,10 +35,10 @@ class ChannelAttention(nn.Module):
                 channel_att_sum = channel_att_raw
             else:
                 channel_att_sum = channel_att_sum + channel_att_raw
-        scale = F.sigmoid(channel_att_raw).unsqueeze(2).expand_as(x)
-        x = (x * scale).permute(0, 2, 1)
 
-        return x
+        scale = F.sigmoid(channel_att_raw).unsqueeze(2).unsqueeze(3).unsqueeze(4).expand_as(x)
+        return x * scale
+
 
 
 class Attention(nn.Module):

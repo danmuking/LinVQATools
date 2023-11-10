@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from functools import partial
 from typing import Union, Dict, Optional
 
 import torch
@@ -8,131 +9,162 @@ from mmengine.model import BaseModel
 from mmengine.optim import OptimWrapper
 from torch import nn
 
+from models.backbones.video_mae_v2 import VisionTransformer
 from models.faster_vqa import plcc_loss, rank_loss
+from models.heads import VQAHead
 from models.heads.vqa_mlp_head import VQAMlpHead
 from models.backbones.vit_videomae import PretrainVisionTransformerEncoder, PretrainVisionTransformerDecoder, \
     build_video_mae_s, build_video_mae_b
 from models.backbones.vit_videomae import get_sinusoid_encoding_table
 
 
+# class VideoMAEVQA(nn.Module):
+#     def __init__(self,
+#                  model_type='s'):
+#         super(VideoMAEVQA, self).__init__()
+#         if model_type == 's':
+#             self.backbone_embed_dim = 384
+#             self.backbone, self.decoder = build_video_mae_s()
+#         elif model_type == 'b':
+#             self.backbone_embed_dim = 384 * 2
+#             self.backbone, self.decoder = build_video_mae_b()
+#
+#         self.decoder = nn.Identity()
+#
+#         self.mean = nn.Parameter(torch.Tensor([0.45, 0.45, 0.45])[None, :, None, None, None], requires_grad=False)
+#         self.std = nn.Parameter(torch.Tensor([0.225, 0.225, 0.225])[None, :, None, None, None], requires_grad=False)
+#         self.normlize_target = True
+#         self.patch_size = 16
+#         self.tubelet_size = 2
+#         self.mask_stride = [1, 1, 1]
+#         self.input_size = [16, 224]
+#         # 8 14 14
+#         self.patches_shape = [self.input_size[0] // self.tubelet_size, self.input_size[1] // self.patch_size,
+#                               self.input_size[1] // self.patch_size]
+#         # 8 14 14
+#         self.mask_shape = [(self.patches_shape[0] // self.mask_stride[0]),
+#                            (self.patches_shape[1] // self.mask_stride[1]),
+#                            (self.patches_shape[2] // self.mask_stride[2])]
+#
+#         self.vqa_head = VQAMlpHead()
+#         # self.mask_token = nn.Parameter(torch.zeros(1, 1, 384))
+#         # self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, 384,
+#         #                                     bias=False)
+#         # self.encoder_to_cls_decoder = nn.Linear(self.backbone_embed_dim,
+#         #                                         512, bias=False)
+#
+#         self.pos_embed = get_sinusoid_encoding_table(self.backbone.pos_embed.shape[1],
+#                                                      384)
+#         self.pos_embed = nn.Parameter(self.pos_embed, requires_grad=False)
+#         self.fc_norm_mean_pooling = False
+#         self.masked_patches_type = 'none'
+#         self.pos_embed_for_cls_decoder = False
+#         self.mask_token_for_cls_decoder = False
+#         if self.pos_embed_for_cls_decoder or self.mask_token_for_cls_decoder:
+#             self.pos_embed_cls = get_sinusoid_encoding_table(self.backbone.pos_embed.shape[1],
+#                                                              512)
+#             self.pos_embed_cls = nn.Parameter(self.pos_embed_cls, requires_grad=False)
+#         if self.mask_token_for_cls_decoder:
+#             self.mask_token_cls = nn.Parameter(torch.zeros(1, 1, 512))
+#         if self.fc_norm_mean_pooling:
+#             self.fc_norm = nn.LayerNorm(self.backbone_embed_dim, eps=1e-6)
+#
+#     def forward(self, video, mask):
+#         x_data = video
+#         mask = mask.bool()
+#         ####################################
+#         # new_mask = mask.reshape(10, 1, 8, 14, 14).float()
+#         # new_mask = new_mask.repeat_interleave(2, dim=2).repeat_interleave(16, dim=3).repeat_interleave(16, dim=4)
+#         # x_data_mask = x_data * new_mask.to(x_data.device)
+#         ####################################
+#         if self.training:
+#             B = x_data.size(0)
+#             labels = None
+#             # with torch.no_grad():
+#             #     # calculate the predict label
+#             #     mean = self.mean.data.clone().detach()
+#             #     std = self.std.data.clone().detach()
+#             #     unnorm_frames = x_data * std + mean
+#             #     t, h, w = unnorm_frames.size(2) // self.tubelet_size, unnorm_frames.size(
+#             #         3) // self.patch_size, unnorm_frames.size(4) // self.patch_size
+#             #     if self.normlize_target:
+#             #         images_squeeze = rearrange(unnorm_frames, 'b c (t p0) (h p1) (w p2) -> b (t h w) (p0 p1 p2) c',
+#             #                                    p0=self.tubelet_size, p1=self.patch_size, p2=self.patch_size)
+#             #         images_norm = (images_squeeze - images_squeeze.mean(dim=-2, keepdim=True)
+#             #                        ) / (images_squeeze.var(dim=-2, unbiased=True, keepdim=True).sqrt() + 1e-6)
+#             #         # we find that the mean is about 0.48 and standard deviation is about 0.08.
+#             #         frames_patch = rearrange(images_norm, 'b n p c -> b n (p c)')
+#             #     else:
+#             #         frames_patch = rearrange(unnorm_frames, 'b c (t p0) (h p1) (w p2) -> b (t h w) (p0 p1 p2 c)',
+#             #                                  p0=self.tubelet_size, p1=self.patch_size, p2=self.patch_size)
+#             #     frames_patch = rearrange(frames_patch, 'b (t s0 h s1 w s2) c -> b (t h w) (s0 s1 s2 c)',
+#             #                              s0=self.mask_stride[0],
+#             #                              s1=self.mask_stride[1],
+#             #                              s2=self.mask_stride[2],
+#             #                              t=t // self.mask_stride[0],
+#             #                              h=h // self.mask_stride[1],
+#             #                              w=w // self.mask_stride[2])
+#             #     B, _, C = frames_patch.shape
+#             #     labels = frames_patch[(~mask).flatten(1, 2)].reshape(B, -1, C)
+#         else:
+#             B = x_data.size(0)
+#             labels = None
+#         full_mask = mask.reshape(B, *self.mask_shape).repeat_interleave(self.mask_stride[0], dim=1).repeat_interleave(
+#             self.mask_stride[1], dim=2).repeat_interleave(self.mask_stride[2], dim=3)
+#         full_mask = full_mask.flatten(2)
+#         encoder_logits_backbone, patch_embed, x_vis_list = self.backbone(x_data, ~(full_mask.flatten(1)))
+#         b, t, p = full_mask.size()
+#         if self.training:
+#             pred_pixels = None
+#             # encoder_logits = self.encoder_to_decoder(encoder_logits_backbone)
+#             # c = encoder_logits.size(-1)
+#             # full_mask = full_mask.flatten(1, 2)
+#             # mask_token = self.mask_token.type_as(encoder_logits).repeat(b, t * p, 1)
+#             # mask_token[full_mask, :] = encoder_logits.flatten(0, 1)
+#             # logits_full = mask_token + self.pos_embed.detach().clone()
+#             # pred_pixels = self.decoder(logits_full, -1)
+#             # pred_pixels = rearrange(pred_pixels, 'b (t s0 h s1 w s2) c -> b (t h w) (s0 s1 s2 c)',
+#             #                         s0=self.mask_stride[0],
+#             #                         s1=self.mask_stride[1],
+#             #                         s2=self.mask_stride[2],
+#             #                         t=t // self.mask_stride[0],
+#             #                         h=h // self.mask_stride[1],
+#             #                         w=w // self.mask_stride[2])
+#             # pred_pixels = pred_pixels[(~mask).flatten(1, 2)].reshape(B, -1, C)
+#         else:
+#             pred_pixels = None
+#         # preds_score = self.vqa_head(self.encoder_to_cls_decoder(encoder_logits_backbone))
+#         preds_score = self.vqa_head(encoder_logits_backbone)
+#         output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score}
+#         return output
+
+
 class VideoMAEVQA(nn.Module):
-    def __init__(self,
-                 model_type='s'):
-        super(VideoMAEVQA, self).__init__()
-        if model_type == 's':
-            self.backbone_embed_dim = 384
-            self.backbone, self.decoder = build_video_mae_s()
-        elif model_type == 'b':
-            self.backbone_embed_dim = 384 * 2
-            self.backbone, self.decoder = build_video_mae_b()
+    def __init__(
+            self,
+            vqa_head=dict(name='VQAHead',in_channels=384,drop_rate=0.5,fc_in=1568),
+            load_path="/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth",
+            **kwargs
+    ):
+        super().__init__()
+        self.backbone = VisionTransformer(
+            patch_size=16,
+            embed_dim=384,
+            depth=12,
+            num_heads=6,
+            mlp_ratio=4,
+            qkv_bias=True,
+            norm_layer=partial(nn.LayerNorm, eps=1e-6),
+            load_path=load_path,
+            num_classes=0,
+            use_mean_pooling=False
+        )
+        self.vqa_head = VQAHead(**vqa_head)
 
-        self.decoder = nn.Identity()
-
-        self.mean = nn.Parameter(torch.Tensor([0.45, 0.45, 0.45])[None, :, None, None, None], requires_grad=False)
-        self.std = nn.Parameter(torch.Tensor([0.225, 0.225, 0.225])[None, :, None, None, None], requires_grad=False)
-        self.normlize_target = True
-        self.patch_size = 16
-        self.tubelet_size = 2
-        self.mask_stride = [1, 1, 1]
-        self.input_size = [16, 224]
-        # 8 14 14
-        self.patches_shape = [self.input_size[0] // self.tubelet_size, self.input_size[1] // self.patch_size,
-                              self.input_size[1] // self.patch_size]
-        # 8 14 14
-        self.mask_shape = [(self.patches_shape[0] // self.mask_stride[0]),
-                           (self.patches_shape[1] // self.mask_stride[1]),
-                           (self.patches_shape[2] // self.mask_stride[2])]
-
-        self.vqa_head = VQAMlpHead()
-        # self.mask_token = nn.Parameter(torch.zeros(1, 1, 384))
-        # self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, 384,
-        #                                     bias=False)
-        # self.encoder_to_cls_decoder = nn.Linear(self.backbone_embed_dim,
-        #                                         512, bias=False)
-
-        self.pos_embed = get_sinusoid_encoding_table(self.backbone.pos_embed.shape[1],
-                                                     384)
-        self.pos_embed = nn.Parameter(self.pos_embed, requires_grad=False)
-        self.fc_norm_mean_pooling = False
-        self.masked_patches_type = 'none'
-        self.pos_embed_for_cls_decoder = False
-        self.mask_token_for_cls_decoder = False
-        if self.pos_embed_for_cls_decoder or self.mask_token_for_cls_decoder:
-            self.pos_embed_cls = get_sinusoid_encoding_table(self.backbone.pos_embed.shape[1],
-                                                             512)
-            self.pos_embed_cls = nn.Parameter(self.pos_embed_cls, requires_grad=False)
-        if self.mask_token_for_cls_decoder:
-            self.mask_token_cls = nn.Parameter(torch.zeros(1, 1, 512))
-        if self.fc_norm_mean_pooling:
-            self.fc_norm = nn.LayerNorm(self.backbone_embed_dim, eps=1e-6)
-
-    def forward(self, video, mask):
-        x_data = video
-        mask = mask.bool()
-        ####################################
-        # new_mask = mask.reshape(10, 1, 8, 14, 14).float()
-        # new_mask = new_mask.repeat_interleave(2, dim=2).repeat_interleave(16, dim=3).repeat_interleave(16, dim=4)
-        # x_data_mask = x_data * new_mask.to(x_data.device)
-        ####################################
-        if self.training:
-            B = x_data.size(0)
-            labels = None
-            # with torch.no_grad():
-            #     # calculate the predict label
-            #     mean = self.mean.data.clone().detach()
-            #     std = self.std.data.clone().detach()
-            #     unnorm_frames = x_data * std + mean
-            #     t, h, w = unnorm_frames.size(2) // self.tubelet_size, unnorm_frames.size(
-            #         3) // self.patch_size, unnorm_frames.size(4) // self.patch_size
-            #     if self.normlize_target:
-            #         images_squeeze = rearrange(unnorm_frames, 'b c (t p0) (h p1) (w p2) -> b (t h w) (p0 p1 p2) c',
-            #                                    p0=self.tubelet_size, p1=self.patch_size, p2=self.patch_size)
-            #         images_norm = (images_squeeze - images_squeeze.mean(dim=-2, keepdim=True)
-            #                        ) / (images_squeeze.var(dim=-2, unbiased=True, keepdim=True).sqrt() + 1e-6)
-            #         # we find that the mean is about 0.48 and standard deviation is about 0.08.
-            #         frames_patch = rearrange(images_norm, 'b n p c -> b n (p c)')
-            #     else:
-            #         frames_patch = rearrange(unnorm_frames, 'b c (t p0) (h p1) (w p2) -> b (t h w) (p0 p1 p2 c)',
-            #                                  p0=self.tubelet_size, p1=self.patch_size, p2=self.patch_size)
-            #     frames_patch = rearrange(frames_patch, 'b (t s0 h s1 w s2) c -> b (t h w) (s0 s1 s2 c)',
-            #                              s0=self.mask_stride[0],
-            #                              s1=self.mask_stride[1],
-            #                              s2=self.mask_stride[2],
-            #                              t=t // self.mask_stride[0],
-            #                              h=h // self.mask_stride[1],
-            #                              w=w // self.mask_stride[2])
-            #     B, _, C = frames_patch.shape
-            #     labels = frames_patch[(~mask).flatten(1, 2)].reshape(B, -1, C)
-        else:
-            B = x_data.size(0)
-            labels = None
-        full_mask = mask.reshape(B, *self.mask_shape).repeat_interleave(self.mask_stride[0], dim=1).repeat_interleave(
-            self.mask_stride[1], dim=2).repeat_interleave(self.mask_stride[2], dim=3)
-        full_mask = full_mask.flatten(2)
-        encoder_logits_backbone, patch_embed, x_vis_list = self.backbone(x_data, ~(full_mask.flatten(1)))
-        b, t, p = full_mask.size()
-        if self.training:
-            pred_pixels = None
-            # encoder_logits = self.encoder_to_decoder(encoder_logits_backbone)
-            # c = encoder_logits.size(-1)
-            # full_mask = full_mask.flatten(1, 2)
-            # mask_token = self.mask_token.type_as(encoder_logits).repeat(b, t * p, 1)
-            # mask_token[full_mask, :] = encoder_logits.flatten(0, 1)
-            # logits_full = mask_token + self.pos_embed.detach().clone()
-            # pred_pixels = self.decoder(logits_full, -1)
-            # pred_pixels = rearrange(pred_pixels, 'b (t s0 h s1 w s2) c -> b (t h w) (s0 s1 s2 c)',
-            #                         s0=self.mask_stride[0],
-            #                         s1=self.mask_stride[1],
-            #                         s2=self.mask_stride[2],
-            #                         t=t // self.mask_stride[0],
-            #                         h=h // self.mask_stride[1],
-            #                         w=w // self.mask_stride[2])
-            # pred_pixels = pred_pixels[(~mask).flatten(1, 2)].reshape(B, -1, C)
-        else:
-            pred_pixels = None
-        # preds_score = self.vqa_head(self.encoder_to_cls_decoder(encoder_logits_backbone))
-        preds_score = self.vqa_head(encoder_logits_backbone)
-        output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score}
+    def forward(self, x, **kwargs):
+        feat = self.backbone(x)
+        scores = self.vqa_head(feat)
+        output = {"preds_score": scores}
         return output
 
 
@@ -230,20 +262,20 @@ class VideoMAEVQAWrapper(BaseModel):
         self.model = VideoMAEVQA(model_type=model_type)
         self.agent = CellRunningMaskAgent()
 
-        if model_type == 'b':
-            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth")
-        elif model_type == 's':
-            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth")
-        weight = weight['module']
-        t_state_dict = OrderedDict()
-        for key in weight.keys():
-            weight_value = weight[key]
-            key = "model.backbone." + key
-            # if 'encoder' in key:
-            #     key = key.replace('encoder', 'backbone')
-            t_state_dict[key] = weight_value
-        info = self.load_state_dict(t_state_dict, strict=False)
-        print(info)
+        # if model_type == 'b':
+        #     weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth")
+        # elif model_type == 's':
+        #     weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth")
+        # weight = weight['module']
+        # t_state_dict = OrderedDict()
+        # for key in weight.keys():
+        #     weight_value = weight[key]
+        #     key = "model.backbone." + key
+        #     # if 'encoder' in key:
+        #     #     key = key.replace('encoder', 'backbone')
+        #     t_state_dict[key] = weight_value
+        # info = self.load_state_dict(t_state_dict, strict=False)
+        # print(info)
 
     def forward(self, inputs: torch.Tensor, gt_label, data_samples: Optional[list] = None, mode: str = 'tensor',
                 **kargs) -> \
@@ -254,23 +286,26 @@ class VideoMAEVQAWrapper(BaseModel):
             self.agent.train()
             mask = self.agent(inputs, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
-            output = self.model(inputs, mask)
+            output = self.model(inputs, mask=mask)
             y_pred = output['preds_score']
             criterion = nn.MSELoss()
             mse_loss = criterion(y_pred, y)
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
-            vqa_loss = mse_loss + p_loss + 3 * r_loss
+            # vqa_loss = mse_loss + p_loss + 3 * r_loss
             # mae_loss = nn.MSELoss(reduction='none')(output['preds_pixel'], output['labels_pixel']).mean()
             # total_loss = mae_loss * 0 + vqa_loss.mean()
-            total_loss = vqa_loss + mse_loss+p_loss+r_loss
-            return {'total_loss': total_loss, "vqa_lozz": vqa_loss, 'mse_lozz': mse_loss,
-                    'p_lozz': p_loss, 'r_lozz': r_loss}
+            # total_loss = vqa_loss + mse_loss + p_loss + r_loss
+            # return {'total_loss': total_loss, "vqa_lozz": vqa_loss, 'mse_lozz': mse_loss,
+            #         'p_lozz': p_loss, 'r_lozz': r_loss}
+
+            loss = mse_loss + p_loss + 3 * r_loss
+            return {'loss': loss, 'mse_loss': mse_loss, 'p_loss': p_loss, 'r_loss': r_loss}
         elif mode == 'predict':
             self.agent.eval()
             mask = self.agent(inputs, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
-            output = self.model(inputs, mask)
+            output = self.model(inputs, mask=mask)
             y_pred = output['preds_score']
             return y_pred, y
 
@@ -312,9 +347,12 @@ class VideoMAEVQAWrapper(BaseModel):
         # recorder.iter_y_pre = result[0]
         # recorder.iter_y = result[1]
 
-        losses = {'total_loss': losses['total_loss'], 'vqa_lozz': losses['vqa_lozz'],
-                  'mse_lozz': losses['mse_lozz'], 'p_lozz': losses['p_lozz'],
-                  'r_lozz': losses['r_lozz']}
+        # losses = {'total_loss': losses['total_loss'], 'vqa_lozz': losses['vqa_lozz'],
+        #           'mse_lozz': losses['mse_lozz'], 'p_lozz': losses['p_lozz'],
+        #           'r_lozz': losses['r_lozz']}
+
+        losses = {'loss': losses['loss'], 'mse_loss': losses['mse_loss'], 'p_loss': losses['p_loss'],
+                  'r_loss': losses['r_loss']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
         optim_wrapper.update_params(parsed_losses)
         return log_vars
