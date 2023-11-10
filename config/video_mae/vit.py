@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/video_mae_vqa/11101439 video mae vqa'
+work_dir = 'work_dir/video_mae_vqa/11101534 video mae vqa'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='video mae vqa', name='11101439 video mae vqa')
+            init_kwargs=dict(project='video mae vqa', name='11101534 video mae vqa')
         ),
     ],
 )
@@ -17,8 +17,8 @@ model = dict(
     model_type='s'
 )
 epochs = 800
-batch_size = 4
-num_workers = 4
+batch_size = 8
+num_workers = 8
 prefix = '4frame'
 argument = [
         dict(
@@ -98,8 +98,7 @@ optim_wrapper = dict(
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
-            # 'model.backbone': dict(lr_mult=0.1),
-            'model.fragments_backbone': dict(lr_mult=0.1),
+            'model.backbone': dict(lr_mult=0.1),
         })
 )
 param_scheduler = [
