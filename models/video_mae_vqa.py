@@ -47,8 +47,8 @@ class VideoMAEVQA(nn.Module):
         # self.mask_token = nn.Parameter(torch.zeros(1, 1, 384))
         # self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, 384,
         #                                     bias=False)
-        self.encoder_to_cls_decoder = nn.Linear(self.backbone_embed_dim,
-                                                512, bias=False)
+        # self.encoder_to_cls_decoder = nn.Linear(self.backbone_embed_dim,
+        #                                         512, bias=False)
 
         self.pos_embed = get_sinusoid_encoding_table(self.backbone.pos_embed.shape[1],
                                                      384)
@@ -130,7 +130,8 @@ class VideoMAEVQA(nn.Module):
             # pred_pixels = pred_pixels[(~mask).flatten(1, 2)].reshape(B, -1, C)
         else:
             pred_pixels = None
-        preds_score = self.vqa_head(self.encoder_to_cls_decoder(encoder_logits_backbone))
+        # preds_score = self.vqa_head(self.encoder_to_cls_decoder(encoder_logits_backbone))
+        preds_score = self.vqa_head(encoder_logits_backbone)
         output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score}
         return output
 
@@ -242,6 +243,7 @@ class VideoMAEVQAWrapper(BaseModel):
             #     key = key.replace('encoder', 'backbone')
             t_state_dict[key] = weight_value
         info = self.load_state_dict(t_state_dict, strict=False)
+        print(info)
 
     def forward(self, inputs: torch.Tensor, gt_label, data_samples: Optional[list] = None, mode: str = 'tensor',
                 **kargs) -> \
@@ -261,7 +263,7 @@ class VideoMAEVQAWrapper(BaseModel):
             vqa_loss = mse_loss + p_loss + 3 * r_loss
             # mae_loss = nn.MSELoss(reduction='none')(output['preds_pixel'], output['labels_pixel']).mean()
             # total_loss = mae_loss * 0 + vqa_loss.mean()
-            total_loss = vqa_loss.mean()
+            total_loss = vqa_loss + mse_loss+p_loss+r_loss
             return {'total_loss': total_loss, "vqa_lozz": vqa_loss, 'mse_lozz': mse_loss,
                     'p_lozz': p_loss, 'r_lozz': r_loss}
         elif mode == 'predict':

@@ -12,8 +12,8 @@ class ChannelAttention(nn.Module):
     def __init__(self, gate_channels, reduction_ratio=16, pool_types=['avg', 'max']):
         super(ChannelAttention, self).__init__()
         self.gate_channels = gate_channels
-        self.avg_pool = nn.AdaptiveAvgPool3d(1)
-        self.max_pool = nn.AdaptiveMaxPool3d(1)
+        self.avg_pool = nn.AdaptiveAvgPool1d(1)
+        self.max_pool = nn.AdaptiveMaxPool1d(1)
         self.mlp = nn.Sequential(
             Flatten(),
             nn.Linear(gate_channels, gate_channels // reduction_ratio),
@@ -23,6 +23,7 @@ class ChannelAttention(nn.Module):
         self.pool_types = pool_types
 
     def forward(self, x):
+        x = x.permute(0, 2, 1)
         channel_att_sum = None
         for pool_type in self.pool_types:
             if pool_type == 'avg':
@@ -35,10 +36,10 @@ class ChannelAttention(nn.Module):
                 channel_att_sum = channel_att_raw
             else:
                 channel_att_sum = channel_att_sum + channel_att_raw
+        scale = F.sigmoid(channel_att_raw).unsqueeze(2).expand_as(x)
+        x = (x * scale).permute(0, 2, 1)
 
-        scale = F.sigmoid(channel_att_raw).unsqueeze(2).unsqueeze(3).unsqueeze(4).expand_as(x)
-        return x * scale
-
+        return x
 
 
 class Attention(nn.Module):
@@ -81,7 +82,7 @@ class Attention(nn.Module):
                                   requires_grad=False), self.v_bias))
         qkv = F.linear(input=x, weight=self.qkv.weight, bias=qkv_bias)
         qkv = qkv.reshape(B, N, 2, self.num_heads, -1).permute(2, 0, 3, 1, 4)
-        q, k= qkv[0], qkv[1]  # make torchscript happy (cannot use tensor as tuple)
+        q, k = qkv[0], qkv[1]  # make torchscript happy (cannot use tensor as tuple)
         v = x
         v = v.unsqueeze(1)
         q = q * self.scale
@@ -96,10 +97,11 @@ class Attention(nn.Module):
         x = self.proj_drop(x)
         return x
 
+
 class ChannelSelfAttention(nn.Module):
     def __init__(self, dim=1568):
         super(ChannelSelfAttention, self).__init__()
-        self.atte = Attention(dim,num_heads=1)
+        self.atte = Attention(dim, num_heads=1)
 
     def forward(self, x):
         """
@@ -112,11 +114,12 @@ class ChannelSelfAttention(nn.Module):
 
         return x
 
+
 class SpatialAttention(nn.Module):
     def __init__(self, kernel_size=2):
         super(SpatialAttention, self).__init__()
 
-        self.conv1 = nn.Conv3d(2, 1, (1, kernel_size, kernel_size),stride=(1,2,2), bias=False)
+        self.conv1 = nn.Conv3d(2, 1, (1, kernel_size, kernel_size), stride=(1, 2, 2), bias=False)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
@@ -125,8 +128,8 @@ class SpatialAttention(nn.Module):
         scale = torch.cat([avg_out, max_out], dim=1)
         scale = self.conv1(scale)
         scale = self.sigmoid(scale)
-        x = rearrange(x, 'b c (t n3) (h n1) (w n2) -> b c t h w (n3 n1 n2)', n1=7,n2=7,n3=4)
-        scale = rearrange(scale, 'b c (t n3) (h n1) (w n2) -> b c t h w (n3 n1 n2)', n1=7,n2=7,n3=4)
+        x = rearrange(x, 'b c (t n3) (h n1) (w n2) -> b c t h w (n3 n1 n2)', n1=7, n2=7, n3=4)
+        scale = rearrange(scale, 'b c (t n3) (h n1) (w n2) -> b c t h w (n3 n1 n2)', n1=7, n2=7, n3=4)
         x = scale * x
         x = rearrange(x, 'b c t h w (n3 n1 n2) -> b c (t n3) (h n1) (w n2)', n1=7, n2=7, n3=4)
         return x
@@ -137,15 +140,15 @@ class SpatialSelfAttention(nn.Module):
         super(SpatialSelfAttention, self).__init__()
 
         self.reduce = PatchMerging(embed_dims=dim)
-        self.block = Block(dim=dim*2,num_heads=12,init_values=0.,)
-        self.norm = nn.LayerNorm(dim*2)
+        self.block = Block(dim=dim * 2, num_heads=12, init_values=0., )
+        self.norm = nn.LayerNorm(dim * 2)
 
     def forward(self, x):
-        B,C,D,H,W = x.shape
-        x = rearrange(x,"b c d h w -> b d h w c")
-        x= self.reduce(x)
+        B, C, D, H, W = x.shape
+        x = rearrange(x, "b c d h w -> b d h w c")
+        x = self.reduce(x)
         x = rearrange(x, "b d h w c -> b (d h w) c")
         x = self.block(x)
         x = self.norm(x)
-        x = rearrange(x, "b (d h w) c -> b c d h w",d=D,h=7,w=7)
+        x = rearrange(x, "b (d h w) c -> b c d h w", d=D, h=7, w=7)
         return x
