@@ -12,7 +12,7 @@ class VQAMlpHead(nn.Module):
     """
 
     def __init__(
-            self, in_channels=512, hidden_channels=64, dropout_ratio=0.5,fc_in=784*2, **kwargs
+            self, in_channels=512, hidden_channels=64, dropout_ratio=0.5,fc_in=784, **kwargs
     ):
         super().__init__()
         self.dropout_ratio = dropout_ratio
