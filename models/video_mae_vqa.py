@@ -10,6 +10,7 @@ from mmengine.optim import OptimWrapper
 from torch import nn
 
 from models.backbones.video_mae_v2 import VisionTransformer
+from models.evaluators import DiViDeAddEvaluator
 from models.faster_vqa import plcc_loss, rank_loss
 from models.heads import VQAHead
 from models.heads.vqa_mlp_head import VQAMlpHead
@@ -259,8 +260,13 @@ class VideoMAEVQAWrapper(BaseModel):
             **kwargs
     ):
         super().__init__()
-        self.model = VideoMAEVQA(model_type=model_type)
+        # self.model = VideoMAEVQA(model_type=model_type)
         self.agent = CellRunningMaskAgent()
+        self.model = DiViDeAddEvaluator(
+            vqa_head=dict(name='VQAHead',in_channels=384,drop_rate=0.5,fc_in=1568),
+            backbone='vit',
+            load_path="/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth"
+        )
 
         # if model_type == 'b':
         #     weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth")
@@ -286,8 +292,10 @@ class VideoMAEVQAWrapper(BaseModel):
             self.agent.train()
             mask = self.agent(inputs, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
+
             output = self.model(inputs, mask=mask)
-            y_pred = output['preds_score']
+            y_pred = output[0]
+            # y_pred = output['preds_score']
             criterion = nn.MSELoss()
             mse_loss = criterion(y_pred, y)
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
@@ -306,7 +314,8 @@ class VideoMAEVQAWrapper(BaseModel):
             mask = self.agent(inputs, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
             output = self.model(inputs, mask=mask)
-            y_pred = output['preds_score']
+            # y_pred = output['preds_score']
+            y_pred = output[0]
             return y_pred, y
 
     def train_step(self, data: Union[dict, tuple, list],

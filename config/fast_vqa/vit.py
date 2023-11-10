@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['faster_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/faster_vqa/11061008 vit_patch16_fragment32 4frame'
+work_dir = 'work_dir/video_mae_vqa/11011500 vit base'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='faster vqa消融', name='11061008 vit patch16 fragment32 4frame')
+            init_kwargs=dict(project='faster vqa消融', name='11011500 vit base')
         ),
     ],
 )
@@ -21,16 +21,16 @@ model = dict(
     # vqa_head=dict(name='FcHead', in_channels=384, drop_rate=0.5),
     load_path="./pretrained_weights/vit_s_k710_dl_from_giant.pth"
 )
-epochs = 600
-batch_size = 8
-num_workers = 8
+epochs = 800
+batch_size = 4
+num_workers = 4
 prefix = '4frame'
 argument = [
-        # dict(
-        #     name='FragmentShuffler',
-        #     fragment_size=32,
-        #     frame_cube=4
-        # ),
+        dict(
+            name='FragmentShuffler',
+            fragment_size=32,
+            frame_cube=4
+        ),
         dict(
             name='PostProcessSampler',
             frame_cube=4,
@@ -141,7 +141,7 @@ custom_hooks = [
     # dict(type='CustomEMAHook',momentum=0.01)
     # dict(type='EmptyCacheHook', after_epoch=True)
 ]
-launcher = 'none'
+launcher = 'pytorch'
 randomness = dict(seed=42)
 # randomness = dict(seed=3407)
 # randomness = dict(seed=114514)
