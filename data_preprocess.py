@@ -1,11 +1,13 @@
 """
     实现faster vqa fragment数据预处理
 """
+import json
 import os
 import random
 from multiprocessing.pool import Pool
 
 import cv2
+import lmdb
 import numpy as np
 import torch
 import decord
@@ -15,11 +17,15 @@ from einops import rearrange
 from tqdm import tqdm
 
 from data.meta_reader import ODVVQAReader
+from data.split.dataset_split import DatasetSplit
+
 # from SoftPool import soft_pool2d, SoftPool2d
 
 decord.bridge.set_bridge("torch")
 
-
+env = lmdb.open('/data/ly/resize/',map_size=1099511627776)
+train_info = dict()
+test_info = dict()
 class FragmentSampleFrames:
     """
     时间上的fragment采样
@@ -105,77 +111,48 @@ def get_save_path(video_path, frame_num, epoch):
 
 
 # TODO: 在时间上位置没有变化
-def sampler(video_path: str, epoch: int):
+def sampler(video_path: str, is_train):
     vreader = VideoReader(video_path)
     # frame_index = [x for x in range(len(vreader))]
-    frame_sampler = FragmentSampleFrames(fsize_t=4, fragments_t=8, frame_interval=2, num_clips=1, )
-    frame_index = frame_sampler(len(vreader))
-
-    fragments_h = 7
-    fragments_w = 7
-    fsize_h = 32
-    fsize_w = 32
-    # 采样图片的高
-    size_h = fragments_h * fsize_h
-    # 采样图片的长
-    size_w = fragments_w * fsize_w
-    img = vreader[0]
-    img = rearrange(img, 'h w c -> c h w ')
-    res_h, res_w = img.shape[-2:]
-    size = size_h, size_w
-
-    ## make sure that sampling will not run out of the picture
-    hgrids = torch.LongTensor(
-        [min(res_h // fragments_h * i, res_h - fsize_h) for i in range(fragments_h)]
-    )
-    wgrids = torch.LongTensor(
-        [min(res_w // fragments_w * i, res_w - fsize_w) for i in range(fragments_w)]
-    )
-    hlength, wlength = res_h // fragments_h, res_w // fragments_w
-    if hlength > fsize_h:
-        rnd_h = torch.randint(
-            hlength - fsize_h, (len(hgrids), len(wgrids), 8)
-        )
+    frame_sampler = FragmentSampleFrames(fsize_t=16, fragments_t=1, frame_interval=4, num_clips=1, )
+    sample_list = []
+    if is_train:
+        for i in range(160):
+            sample_list.append(frame_sampler(len(vreader)))
+        sample_list = np.array(sample_list)
+        sample_list = sample_list.reshape(-1)
+        sample_list = sample_list.reshape(160,16)
+        train_info[video_path] = sample_list.tolist()
     else:
-        rnd_h = torch.zeros((len(hgrids), len(wgrids)).int())
-    if wlength > fsize_w:
-        rnd_w = torch.randint(
-            wlength - fsize_w, (len(hgrids), len(wgrids), 8)
-        )
-    else:
-        rnd_w = torch.zeros((len(hgrids), len(wgrids)).int())
+        sample_list.append(frame_sampler(len(vreader)))
+        sample_list = np.array(sample_list)
+        test_info[video_path] = sample_list.tolist()
 
-    # softpool = SoftPool2d()
+    frame_list = np.unique(sample_list.reshape(-1))
 
-    for index, frame_num in enumerate(frame_index):
-        save_path = get_save_path(video_path, frame_num, epoch)
-        img = vreader[frame_num]
-        img = rearrange(img, 'h w c -> c h w ')
-        # img = torchvision.transforms.CenterCrop((h, w))(img)
-        target_img = torch.zeros((3, 224, 224))
+    frame_dict = dict()
+    for index in frame_list:
+        frame_dict[index] = vreader[index]
 
-        for i, hs in enumerate(hgrids):
-            for j, ws in enumerate(wgrids):
-                h_s, h_e = i * fsize_h, (i + 1) * fsize_h
-                w_s, w_e = j * fsize_w, (j + 1) * fsize_w
-                h_so, h_eo = hs + rnd_h[i][j][int(index/4)], hs + rnd_h[i][j][int(index/4)] + fsize_h
-                w_so, w_eo = ws + rnd_w[i][j][int(index/4)], ws + rnd_w[i][j][int(index/4)] + fsize_w
-                # print(i,j,int(index/8))
-                # print(rnd_h[i][j][int(index/8)],rnd_w[i][j][int(index/8)])
-                # print(h_so, w_so)
-                target_img[:, h_s:h_e, w_s:w_e] = img[:, h_so:h_eo, w_so:w_eo]
+    h,w,c = vreader[0].shape
+    min_scale = 224**2/(h*w)*3
+    max_scale = 224**2/(h*w)*5 if min_scale*4<1 else 1
 
-        # target_img = rearrange(target_img, '(b c) h w -> b c h w', b=1)
-        # target_img = target_img / 255
-        # target_img = softpool(target_img)
-        # target_img = rearrange(target_img, 'b c h w -> (b c) h w', b=1)
-
-        target_img = rearrange(target_img, 'c h w -> h w c ')
-        target_img = target_img.numpy()
-        target_img = cv2.cvtColor(target_img, cv2.COLOR_RGB2BGR)
-        cv2.imwrite(save_path, target_img.astype('uint8'))
-        print('{}已保存'.format(save_path))
-
+    for index in range(sample_list.shape[0]):
+        frames = []
+        for frame_index in sample_list[index]:
+            frames.append(frame_dict[frame_index])
+        frames = torch.stack(frames,dim=0)
+        frames = rearrange(frames, 't h w c -> t c h w')
+        crop = torchvision.transforms.RandomResizedCrop(size=224, scale=(min_scale, max_scale), ratio=(1, 1))(frames)
+        crop = rearrange(crop, 't c h w -> t h w c').numpy()
+        for i,frame_index in enumerate(sample_list[index]):
+            crop[i]=cv2.cvtColor(crop[i], cv2.COLOR_RGB2BGR)
+            # cv2.imwrite('te')
+            with env.begin(write=True) as txn:
+                img = np.array(cv2.imencode('.png', crop[i])[1]).tobytes()
+                path = video_path+'/{}/{}'.format(index, frame_index)
+                txn.put(path.encode(), img)
 
 if __name__ == '__main__':
 
@@ -183,14 +160,33 @@ if __name__ == '__main__':
     file = os.path.dirname(os.path.abspath(__file__))
     anno_path = os.path.join(file, './data/odv_vqa')
     data_anno = ODVVQAReader(anno_path).read()
-    pool = Pool(6)
-    for i in tqdm(range(0, 40)):
-        for video_info in data_anno:
-            video_path = video_info['video_path']
-            print(video_path)
-            pool.apply_async(func=sampler, kwds={'video_path': video_path, 'epoch': i})
-    pool.close()
-    pool.join()
-    # for video_info in data_anno[:1]:
-    #     video_path = video_info['video_path']
-    #     sampler(video_path, 0)
+    video_info  = DatasetSplit.split(data_anno, './data/odv_vqa/tr_te_VQA_ODV.txt')
+    train = video_info['train']
+    test = video_info['test']
+    # pool = Pool(6)
+    # for i in tqdm(range(0, 40)):
+    #     for video_info in data_anno:
+    #         video_path = video_info['video_path']
+    #         print(video_path)
+    #         pool.apply_async(func=sampler, kwds={'video_path': video_path, 'epoch': i})
+    # pool.close()
+    # pool.join()
+
+    for video_info in tqdm(train):
+        video_path = video_info['video_path']
+        sampler(video_path, True)
+
+    with open('/data/ly/test/train.json', 'w') as f:
+        json.dump(train_info, f)
+
+    for video_info in tqdm(test):
+        video_path = video_info['video_path']
+        sampler(video_path, False)
+
+    with open('/data/ly/test/test.json', 'w') as f:
+        json.dump(test_info, f)
+    # with env.begin(write=False) as txn:
+    #     img = txn.get('/data/ly/VQA_ODV/Group1/G1AbandonedKingdom_ERP_7680x3840_fps30_qp27_45406k.mp4/0/211'.encode())  # 解码
+    #     image_buf = np.frombuffer(img, dtype=np.uint8)
+    #     img = cv2.imdecode(image_buf, cv2.IMREAD_COLOR)
+    #     cv2.imwrite('test.png', img)
