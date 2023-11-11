@@ -23,9 +23,7 @@ from data.split.dataset_split import DatasetSplit
 
 decord.bridge.set_bridge("torch")
 
-env = lmdb.open('/data/ly/resize/',map_size=1099511627776)
-train_info = dict()
-test_info = dict()
+
 class FragmentSampleFrames:
     """
     时间上的fragment采样
@@ -100,7 +98,7 @@ def makedir(path: str):
 
 def get_save_path(video_path, frame_num, epoch):
     video_path = video_path.split('/')
-    video_path.insert(3, '4frame')
+    video_path.insert(3, 'resize')
     video_path.insert(4, str(epoch))
     video_path[0] = "/data"
     video_path[1] = ""
@@ -111,48 +109,44 @@ def get_save_path(video_path, frame_num, epoch):
 
 
 # TODO: 在时间上位置没有变化
-def sampler(video_path: str, is_train):
+def sampler(video_path: str, epoch: int):
     vreader = VideoReader(video_path)
     # frame_index = [x for x in range(len(vreader))]
     frame_sampler = FragmentSampleFrames(fsize_t=16, fragments_t=1, frame_interval=4, num_clips=1, )
-    sample_list = []
-    if is_train:
-        for i in range(160):
-            sample_list.append(frame_sampler(len(vreader)))
-        sample_list = np.array(sample_list)
-        sample_list = sample_list.reshape(-1)
-        sample_list = sample_list.reshape(160,16)
-        train_info[video_path] = sample_list.tolist()
-    else:
-        sample_list.append(frame_sampler(len(vreader)))
-        sample_list = np.array(sample_list)
-        test_info[video_path] = sample_list.tolist()
+    frame_index = frame_sampler(len(vreader))
 
-    frame_list = np.unique(sample_list.reshape(-1))
+    fragments_h = 7
+    fragments_w = 7
+    fsize_h = 32
+    fsize_w = 32
+    # 采样图片的高
+    size_h = fragments_h * fsize_h
+    # 采样图片的长
+    size_w = fragments_w * fsize_w
+    img = vreader[0]
+    img = rearrange(img, 'h w c -> c h w ')
+    res_h, res_w = img.shape[-2:]
+    size = size_h, size_w
+    min_scale = 224 ** 2 / (res_h * res_w) * 3
+    max_scale = 224 ** 2 / (res_h * res_w) * 5 if min_scale * 4 < 1 else 1
 
-    frame_dict = dict()
-    for index in frame_list:
-        frame_dict[index] = vreader[index]
+    video = []
+    for index, frame_num in enumerate(frame_index):
+        img = vreader[frame_num]
+        video.append(img)
+        img = rearrange(img, 'h w c -> c h w ')
 
-    h,w,c = vreader[0].shape
-    min_scale = 224**2/(h*w)*3
-    max_scale = 224**2/(h*w)*5 if min_scale*4<1 else 1
+    video = torch.stack(video,dim=0)
+    video = rearrange(video, 't h w c ->t c h w ')
+    crop = torchvision.transforms.RandomResizedCrop(size=224, scale=(min_scale, max_scale), ratio=(1, 1))(video)
+    crop = rearrange(crop, 't c h w -> t h w c').numpy()
+    for index, frame_num in enumerate(frame_index):
+        save_path = get_save_path(video_path, frame_num, epoch)
+        target_img = crop[index]
+        target_img = cv2.cvtColor(target_img, cv2.COLOR_RGB2BGR)
+        cv2.imwrite(save_path, target_img.astype('uint8'))
+        print('{}已保存'.format(save_path))
 
-    for index in range(sample_list.shape[0]):
-        frames = []
-        for frame_index in sample_list[index]:
-            frames.append(frame_dict[frame_index])
-        frames = torch.stack(frames,dim=0)
-        frames = rearrange(frames, 't h w c -> t c h w')
-        crop = torchvision.transforms.RandomResizedCrop(size=224, scale=(min_scale, max_scale), ratio=(1, 1))(frames)
-        crop = rearrange(crop, 't c h w -> t h w c').numpy()
-        for i,frame_index in enumerate(sample_list[index]):
-            crop[i]=cv2.cvtColor(crop[i], cv2.COLOR_RGB2BGR)
-            # cv2.imwrite('te')
-            with env.begin(write=True) as txn:
-                img = np.array(cv2.imencode('.png', crop[i])[1]).tobytes()
-                path = video_path+'/{}/{}'.format(index, frame_index)
-                txn.put(path.encode(), img)
 
 if __name__ == '__main__':
 
@@ -160,33 +154,14 @@ if __name__ == '__main__':
     file = os.path.dirname(os.path.abspath(__file__))
     anno_path = os.path.join(file, './data/odv_vqa')
     data_anno = ODVVQAReader(anno_path).read()
-    video_info  = DatasetSplit.split(data_anno, './data/odv_vqa/tr_te_VQA_ODV.txt')
-    train = video_info['train']
-    test = video_info['test']
-    # pool = Pool(6)
-    # for i in tqdm(range(0, 40)):
-    #     for video_info in data_anno:
-    #         video_path = video_info['video_path']
-    #         print(video_path)
-    #         pool.apply_async(func=sampler, kwds={'video_path': video_path, 'epoch': i})
-    # pool.close()
-    # pool.join()
-
-    for video_info in tqdm(train):
-        video_path = video_info['video_path']
-        sampler(video_path, True)
-
-    with open('/data/ly/test/train.json', 'w') as f:
-        json.dump(train_info, f)
-
-    for video_info in tqdm(test):
-        video_path = video_info['video_path']
-        sampler(video_path, False)
-
-    with open('/data/ly/test/test.json', 'w') as f:
-        json.dump(test_info, f)
-    # with env.begin(write=False) as txn:
-    #     img = txn.get('/data/ly/VQA_ODV/Group1/G1AbandonedKingdom_ERP_7680x3840_fps30_qp27_45406k.mp4/0/211'.encode())  # 解码
-    #     image_buf = np.frombuffer(img, dtype=np.uint8)
-    #     img = cv2.imdecode(image_buf, cv2.IMREAD_COLOR)
-    #     cv2.imwrite('test.png', img)
+    pool = Pool(8)
+    for i in tqdm(range(0, 160)):
+        for video_info in data_anno:
+            video_path = video_info['video_path']
+            print(video_path)
+            pool.apply_async(func=sampler, kwds={'video_path': video_path, 'epoch': i})
+    pool.close()
+    pool.join()
+    # for video_info in data_anno[:1]:
+    #     video_path = video_info['video_path']
+    #     sampler(video_path, 0)
