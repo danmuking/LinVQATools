@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/video_mae_vqa/11110049 video mae vqa'
+work_dir = 'work_dir/video_mae_vqa/11110931 video mae vqa'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='video mae vqa', name='11110049 video mae vqa')
+            init_kwargs=dict(project='video mae vqa', name='11110931 video mae vqa')
         ),
     ],
 )
@@ -19,17 +19,17 @@ model = dict(
 epochs = 800
 batch_size = 4
 num_workers = 4
-prefix = 'temp'
+prefix = '4frame'
 argument = [
         dict(
             name='FragmentShuffler',
             fragment_size=32,
-            frame_cube=8
+            frame_cube=4
         ),
         dict(
             name='PostProcessSampler',
-            frame_cube=8,
-            num=2
+            frame_cube=4,
+            num=4
         )
 ]
 train_video_loader = dict(
@@ -99,6 +99,7 @@ optim_wrapper = dict(
     paramwise_cfg=dict(
         custom_keys={
             'model.backbone': dict(lr_mult=0.1),
+            'model.decoder': dict(lr_mult=10),
         })
 )
 param_scheduler = [
