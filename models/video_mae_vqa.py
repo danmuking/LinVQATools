@@ -239,7 +239,17 @@ class VideoMAEVQAWrapper(BaseModel):
             # if 'encoder' in key:
             #     key = key.replace('encoder', 'backbone')
             t_state_dict[key] = weight_value
+
+        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_k400.pth")
+        weight = weight['model']
+        for key in weight.keys():
+            if "decoder" in key:
+                weight_value = weight[key]
+                key = "model." + key
+                t_state_dict[key] = weight_value
+        t_state_dict = OrderedDict(filter(lambda x: 'encoder_to_decoder' not in x[0], t_state_dict.items()))
         info = self.load_state_dict(t_state_dict, strict=False)
+        print(info)
 
     def forward(self, inputs: torch.Tensor, gt_label, data_samples: Optional[list] = None, mode: str = 'tensor',
                 **kargs) -> \
