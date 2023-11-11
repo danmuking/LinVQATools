@@ -228,9 +228,9 @@ class VideoMAEVQAWrapper(BaseModel):
         self.agent = CellRunningMaskAgent()
 
         if model_type == 'b':
-            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth")
+            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth",map_location='cpu')
         elif model_type == 's':
-            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth")
+            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth",map_location='cpu')
         weight = weight['module']
         t_state_dict = OrderedDict()
         for key in weight.keys():
@@ -240,7 +240,7 @@ class VideoMAEVQAWrapper(BaseModel):
             #     key = key.replace('encoder', 'backbone')
             t_state_dict[key] = weight_value
 
-        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_k400.pth")
+        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_k400.pth",map_location='cpu')
         weight = weight['model']
         for key in weight.keys():
             if "decoder" in key:
