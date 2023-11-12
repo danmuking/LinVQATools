@@ -216,22 +216,22 @@ class VQAMlpHead(nn.Module):
     ):
         super().__init__()
 
-        # self.num_features = 512
-        # self.num_heads = 4
-        # drop_path = 0
-        # depth = 2
-        # attn_drop_out = 0
-        # ffn_drop_out = 0.0
-        # mlp_mult_override = 4
-        #
-        # dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]  # stochastic depth decay rule
-        # self.mask_inv_test = False
-        # self.blocks = nn.ModuleList([
-        #     BaseTransformerLayer(cfg=None, num_heads_override=self.num_heads, dim_override=self.num_features,
-        #                          drop_path_rate=dpr[i], attn_dropout_override=attn_drop_out,
-        #                          ff_dropout_override=ffn_drop_out, mlp_mult_override=mlp_mult_override)
-        #     for i in range(depth)])
-        # self.norm = nn.LayerNorm(self.num_features, eps=1e-6)
+        self.num_features = 512
+        self.num_heads = 4
+        drop_path = 0
+        depth = 2
+        attn_drop_out = 0
+        ffn_drop_out = 0.0
+        mlp_mult_override = 4
+
+        dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]  # stochastic depth decay rule
+        self.mask_inv_test = False
+        self.blocks = nn.ModuleList([
+            BaseTransformerLayer(cfg=None, num_heads_override=self.num_heads, dim_override=self.num_features,
+                                 drop_path_rate=dpr[i], attn_dropout_override=attn_drop_out,
+                                 ff_dropout_override=ffn_drop_out, mlp_mult_override=mlp_mult_override)
+            for i in range(depth)])
+        self.norm = nn.LayerNorm(self.num_features, eps=1e-6)
 
         self.dropout_ratio = dropout_ratio
         self.in_channels = in_channels
@@ -252,11 +252,11 @@ class VQAMlpHead(nn.Module):
         )
 
     def forward(self, x):
-        # out = x
-        # for blk in self.blocks:
-        #     out = blk(out)
-        # out = self.norm(out)
-        # x = out
+        out = x
+        for blk in self.blocks:
+            out = blk(out)
+        out = self.norm(out)
+        x = out
 
         qlt_score = self.fc_hid(x)
         qlt_score = self.fc_last(qlt_score)
