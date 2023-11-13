@@ -872,11 +872,10 @@ def build_video_mae_s():
         num_classes=0,
         use_mean_pooling=False
     )
-    # decoder = PretrainVisionTransformerDecoder(
-    #     embed_dim=192,
-    #     num_heads=3
-    # )
-    decoder = PretrainVisionTransformerDecoder()
+    decoder = PretrainVisionTransformerDecoder(
+        embed_dim=192,
+        num_heads=3
+    )
     return encoder, decoder
 
 

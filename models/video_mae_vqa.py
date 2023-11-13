@@ -31,8 +31,7 @@ class VideoMAEVQA(nn.Module):
             self.backbone_embed_dim = 384 * 2
             self.backbone, self.decoder = build_video_mae_b()
 
-        # self.decoder_dim = self.backbone_embed_dim // 2
-        self.decoder_dim = 384
+        self.decoder_dim = self.backbone_embed_dim // 2
         self.mean = nn.Parameter(torch.Tensor([0.485, 0.456, 0.406])[None, :, None, None, None], requires_grad=False)
         self.std = nn.Parameter(torch.Tensor([0.229, 0.224, 0.225])[None, :, None, None, None], requires_grad=False)
         self.normlize_target = True
@@ -140,7 +139,7 @@ class CellRunningMaskAgent(nn.Module):
     def __init__(self):
         super(CellRunningMaskAgent, self).__init__()
         self.patch_num = 8 * 14 * 14
-        self.mask_num = int((8 * 14 * 14) * 0.25)  # 8*7*7*mark radio
+        self.mask_num = int((8 * 14 * 14) * 0.5)  # 8*7*7*mark radio
         self.mask_shape = [16 // 2, 14, 14]
         self.mask_stride = [1, 2, 2]
         self.spatial_small_patch_num = (self.mask_shape[1] // self.mask_stride[1]) * (
@@ -235,9 +234,8 @@ class VideoMAEVQAWrapper(BaseModel):
             decode_weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_k400.pth",map_location='cpu')
         elif model_type == 's':
             weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth",map_location='cpu')
-            # decode_weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_v1_s_pretrain.pth",
-            #                            map_location='cpu')
-            decode_weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_k400.pth",map_location='cpu')
+            decode_weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_v1_s_pretrain.pth",
+                                       map_location='cpu')
         weight = weight['module']
         t_state_dict = OrderedDict()
         for key in weight.keys():
