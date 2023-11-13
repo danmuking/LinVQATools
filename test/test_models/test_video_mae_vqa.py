@@ -29,18 +29,19 @@ class TestVideoMAEVQA(TestCase):
         print(y)
 
     def test_load(self):
-        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth")
-        print(weight.keys())
-        print(weight['module'].keys())
-        weight = weight['module']
+        # weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth")
+        # print(weight.keys())
+        # print(weight['module'].keys())
+        # weight = weight['module']
         t_state_dict = OrderedDict()
-        for key in weight.keys():
-            weight_value = weight[key]
-            key = "model.backbone." + key
-            # if 'encoder' in key:
-            #     key = key.replace('encoder', 'backbone')
-            t_state_dict[key] = weight_value
-        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_k400.pth")
+        # for key in weight.keys():
+        #     weight_value = weight[key]
+        #     key = "model.backbone." + key
+        #     # if 'encoder' in key:
+        #     #     key = key.replace('encoder', 'backbone')
+        #     t_state_dict[key] = weight_value
+        # weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_k400.pth")
+        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_v1_s_pretrain.pth")
         print(weight['model'].keys())
         weight = weight['model']
         for key in weight.keys():
