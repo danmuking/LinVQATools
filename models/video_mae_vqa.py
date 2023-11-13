@@ -26,10 +26,12 @@ class VideoMAEVQA(nn.Module):
         if model_type == 's':
             self.backbone_embed_dim = 384
             self.backbone, self.decoder = build_video_mae_s()
+
         elif model_type == 'b':
             self.backbone_embed_dim = 384 * 2
             self.backbone, self.decoder = build_video_mae_b()
 
+        self.decoder_dim = self.backbone_embed_dim // 2
         self.mean = nn.Parameter(torch.Tensor([0.485, 0.456, 0.406])[None, :, None, None, None], requires_grad=False)
         self.std = nn.Parameter(torch.Tensor([0.229, 0.224, 0.225])[None, :, None, None, None], requires_grad=False)
         self.normlize_target = True
@@ -46,14 +48,14 @@ class VideoMAEVQA(nn.Module):
                            (self.patches_shape[2] // self.mask_stride[2])]
 
         self.vqa_head = VQAMlpHead()
-        self.mask_token = nn.Parameter(torch.zeros(1, 1, 384))
-        self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, 384,
+        self.mask_token = nn.Parameter(torch.zeros(1, 1, self.decoder_dim))
+        self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, self.decoder_dim,
                                             bias=False)
         self.encoder_to_cls_decoder = nn.Linear(self.backbone_embed_dim,
                                                 512, bias=False)
 
         self.pos_embed = get_sinusoid_encoding_table(self.backbone.pos_embed.shape[1],
-                                                     384)
+                                                     self.decoder_dim)
         self.pos_embed = nn.Parameter(self.pos_embed, requires_grad=False)
         self.fc_norm_mean_pooling = False
         self.masked_patches_type = 'none'
@@ -229,8 +231,11 @@ class VideoMAEVQAWrapper(BaseModel):
 
         if model_type == 'b':
             weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth",map_location='cpu')
+            decode_weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_k400.pth",map_location='cpu')
         elif model_type == 's':
             weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth",map_location='cpu')
+            decode_weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_v1_s_pretrain.pth",
+                                       map_location='cpu')
         weight = weight['module']
         t_state_dict = OrderedDict()
         for key in weight.keys():
@@ -240,8 +245,7 @@ class VideoMAEVQAWrapper(BaseModel):
             #     key = key.replace('encoder', 'backbone')
             t_state_dict[key] = weight_value
 
-        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_k400.pth",map_location='cpu')
-        weight = weight['model']
+        weight = decode_weight['model']
         for key in weight.keys():
             if "decoder" in key:
                 weight_value = weight[key]
