@@ -135,6 +135,7 @@ class VideoMAEVQA(nn.Module):
         output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score}
         return output
 
+
 class CellRunningMaskAgent(nn.Module):
     def __init__(self):
         super(CellRunningMaskAgent, self).__init__()
@@ -230,10 +231,13 @@ class VideoMAEVQAWrapper(BaseModel):
         self.agent = CellRunningMaskAgent()
 
         if model_type == 'b':
-            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth",map_location='cpu')
-            decode_weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_k400.pth",map_location='cpu')
+            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth",
+                                map_location='cpu')
+            decode_weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_k400.pth",
+                                       map_location='cpu')
         elif model_type == 's':
-            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth",map_location='cpu')
+            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth",
+                                map_location='cpu')
             decode_weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_v1_s_pretrain.pth",
                                        map_location='cpu')
         weight = weight['module']
@@ -273,7 +277,7 @@ class VideoMAEVQAWrapper(BaseModel):
             vqa_loss = mse_loss + p_loss + 3 * r_loss
             mae_loss = nn.MSELoss(reduction='none')(output['preds_pixel'], output['labels_pixel']).mean()
             total_loss = mae_loss * 0.1 + vqa_loss.mean()
-            return {'total_loss': total_loss, "vqa_lozz": vqa_loss,'mae_lozz':mae_loss, 'mse_lozz': mse_loss,
+            return {'total_loss': total_loss, "vqa_lozz": vqa_loss, 'mae_lozz': mae_loss, 'mse_lozz': mse_loss,
                     'p_lozz': p_loss, 'r_lozz': r_loss}
         elif mode == 'predict':
             self.agent.eval()
@@ -322,7 +326,7 @@ class VideoMAEVQAWrapper(BaseModel):
         # recorder.iter_y = result[1]
 
         losses = {'total_loss': losses['total_loss'], 'vqa_lozz': losses['vqa_lozz'],
-                  'mse_lozz': losses['mse_lozz'], 'mae_lozz': losses['mae_lozz'],'p_lozz': losses['p_lozz'],
+                  'mse_lozz': losses['mse_lozz'], 'mae_lozz': losses['mae_lozz'], 'p_lozz': losses['p_lozz'],
                   'r_lozz': losses['r_lozz']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
         optim_wrapper.update_params(parsed_losses)

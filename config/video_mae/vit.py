@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/video_mae_vqa/11132135 video mae vqa'
+work_dir = 'work_dir/video_mae_vqa/11140931 video mae vqa'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='video mae vqa', name='11132135 video mae vqa')
+            init_kwargs=dict(project='video mae vqa', name='11140931 video mae vqa')
         ),
     ],
 )
@@ -99,7 +99,7 @@ optim_wrapper = dict(
     paramwise_cfg=dict(
         custom_keys={
             'model.backbone': dict(lr_mult=0.1),
-            'model.decoder': dict(lr_mult=10),
+            'model.decoder': dict(lr_mult=1),
         })
 )
 param_scheduler = [
