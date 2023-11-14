@@ -32,8 +32,8 @@ class VideoMAEVQA(nn.Module):
             self.backbone, self.decoder = build_video_mae_b()
 
         self.decoder_dim = self.backbone_embed_dim // 2
-        self.mean = nn.Parameter(torch.Tensor([0.485, 0.456, 0.406])[None, :, None, None, None], requires_grad=False)
-        self.std = nn.Parameter(torch.Tensor([0.229, 0.224, 0.225])[None, :, None, None, None], requires_grad=False)
+        self.mean = nn.Parameter(torch.Tensor([0.45, 0.45, 0.45])[None, :, None, None, None], requires_grad=False)
+        self.std = nn.Parameter(torch.Tensor([0.225, 0.225, 0.225])[None, :, None, None, None], requires_grad=False)
         self.normlize_target = True
         self.patch_size = 16
         self.tubelet_size = 2
@@ -249,12 +249,12 @@ class VideoMAEVQAWrapper(BaseModel):
             #     key = key.replace('encoder', 'backbone')
             t_state_dict[key] = weight_value
 
-        weight = decode_weight['model']
-        for key in weight.keys():
-            if "decoder" in key:
-                weight_value = weight[key]
-                key = "model." + key
-                t_state_dict[key] = weight_value
+        # weight = decode_weight['model']
+        # for key in weight.keys():
+        #     if "decoder" in key:
+        #         weight_value = weight[key]
+        #         key = "model." + key
+        #         t_state_dict[key] = weight_value
         t_state_dict = OrderedDict(filter(lambda x: 'encoder_to_decoder' not in x[0], t_state_dict.items()))
         info = self.load_state_dict(t_state_dict, strict=False)
         print(info)
