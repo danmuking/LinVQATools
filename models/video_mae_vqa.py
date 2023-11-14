@@ -140,7 +140,7 @@ class CellRunningMaskAgent(nn.Module):
     def __init__(self):
         super(CellRunningMaskAgent, self).__init__()
         self.patch_num = 8 * 14 * 14
-        self.mask_num = int((8 * 14 * 14) * 0.5)  # 8*7*7*mark radio
+        self.mask_num = int((8 * 14 * 14) * 0.25)  # 8*7*7*mark radio
         self.mask_shape = [16 // 2, 14, 14]
         self.mask_stride = [1, 2, 2]
         self.spatial_small_patch_num = (self.mask_shape[1] // self.mask_stride[1]) * (

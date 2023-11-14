@@ -871,7 +871,7 @@ def build_video_mae_s():
         norm_layer=partial(nn.LayerNorm, eps=1e-6),
         num_classes=0,
         use_mean_pooling=False,
-        drop_path_rate=0.2
+        drop_path_rate=0.0
     )
     decoder = PretrainVisionTransformerDecoder(
         embed_dim=192,
