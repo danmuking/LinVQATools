@@ -1,4 +1,5 @@
 from collections import OrderedDict
+from functools import partial
 from typing import Union, Dict, Optional
 
 import torch
@@ -8,7 +9,10 @@ from mmengine.model import BaseModel
 from mmengine.optim import OptimWrapper
 from torch import nn
 
+from models.backbones.video_mae_v2 import VisionTransformer
+from models.evaluators import DiViDeAddEvaluator
 from models.faster_vqa import plcc_loss, rank_loss
+from models.heads import VQAHead
 from models.heads.vqa_mlp_head import VQAMlpHead
 from models.backbones.vit_videomae import PretrainVisionTransformerEncoder, PretrainVisionTransformerDecoder, \
     build_video_mae_s, build_video_mae_b
@@ -16,12 +20,20 @@ from models.backbones.vit_videomae import get_sinusoid_encoding_table
 
 
 class VideoMAEVQA(nn.Module):
-    def __init__(self):
+    def __init__(self,
+                 model_type='s'):
         super(VideoMAEVQA, self).__init__()
-        self.backbone_embed_dim = 384*2
+        if model_type == 's':
+            self.backbone_embed_dim = 384
+            self.backbone, self.decoder = build_video_mae_s()
 
-        self.mean = nn.Parameter(torch.Tensor([0.45, 0.45, 0.45])[None, :, None, None, None], requires_grad=False)
-        self.std = nn.Parameter(torch.Tensor([0.225, 0.225, 0.225])[None, :, None, None, None], requires_grad=False)
+        elif model_type == 'b':
+            self.backbone_embed_dim = 384 * 2
+            self.backbone, self.decoder = build_video_mae_b()
+
+        self.decoder_dim = 384
+        self.mean = nn.Parameter(torch.Tensor([0.485, 0.456, 0.406])[None, :, None, None, None], requires_grad=False)
+        self.std = nn.Parameter(torch.Tensor([0.229, 0.224, 0.225])[None, :, None, None, None], requires_grad=False)
         self.normlize_target = True
         self.patch_size = 16
         self.tubelet_size = 2
@@ -35,16 +47,15 @@ class VideoMAEVQA(nn.Module):
                            (self.patches_shape[1] // self.mask_stride[1]),
                            (self.patches_shape[2] // self.mask_stride[2])]
 
-        self.backbone, self.decoder = build_video_mae_b()
         self.vqa_head = VQAMlpHead()
-        self.mask_token = nn.Parameter(torch.zeros(1, 1, 384))
-        self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, 384,
+        self.mask_token = nn.Parameter(torch.zeros(1, 1, self.decoder_dim))
+        self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, self.decoder_dim,
                                             bias=False)
         self.encoder_to_cls_decoder = nn.Linear(self.backbone_embed_dim,
                                                 512, bias=False)
 
         self.pos_embed = get_sinusoid_encoding_table(self.backbone.pos_embed.shape[1],
-                                                     384)
+                                                     self.decoder_dim)
         self.pos_embed = nn.Parameter(self.pos_embed, requires_grad=False)
         self.fc_norm_mean_pooling = False
         self.masked_patches_type = 'none'
@@ -129,7 +140,7 @@ class CellRunningMaskAgent(nn.Module):
     def __init__(self):
         super(CellRunningMaskAgent, self).__init__()
         self.patch_num = 8 * 14 * 14
-        self.mask_num = (8 * 14 * 14) // 2  # 8*7*7*mark radio
+        self.mask_num = int((8 * 14 * 14) * 0.5)  # 8*7*7*mark radio
         self.mask_shape = [16 // 2, 14, 14]
         self.mask_stride = [1, 2, 2]
         self.spatial_small_patch_num = (self.mask_shape[1] // self.mask_stride[1]) * (
@@ -152,16 +163,23 @@ class CellRunningMaskAgent(nn.Module):
                                    t=self.mask_shape[0] // self.mask_stride[0],
                                    h=self.mask_shape[1] // self.mask_stride[1],
                                    w=self.mask_shape[2] // self.mask_stride[2], )
-        train_mask_list = []
-        for i in range(self.mask_stride[1] * self.mask_stride[2]):
-            train_mask = torch.zeros(self.mask_shape[0], self.mask_stride[1] * self.mask_stride[2])
-            for t in range(train_mask.size(0)):
-                offset = (t + i) % train_mask.size(-1)
-                train_mask[t, :] = torch.Tensor(mask_list[-offset:] + mask_list[:-offset])
-            train_mask_list.append(train_mask)
-        self.train_mask = torch.stack(train_mask_list, dim=0)
+
+        train_mask_list = [[0,0,1,1],
+                           [1,1,0,0],
+                           [1,0,0,1],
+                           [0,1,1,0],
+                           [1,0,1,0],
+                           [0,1,0,1]]
+        # for i in range(self.mask_stride[1] * self.mask_stride[2]):
+        #     train_mask = torch.zeros(self.mask_shape[0], self.mask_stride[1] * self.mask_stride[2])
+        #     for t in range(train_mask.size(0)):
+        #         offset = (t + i) % train_mask.size(-1)
+        #         train_mask[t, :] = torch.Tensor(mask_list[-offset:] + mask_list[:-offset])
+        #     train_mask_list.append(train_mask)
+        # self.train_mask = torch.stack(train_mask_list, dim=0)
+        self.train_mask = torch.tensor(train_mask_list)
         self.temporal_shuffle = False
-        self.spatial_repeat = True
+        self.spatial_repeat = False
         self.test_temporal_shuffle = False
 
     def forward(self, x, mask_shape):
@@ -172,13 +190,15 @@ class CellRunningMaskAgent(nn.Module):
                 mask_index = torch.randint(self.train_mask.size(0), (x.size(0), 1), device=x.device)
                 mask_index = mask_index.repeat(1, self.spatial_small_patch_num).flatten()
             else:
-                mask_index = torch.randint(self.train_mask.size(0), (x.size(0), self.spatial_small_patch_num),
+                # mask_index = torch.randint(self.train_mask.size(0), (x.size(0), self.spatial_small_patch_num),
+                #                            device=x.device).flatten()
+                mask_index = torch.randint(self.train_mask.size(0), (x.size(0), self.spatial_small_patch_num*self.mask_shape[0]),
                                            device=x.device).flatten()
-            selected_mask = self.train_mask.to(x.device)[mask_index, ...].view(x.size(0), self.spatial_small_patch_num,
-                                                                               self.train_mask.size(1),
-                                                                               self.train_mask.size(2))
-            selected_mask = selected_mask.permute(0, 2, 1, 3)
-            selected_mask = rearrange(selected_mask, 'b t (h w) (s0 s1 s2) -> b (t s0) (h s1) (w s2)',
+
+            selected_mask = self.train_mask.to(x.device)[mask_index, ...].view(x.size(0), self.spatial_small_patch_num*self.mask_shape[0],
+                                                                               self.train_mask.size(1))
+            # selected_mask = selected_mask.permute(0, 2, 1, 3)
+            selected_mask = rearrange(selected_mask, 'b (t h w) (s0 s1 s2) -> b (t s0) (h s1) (w s2)',
                                       s0=self.mask_stride[0],
                                       s1=self.mask_stride[1],
                                       s2=self.mask_stride[2],
@@ -212,13 +232,23 @@ class CellRunningMaskAgent(nn.Module):
 class VideoMAEVQAWrapper(BaseModel):
     def __init__(
             self,
+            model_type="s",
             **kwargs
     ):
         super().__init__()
-        self.model = VideoMAEVQA()
+        self.model = VideoMAEVQA(model_type=model_type)
         self.agent = CellRunningMaskAgent()
 
-        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth")
+        if model_type == 'b':
+            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth",
+                                map_location='cpu')
+            decode_weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_k400.pth",
+                                       map_location='cpu')
+        elif model_type == 's':
+            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth",
+                                map_location='cpu')
+            decode_weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_v1_s_pretrain.pth",
+                                       map_location='cpu')
         weight = weight['module']
         t_state_dict = OrderedDict()
         for key in weight.keys():
@@ -227,6 +257,14 @@ class VideoMAEVQAWrapper(BaseModel):
             # if 'encoder' in key:
             #     key = key.replace('encoder', 'backbone')
             t_state_dict[key] = weight_value
+
+        # weight = decode_weight['model']
+        # for key in weight.keys():
+        #     if "decoder" in key:
+        #         weight_value = weight[key]
+        #         key = "model." + key
+        #         t_state_dict[key] = weight_value
+        t_state_dict = OrderedDict(filter(lambda x: 'encoder_to_decoder' not in x[0], t_state_dict.items()))
         info = self.load_state_dict(t_state_dict, strict=False)
         print(info)
 
@@ -248,8 +286,8 @@ class VideoMAEVQAWrapper(BaseModel):
             vqa_loss = mse_loss + p_loss + 3 * r_loss
             mae_loss = nn.MSELoss(reduction='none')(output['preds_pixel'], output['labels_pixel']).mean()
             total_loss = mae_loss * 0.1 + vqa_loss.mean()
-            return {'loss': total_loss, "vqa_loss": vqa_loss, 'mae_loss': mae_loss, 'mse_loss': mse_loss,
-                    'p_loss': p_loss, 'r_loss': r_loss}
+            return {'total_loss': total_loss, "vqa_lozz": vqa_loss, 'mae_lozz': mae_loss, 'mse_lozz': mse_loss,
+                    'p_lozz': p_loss, 'r_lozz': r_loss}
         elif mode == 'predict':
             self.agent.eval()
             mask = self.agent(inputs, [8, 14, 14])['mask']
@@ -296,9 +334,9 @@ class VideoMAEVQAWrapper(BaseModel):
         # recorder.iter_y_pre = result[0]
         # recorder.iter_y = result[1]
 
-        losses = {'loss': losses['loss'], 'vqa_loss': losses['vqa_loss'], "mae_loss": losses["mae_loss"],
-                  'mse_loss': losses['mse_loss'], 'p_loss': losses['p_loss'],
-                  'r_loss': losses['r_loss']}
+        losses = {'total_loss': losses['total_loss'], 'vqa_lozz': losses['vqa_lozz'],
+                  'mse_lozz': losses['mse_lozz'], 'mae_lozz': losses['mae_lozz'], 'p_lozz': losses['p_lozz'],
+                  'r_lozz': losses['r_lozz']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
         optim_wrapper.update_params(parsed_losses)
         return log_vars

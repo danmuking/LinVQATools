@@ -1,6 +1,7 @@
 from collections import OrderedDict
 from unittest import TestCase
 
+import numpy as np
 import torch
 from einops import rearrange
 from torch import nn
@@ -16,15 +17,17 @@ class TestVideoMAEVQA(TestCase):
         print(y)
 
     def test_mask(self):
+        torch.set_printoptions(threshold=np.inf)
         model = CellRunningMaskAgent()
         x = {'video': torch.rand((2, 3, 16, 224, 224)), "mask": torch.zeros((2, 8 * 14 * 14)).long()}
         y = model(x, [8, 14, 14])
         mask = y['mask']
         mask = mask.reshape(mask.size(0), 8, -1)
         print(mask.shape)
+        print(mask[0].reshape(8,14,14))
 
     def test_VideoMAEVQAWrapper(self):
-        model = VideoMAEVQAWrapper(model_type='b')
+        model = VideoMAEVQAWrapper(model_type='s')
         y = model(inputs=torch.rand((2, 3, 16, 224, 224)), gt_label=torch.rand((2)),mode='loss')
         print(y)
 
