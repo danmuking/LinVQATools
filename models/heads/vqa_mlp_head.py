@@ -215,7 +215,7 @@ class VQAMlpHead(nn.Module):
             self, in_channels=512, hidden_channels=64, dropout_ratio=0.5, fc_in=784, **kwargs
     ):
         super().__init__()
-        self.dropout_ratio = dropout_ratio
+        self.dropout_ratio = 0
         self.in_channels = in_channels
         self.hidden_channels = hidden_channels
         self.fc_hid = nn.Sequential(
