@@ -14,7 +14,7 @@ visualizer = dict(
 )
 model = dict(
     type='VideoMAEVQAWrapper',
-    model_type='b'
+    model_type='s'
 )
 epochs = 800
 batch_size = 4
