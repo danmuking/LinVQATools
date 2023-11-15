@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/video_mae_vqa/11151852 video mae vqa'
+work_dir = 'work_dir/video_mae_vqa/11151900 video mae vqa'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='video mae vqa', name='11151852 video mae vqa')
+            init_kwargs=dict(project='video mae vqa', name='11151900 video mae vqa')
         ),
     ],
 )
@@ -16,8 +16,8 @@ model = dict(
     type='VideoMAEVQAWrapper',
 )
 epochs = 800
-batch_size = 4
-num_workers = 4
+batch_size = 6
+num_workers = 6
 prefix = '4frame'
 argument = [
         dict(
@@ -136,7 +136,7 @@ custom_hooks = [
     # dict(type='CustomEMAHook',momentum=0.01)
     # dict(type='EmptyCacheHook', after_epoch=True)
 ]
-launcher = 'pytorch'
+launcher = 'none'
 randomness = dict(seed=42)
 # randomness = dict(seed=3407)
 # randomness = dict(seed=114514)
