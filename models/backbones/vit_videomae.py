@@ -414,8 +414,6 @@ import torch.nn.functional as F
 from timm.models.layers import drop_path, to_2tuple, trunc_normal_
 from timm.models.layers import trunc_normal_ as __call_trunc_normal_
 
-from models.backbones.video_mae_v2 import PreTrainVisionTransformer
-
 
 def _cfg(url='', **kwargs):
     return {
@@ -765,44 +763,25 @@ class PretrainVisionTransformerDecoder(nn.Module):
     """ Vision Transformer with support for patch or hybrid CNN input stage
     """
 
-    def __init__(
-            self,
-            img_size=224,
-            patch_size=16,
-            in_chans=3,
-            num_classes=1536,
-            embed_dim=384,
-            depth=4,
-            num_heads=8,
-            mlp_ratio=4,
-            qkv_bias=True,
-            qk_scale=None,
-            drop_rate=0,
-            attn_drop_rate=0,
-            drop_path_rate=0,
-            norm_layer=partial(nn.LayerNorm, eps=1e-6),
-            init_values=0.0,
-            tubelet_size=2,
-            use_learnable_pos_emb=False,
-    ):
+    def __init__(self):
         super().__init__()
-        img_size = img_size
-        patch_size = patch_size
-        in_chans = in_chans
-        num_classes = num_classes
-        embed_dim = embed_dim
-        depth = depth
-        num_heads = num_heads
-        mlp_ratio = mlp_ratio
-        qkv_bias = qkv_bias
-        qk_scale = qk_scale
-        drop_rate = drop_rate
-        attn_drop_rate = attn_drop_rate
-        drop_path_rate = drop_path_rate
-        norm_layer = norm_layer
-        init_values = init_values
-        tubelet_size = tubelet_size
-        use_learnable_pos_emb = use_learnable_pos_emb
+        img_size = 224
+        patch_size = 16
+        in_chans = 3
+        num_classes = 1536
+        embed_dim = 384
+        depth = 4
+        num_heads = 8
+        mlp_ratio = 4
+        qkv_bias = True
+        qk_scale = None
+        drop_rate = 0
+        attn_drop_rate = 0
+        drop_path_rate = 0
+        norm_layer = partial(nn.LayerNorm, eps=1e-6)
+        init_values = 0.0
+        tubelet_size = 2
+        use_learnable_pos_emb = False
 
         self.num_classes = num_classes
         assert num_classes == 3 * tubelet_size * patch_size ** 2
@@ -861,22 +840,7 @@ def build_video_mae_s():
                                                drop_rate=0.0,
                                                attn_drop_rate=0.0,
                                                drop_path_rate=0.1)
-    # encoder = PreTrainVisionTransformer(
-    #     patch_size=16,
-    #     embed_dim=384,
-    #     depth=12,
-    #     num_heads=6,
-    #     mlp_ratio=4,
-    #     qkv_bias=True,
-    #     norm_layer=partial(nn.LayerNorm, eps=1e-6),
-    #     num_classes=0,
-    #     use_mean_pooling=False,
-    #     drop_path_rate=0.0
-    # )
-    decoder = PretrainVisionTransformerDecoder(
-        embed_dim=192,
-        num_heads=3
-    )
+    decoder = PretrainVisionTransformerDecoder()
     return encoder, decoder
 
 
@@ -885,16 +849,5 @@ def build_video_mae_b():
                                                drop_rate=0.0,
                                                attn_drop_rate=0.0,
                                                drop_path_rate=0.1)
-    # encoder = PreTrainVisionTransformer(
-    #     patch_size=16,
-    #     embed_dim=768,
-    #     depth=12,
-    #     num_heads=12,
-    #     mlp_ratio=4,
-    #     qkv_bias=True,
-    #     use_mean_pooling=False,
-    #     num_classes=0,
-    #     norm_layer=partial(nn.LayerNorm, eps=1e-6),
-    #     )
     decoder = PretrainVisionTransformerDecoder()
     return encoder, decoder

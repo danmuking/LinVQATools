@@ -2,23 +2,22 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/video_mae_vqa/11142358 video mae vqa'
+work_dir = 'work_dir/video_mae_vqa/11150905 video mae vqa'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='video mae vqa', name='11142358 video mae vqa')
+            init_kwargs=dict(project='video mae vqa', name='11150905 video mae vqa')
         ),
     ],
 )
 model = dict(
     type='VideoMAEVQAWrapper',
-    model_type='s'
 )
 epochs = 800
-batch_size = 4
-num_workers = 4
+batch_size = 6
+num_workers = 6
 prefix = '4frame'
 argument = [
         dict(
