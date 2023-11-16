@@ -98,7 +98,7 @@ def makedir(path: str):
 
 def get_save_path(video_path, frame_num, epoch):
     video_path = video_path.split('/')
-    video_path.insert(3, 'resize')
+    video_path.insert(3, '4frame_4interval')
     video_path.insert(4, str(epoch))
     video_path[0] = "/data"
     video_path[1] = ""
@@ -112,7 +112,7 @@ def get_save_path(video_path, frame_num, epoch):
 def sampler(video_path: str, epoch: int):
     vreader = VideoReader(video_path)
     # frame_index = [x for x in range(len(vreader))]
-    frame_sampler = FragmentSampleFrames(fsize_t=16, fragments_t=1, frame_interval=4, num_clips=1, )
+    frame_sampler = FragmentSampleFrames(fsize_t=4, fragments_t=1, frame_interval=4, num_clips=1, )
     frame_index = frame_sampler(len(vreader))
 
     fragments_h = 7
@@ -127,22 +127,55 @@ def sampler(video_path: str, epoch: int):
     img = rearrange(img, 'h w c -> c h w ')
     res_h, res_w = img.shape[-2:]
     size = size_h, size_w
-    min_scale = 224 ** 2 / (res_h * res_w) * 3
-    max_scale = 224 ** 2 / (res_h * res_w) * 5 if min_scale * 4 < 1 else 1
 
-    video = []
-    for index, frame_num in enumerate(frame_index):
-        img = vreader[frame_num]
-        video.append(img)
-        img = rearrange(img, 'h w c -> c h w ')
+    ## make sure that sampling will not run out of the picture
+    hgrids = torch.LongTensor(
+        [min(res_h // fragments_h * i, res_h - fsize_h) for i in range(fragments_h)]
+    )
+    wgrids = torch.LongTensor(
+        [min(res_w // fragments_w * i, res_w - fsize_w) for i in range(fragments_w)]
+    )
+    hlength, wlength = res_h // fragments_h, res_w // fragments_w
+    if hlength > fsize_h:
+        rnd_h = torch.randint(
+            hlength - fsize_h, (len(hgrids), len(wgrids), 8)
+        )
+    else:
+        rnd_h = torch.zeros((len(hgrids), len(wgrids)).int())
+    if wlength > fsize_w:
+        rnd_w = torch.randint(
+            wlength - fsize_w, (len(hgrids), len(wgrids), 8)
+        )
+    else:
+        rnd_w = torch.zeros((len(hgrids), len(wgrids)).int())
 
-    video = torch.stack(video,dim=0)
-    video = rearrange(video, 't h w c ->t c h w ')
-    crop = torchvision.transforms.RandomResizedCrop(size=224, scale=(min_scale, max_scale), ratio=(1, 1))(video)
-    crop = rearrange(crop, 't c h w -> t h w c').numpy()
+    # softpool = SoftPool2d()
+
     for index, frame_num in enumerate(frame_index):
         save_path = get_save_path(video_path, frame_num, epoch)
-        target_img = crop[index]
+        img = vreader[frame_num]
+        img = rearrange(img, 'h w c -> c h w ')
+        # img = torchvision.transforms.CenterCrop((h, w))(img)
+        target_img = torch.zeros((3, 224, 224))
+
+        for i, hs in enumerate(hgrids):
+            for j, ws in enumerate(wgrids):
+                h_s, h_e = i * fsize_h, (i + 1) * fsize_h
+                w_s, w_e = j * fsize_w, (j + 1) * fsize_w
+                h_so, h_eo = hs + rnd_h[i][j][int(index/4)], hs + rnd_h[i][j][int(index/4)] + fsize_h
+                w_so, w_eo = ws + rnd_w[i][j][int(index/4)], ws + rnd_w[i][j][int(index/4)] + fsize_w
+                # print(i,j,int(index/8))
+                # print(rnd_h[i][j][int(index/8)],rnd_w[i][j][int(index/8)])
+                # print(h_so, w_so)
+                target_img[:, h_s:h_e, w_s:w_e] = img[:, h_so:h_eo, w_so:w_eo]
+
+        # target_img = rearrange(target_img, '(b c) h w -> b c h w', b=1)
+        # target_img = target_img / 255
+        # target_img = softpool(target_img)
+        # target_img = rearrange(target_img, 'b c h w -> (b c) h w', b=1)
+
+        target_img = rearrange(target_img, 'c h w -> h w c ')
+        target_img = target_img.numpy()
         target_img = cv2.cvtColor(target_img, cv2.COLOR_RGB2BGR)
         cv2.imwrite(save_path, target_img.astype('uint8'))
         print('{}已保存'.format(save_path))
@@ -154,14 +187,56 @@ if __name__ == '__main__':
     file = os.path.dirname(os.path.abspath(__file__))
     anno_path = os.path.join(file, './data/odv_vqa')
     data_anno = ODVVQAReader(anno_path).read()
-    pool = Pool(8)
-    for i in tqdm(range(0, 160)):
-        for video_info in data_anno:
-            video_path = video_info['video_path']
-            print(video_path)
-            pool.apply_async(func=sampler, kwds={'video_path': video_path, 'epoch': i})
-    pool.close()
-    pool.join()
-    # for video_info in data_anno[:1]:
-    #     video_path = video_info['video_path']
-    #     sampler(video_path, 0)
+    num = 160
+    # pool = Pool(8)
+    # for i in tqdm(range(0, num)):
+    #     for video_info in data_anno:
+    #         video_path = video_info['video_path']
+    #         print(video_path)
+    #         pool.apply_async(func=sampler, kwds={'video_path': video_path, 'epoch': i})
+    # pool.close()
+    # pool.join()
+    #
+    #
+    #     # print(dir)
+    #
+    #
+    # info = dict()
+    # for i in range(num):
+    #     path = "/data/ly/4frame_4interval/{}/VQA_ODV".format(i)
+    #     for group_name in os.listdir(path):
+    #         video_group_path = os.path.join(path, group_name)
+    #         if info.get(group_name, None) is None:
+    #             info[group_name] = dict()
+    #         for video_name in os.listdir(video_group_path):
+    #             video_path = os.path.join(video_group_path, video_name)
+    #             if info[group_name].get(video_name, None) is None:
+    #                 info[group_name][video_name] = []
+    #             frame_list = []
+    #             for video_frame_name in os.listdir(video_path):
+    #                 video_frame_path = os.path.join(video_path, video_frame_name)
+    #                 # print(video_frame_path)
+    #                 frame_list.append(int(video_frame_name[:-4]))
+    #             frame_list.sort()
+    #             info[group_name][video_name].append(frame_list)
+    # with open('/data/ly/4frame_4interval/info.json', 'w') as f:
+    #     json.dump(info, f)
+
+    import lmdb
+
+    env = lmdb.open('/data/ly/resize', map_size=1099511627776)
+    for i in tqdm(range(num)):
+        path = "/data/ly/resize/{}/VQA_ODV".format(i)
+        for group_name in os.listdir(path):
+            video_group_path = os.path.join(path, group_name)
+            for video_name in os.listdir(video_group_path):
+                video_path = os.path.join(video_group_path, video_name)
+                frame_list = []
+                for video_frame_name in os.listdir(video_path):
+                    video_frame_path = os.path.join(video_path, video_frame_name)
+                    with open(video_frame_path, 'rb') as f:
+                        # 读取图像文件的二进制格式数据
+                        image_bin = f.read()
+                    with env.begin(write=True) as txn:
+                        txn.put(video_frame_path.encode(), image_bin)
+    env.close()
