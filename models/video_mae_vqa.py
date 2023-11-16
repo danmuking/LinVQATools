@@ -1,5 +1,4 @@
 from collections import OrderedDict
-from functools import partial
 from typing import Union, Dict, Optional
 
 import torch
@@ -9,10 +8,7 @@ from mmengine.model import BaseModel
 from mmengine.optim import OptimWrapper
 from torch import nn
 
-from models.backbones.video_mae_v2 import VisionTransformer
-from models.evaluators import DiViDeAddEvaluator
 from models.faster_vqa import plcc_loss, rank_loss
-from models.heads import VQAHead
 from models.heads.vqa_mlp_head import VQAMlpHead
 from models.backbones.vit_videomae import PretrainVisionTransformerEncoder, PretrainVisionTransformerDecoder, \
     build_video_mae_s, build_video_mae_b
@@ -20,18 +16,12 @@ from models.backbones.vit_videomae import get_sinusoid_encoding_table
 
 
 class VideoMAEVQA(nn.Module):
-    def __init__(self,
-                 model_type='s'):
+    def __init__(self):
         super(VideoMAEVQA, self).__init__()
-        if model_type == 's':
-            self.backbone_embed_dim = 384
-            self.backbone, self.decoder = build_video_mae_s()
-        elif model_type == 'b':
-            self.backbone_embed_dim = 384 * 2
-            self.backbone, self.decoder = build_video_mae_b()
+        self.backbone_embed_dim = 384*2
 
-        self.mean = nn.Parameter(torch.Tensor([0.485, 0.456, 0.406])[None, :, None, None, None], requires_grad=False)
-        self.std = nn.Parameter(torch.Tensor([0.229, 0.224, 0.225])[None, :, None, None, None], requires_grad=False)
+        self.mean = nn.Parameter(torch.Tensor([0.45, 0.45, 0.45])[None, :, None, None, None], requires_grad=False)
+        self.std = nn.Parameter(torch.Tensor([0.225, 0.225, 0.225])[None, :, None, None, None], requires_grad=False)
         self.normlize_target = True
         self.patch_size = 16
         self.tubelet_size = 2
@@ -45,6 +35,7 @@ class VideoMAEVQA(nn.Module):
                            (self.patches_shape[1] // self.mask_stride[1]),
                            (self.patches_shape[2] // self.mask_stride[2])]
 
+        self.backbone, self.decoder = build_video_mae_b()
         self.vqa_head = VQAMlpHead()
         self.mask_token = nn.Parameter(torch.zeros(1, 1, 384))
         self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, 384,
@@ -133,11 +124,12 @@ class VideoMAEVQA(nn.Module):
         output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score}
         return output
 
+
 class CellRunningMaskAgent(nn.Module):
     def __init__(self):
         super(CellRunningMaskAgent, self).__init__()
         self.patch_num = 8 * 14 * 14
-        self.mask_num = int((8 * 14 * 14) * 0.5)  # 8*7*7*mark radio
+        self.mask_num = (8 * 14 * 14) // 2  # 8*7*7*mark radio
         self.mask_shape = [16 // 2, 14, 14]
         self.mask_stride = [1, 2, 2]
         self.spatial_small_patch_num = (self.mask_shape[1] // self.mask_stride[1]) * (
@@ -220,17 +212,13 @@ class CellRunningMaskAgent(nn.Module):
 class VideoMAEVQAWrapper(BaseModel):
     def __init__(
             self,
-            model_type="s",
             **kwargs
     ):
         super().__init__()
-        self.model = VideoMAEVQA(model_type=model_type)
+        self.model = VideoMAEVQA()
         self.agent = CellRunningMaskAgent()
 
-        if model_type == 'b':
-            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth",map_location='cpu')
-        elif model_type == 's':
-            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth",map_location='cpu')
+        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth")
         weight = weight['module']
         t_state_dict = OrderedDict()
         for key in weight.keys():
@@ -239,15 +227,6 @@ class VideoMAEVQAWrapper(BaseModel):
             # if 'encoder' in key:
             #     key = key.replace('encoder', 'backbone')
             t_state_dict[key] = weight_value
-
-        weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_k400.pth",map_location='cpu')
-        weight = weight['model']
-        for key in weight.keys():
-            if "decoder" in key:
-                weight_value = weight[key]
-                key = "model." + key
-                t_state_dict[key] = weight_value
-        t_state_dict = OrderedDict(filter(lambda x: 'encoder_to_decoder' not in x[0], t_state_dict.items()))
         info = self.load_state_dict(t_state_dict, strict=False)
         print(info)
 
@@ -268,9 +247,9 @@ class VideoMAEVQAWrapper(BaseModel):
 
             vqa_loss = mse_loss + p_loss + 3 * r_loss
             mae_loss = nn.MSELoss(reduction='none')(output['preds_pixel'], output['labels_pixel']).mean()
-            total_loss = mae_loss * 0.5 + vqa_loss.mean()
-            return {'total_loss': total_loss, "vqa_lozz": vqa_loss,'mae_lozz':mae_loss, 'mse_lozz': mse_loss,
-                    'p_lozz': p_loss, 'r_lozz': r_loss}
+            total_loss = mae_loss * 0.1 + vqa_loss.mean()
+            return {'loss': total_loss, "vqa_loss": vqa_loss, 'mae_loss': mae_loss, 'mse_loss': mse_loss,
+                    'p_loss': p_loss, 'r_loss': r_loss}
         elif mode == 'predict':
             self.agent.eval()
             mask = self.agent(inputs, [8, 14, 14])['mask']
@@ -317,9 +296,9 @@ class VideoMAEVQAWrapper(BaseModel):
         # recorder.iter_y_pre = result[0]
         # recorder.iter_y = result[1]
 
-        losses = {'total_loss': losses['total_loss'], 'vqa_lozz': losses['vqa_lozz'],
-                  'mse_lozz': losses['mse_lozz'], 'mae_lozz': losses['mae_lozz'],'p_lozz': losses['p_lozz'],
-                  'r_lozz': losses['r_lozz']}
+        losses = {'loss': losses['loss'], 'vqa_loss': losses['vqa_loss'], "mae_loss": losses["mae_loss"],
+                  'mse_loss': losses['mse_loss'], 'p_loss': losses['p_loss'],
+                  'r_loss': losses['r_loss']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
         optim_wrapper.update_params(parsed_losses)
         return log_vars

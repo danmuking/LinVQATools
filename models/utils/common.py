@@ -81,7 +81,7 @@ class Attention(nn.Module):
                                   requires_grad=False), self.v_bias))
         qkv = F.linear(input=x, weight=self.qkv.weight, bias=qkv_bias)
         qkv = qkv.reshape(B, N, 2, self.num_heads, -1).permute(2, 0, 3, 1, 4)
-        q, k = qkv[0], qkv[1]  # make torchscript happy (cannot use tensor as tuple)
+        q, k= qkv[0], qkv[1]  # make torchscript happy (cannot use tensor as tuple)
         v = x
         v = v.unsqueeze(1)
         q = q * self.scale
@@ -96,11 +96,10 @@ class Attention(nn.Module):
         x = self.proj_drop(x)
         return x
 
-
 class ChannelSelfAttention(nn.Module):
     def __init__(self, dim=1568):
         super(ChannelSelfAttention, self).__init__()
-        self.atte = Attention(dim, num_heads=1)
+        self.atte = Attention(dim,num_heads=1)
 
     def forward(self, x):
         """
@@ -113,12 +112,11 @@ class ChannelSelfAttention(nn.Module):
 
         return x
 
-
 class SpatialAttention(nn.Module):
     def __init__(self, kernel_size=2):
         super(SpatialAttention, self).__init__()
 
-        self.conv1 = nn.Conv3d(2, 1, (1, kernel_size, kernel_size), stride=(1, 2, 2), bias=False)
+        self.conv1 = nn.Conv3d(2, 1, (1, kernel_size, kernel_size),stride=(1,2,2), bias=False)
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, x):
@@ -127,8 +125,8 @@ class SpatialAttention(nn.Module):
         scale = torch.cat([avg_out, max_out], dim=1)
         scale = self.conv1(scale)
         scale = self.sigmoid(scale)
-        x = rearrange(x, 'b c (t n3) (h n1) (w n2) -> b c t h w (n3 n1 n2)', n1=7, n2=7, n3=4)
-        scale = rearrange(scale, 'b c (t n3) (h n1) (w n2) -> b c t h w (n3 n1 n2)', n1=7, n2=7, n3=4)
+        x = rearrange(x, 'b c (t n3) (h n1) (w n2) -> b c t h w (n3 n1 n2)', n1=7,n2=7,n3=4)
+        scale = rearrange(scale, 'b c (t n3) (h n1) (w n2) -> b c t h w (n3 n1 n2)', n1=7,n2=7,n3=4)
         x = scale * x
         x = rearrange(x, 'b c t h w (n3 n1 n2) -> b c (t n3) (h n1) (w n2)', n1=7, n2=7, n3=4)
         return x
@@ -139,15 +137,15 @@ class SpatialSelfAttention(nn.Module):
         super(SpatialSelfAttention, self).__init__()
 
         self.reduce = PatchMerging(embed_dims=dim)
-        self.block = Block(dim=dim * 2, num_heads=12, init_values=0., )
-        self.norm = nn.LayerNorm(dim * 2)
+        self.block = Block(dim=dim*2,num_heads=12,init_values=0.,)
+        self.norm = nn.LayerNorm(dim*2)
 
     def forward(self, x):
-        B, C, D, H, W = x.shape
-        x = rearrange(x, "b c d h w -> b d h w c")
-        x = self.reduce(x)
+        B,C,D,H,W = x.shape
+        x = rearrange(x,"b c d h w -> b d h w c")
+        x= self.reduce(x)
         x = rearrange(x, "b d h w c -> b (d h w) c")
         x = self.block(x)
         x = self.norm(x)
-        x = rearrange(x, "b (d h w) c -> b c d h w", d=D, h=7, w=7)
+        x = rearrange(x, "b (d h w) c -> b c d h w",d=D,h=7,w=7)
         return x
