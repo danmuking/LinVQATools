@@ -2,22 +2,23 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/video_mae_vqa/11160926 video mae vqa'
+work_dir = 'work_dir/video_mae_vqa/11171042 video mae vqa'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='video mae vqa', name='11160926 video mae vqa')
+            init_kwargs=dict(project='video mae vqa', name='11171042 video mae vqa')
         ),
     ],
 )
 model = dict(
     type='VideoMAEVQAWrapper',
+    model_type='s'
 )
 epochs = 800
-batch_size = 8
-num_workers = 8
+batch_size = 6
+num_workers = 6
 prefix = '4frame'
 argument = [
         dict(
@@ -93,11 +94,12 @@ train_cfg = dict(
 val_cfg = dict()
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.00001, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
-            # 'model.fragments_backbone': dict(lr_mult=0.1),
+            'model.backbone': dict(lr_mult=0.1),
+            'model.decoder': dict(lr_mult=0.1),
         })
 )
 param_scheduler = [
@@ -107,14 +109,14 @@ param_scheduler = [
         start_factor=0.001,
         by_epoch=True,
         begin=0,
-        end=40,
+        end=10,
         convert_to_iter_based=True
     ),
     # 在 [100, 900) 迭代时使用余弦学习率
     dict(
         type='CosineAnnealingLR',
         by_epoch=True,
-        begin=40,
+        begin=10,
         T_max=epochs,
         eta_min=0.0001*0.02,
         convert_to_iter_based=True
