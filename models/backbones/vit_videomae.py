@@ -870,7 +870,8 @@ def build_video_mae_s():
         qkv_bias=True,
         norm_layer=partial(nn.LayerNorm, eps=1e-6),
         num_classes=0,
-        use_mean_pooling=False
+        use_mean_pooling=False,
+        use_learnable_pos_emb=True
     )
     decoder = PretrainVisionTransformerDecoder(
         embed_dim=192,
