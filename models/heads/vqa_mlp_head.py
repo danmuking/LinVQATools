@@ -260,3 +260,43 @@ class VQAMlpHead(nn.Module):
         qlt_score = torch.mean(qlt_score.flatten(1),dim=-1,keepdim=True)
 
         return qlt_score
+
+class VQAPoolMlpHead(nn.Module):
+    """MLP Regression Head for VQA.
+    Args:
+        in_channels: input channels for MLP
+        hidden_channels: hidden channels for MLP
+        dropout_ratio: the dropout ratio for features before the MLP (default 0.5)
+    """
+
+    def __init__(
+            self, in_channels=512, hidden_channels=64, dropout_ratio=0.5, fc_in=1176, **kwargs
+    ):
+        super().__init__()
+
+        self.norm = nn.LayerNorm(384,eps=1e-6)
+        self.dropout_ratio = dropout_ratio
+        self.in_channels = in_channels
+        self.hidden_channels = hidden_channels
+        self.encode_to_vqa = nn.Sequential(
+            nn.Linear(1536,4*1536),
+            nn.Linear(4*1536, 1536),
+        )
+        self.fc_hid = nn.Sequential(
+            nn.Dropout(p=self.dropout_ratio) if self.dropout_ratio > 0 else nn.Identity(),
+            nn.Linear(1536, 1536//4),
+            nn.LayerNorm(1536//4,eps=1e-6)
+        )
+        self.fc_last = nn.Sequential(
+            nn.Linear(1536//4, 1),
+        )
+
+    def forward(self, x):
+        x = x[-4:]
+        for i in range(len(x)):
+            x[i] = self.norm(torch.mean(x[i],dim=1))
+        x = torch.cat(x,dim=-1)
+        qlt_score = self.fc_hid(x)
+        qlt_score = self.fc_last(qlt_score)
+
+        return qlt_score
