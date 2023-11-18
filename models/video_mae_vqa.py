@@ -139,7 +139,7 @@ class CellRunningMaskAgent(nn.Module):
     def __init__(self):
         super(CellRunningMaskAgent, self).__init__()
         self.patch_num = 8 * 14 * 14
-        self.mask_num = int((8 * 14 * 14) * 0.5)  # 8*7*7*mark radio
+        self.mask_num = int((8 * 14 * 14) * 0.25)  # 8*7*7*mark radio
         self.mask_shape = [16 // 2, 14, 14]
         self.mask_stride = [1, 2, 2]
         self.spatial_small_patch_num = (self.mask_shape[1] // self.mask_stride[1]) * (
@@ -270,7 +270,7 @@ class VideoMAEVQAWrapper(BaseModel):
             mse_loss = criterion(y_pred, y)
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
-            vqa_loss = mse_loss + p_loss + 3 * r_loss
+            vqa_loss = mse_loss + p_loss + 10 * r_loss
             mae_loss = nn.MSELoss(reduction='none')(output['preds_pixel'], output['labels_pixel']).mean()
             total_loss = mae_loss * 1 + vqa_loss
             return {'total_loss': total_loss, "vqa_lozz": vqa_loss,'mae_lozz':mae_loss, 'mse_lozz': mse_loss,
