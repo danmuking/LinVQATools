@@ -595,7 +595,6 @@ class PreTrainVisionTransformer(nn.Module):
 
     def forward_features(self, x, mask):
 
-        feats = []
         x = self.patch_embed(x)
         B, _, C = x.shape
         if self.pos_embed is not None:
@@ -610,17 +609,16 @@ class PreTrainVisionTransformer(nn.Module):
                 x_vis = cp.checkpoint(blk, x_vis)
             else:
                 x_vis = blk(x_vis)
-            feats.append(x_vis)
         if self.fc_norm is not None:
             return self.fc_norm(x_vis.mean(1))
         else:
             x = self.norm(x_vis)
-            return x,feats
+            return x
 
     def forward(self, x, mask, **kwargs):
-        x,feats = self.forward_features(x, mask)
+        x = self.forward_features(x, mask)
 
-        return x,feats, None, None
+        return x, None, None
 
 
 @register_model
