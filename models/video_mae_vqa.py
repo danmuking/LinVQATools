@@ -272,7 +272,7 @@ class VideoMAEVQAWrapper(BaseModel):
 
             vqa_loss = mse_loss + p_loss + 10 * r_loss
             mae_loss = nn.MSELoss(reduction='none')(output['preds_pixel'], output['labels_pixel']).mean()
-            total_loss = mae_loss * 1 + vqa_loss
+            total_loss = mae_loss * 0.5 + vqa_loss
             return {'total_loss': total_loss, "vqa_lozz": vqa_loss,'mae_lozz':mae_loss, 'mse_lozz': mse_loss,
                     'p_lozz': p_loss, 'r_lozz': r_loss}
         elif mode == 'predict':
