@@ -247,7 +247,6 @@ class VQAMlpHead(nn.Module):
             nn.GELU()
         )
 
-
     def forward(self, x):
         # out = x
         # for blk in self.blocks:
@@ -257,9 +256,16 @@ class VQAMlpHead(nn.Module):
 
         qlt_score = self.fc_hid(x)
         qlt_score = self.fc_last(qlt_score)
-        qlt_score = torch.mean(qlt_score.flatten(1),dim=-1,keepdim=True)
+        qlt_score = torch.mean(qlt_score.flatten(1), dim=-1, keepdim=True)
 
         return qlt_score
+
+
+def global_std_pool1d(x):
+    """2D global standard variation pooling"""
+    # x: (B, N, C)
+    return torch.std(x,dim=1)
+
 
 class VQAPoolMlpHead(nn.Module):
     """MLP Regression Head for VQA.
@@ -274,24 +280,25 @@ class VQAPoolMlpHead(nn.Module):
     ):
         super().__init__()
 
-        self.norm = nn.LayerNorm(384,eps=1e-6)
+        self.norm = nn.LayerNorm(384, eps=1e-6)
         self.dropout_ratio = dropout_ratio
         self.in_channels = in_channels
         self.hidden_channels = hidden_channels
         self.encode_to_vqa = nn.Sequential(
-            nn.Linear(4608,4*4608),
-            nn.Linear(4*4608, 4608),
+            nn.Linear(2304,4*2304),
+            nn.Linear(4*2304, 2304),
         )
         self.fc_hid = nn.Sequential(
             nn.Dropout(p=self.dropout_ratio) if self.dropout_ratio > 0 else nn.Identity(),
-            nn.Linear(4608, 4608//4),
-            nn.LayerNorm(4608//4,eps=1e-6)
+            nn.Linear(2304, 2304//4),
+            nn.LayerNorm(2304//4,eps=1e-6)
         )
         self.fc_last = nn.Sequential(
-            nn.Linear(4608//4, 1),
+            nn.Linear(2304//4, 1),
         )
 
     def forward(self, x):
+        x = x[-6:]
         for i in range(len(x)):
             x[i] = self.norm(torch.mean(x[i],dim=1))
         x = torch.cat(x,dim=-1)
