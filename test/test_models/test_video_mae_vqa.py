@@ -6,6 +6,7 @@ import torch
 from einops import rearrange
 from torch import nn
 
+from models.heads.vqa_mlp_head import global_std_pool1d
 from models.video_mae_vqa import VideoMAEVQA, CellRunningMaskAgent, VideoMAEVQAWrapper
 
 
@@ -57,3 +58,8 @@ class TestVideoMAEVQA(TestCase):
         model = VideoMAEVQAWrapper()
         info = model.load_state_dict(t_state_dict, strict=False)
         print(info)
+
+    def test_torch(self):
+        x = torch.ones((2,123,256))
+        y = global_std_pool1d(x)
+        print(y.shape)
