@@ -13,7 +13,7 @@ from models.backbones.video_mae_v2 import VisionTransformer
 from models.evaluators import DiViDeAddEvaluator
 from models.faster_vqa import plcc_loss, rank_loss
 from models.heads import VQAHead
-from models.heads.vqa_mlp_head import VQAMlpHead
+from models.heads.vqa_mlp_head import VQAMlpHead,VQAPoolMlpHead
 from models.backbones.vit_videomae import PretrainVisionTransformerEncoder, PretrainVisionTransformerDecoder, \
     build_video_mae_s, build_video_mae_b
 from models.backbones.vit_videomae import get_sinusoid_encoding_table
@@ -47,7 +47,7 @@ class VideoMAEVQA(nn.Module):
                            (self.patches_shape[1] // self.mask_stride[1]),
                            (self.patches_shape[2] // self.mask_stride[2])]
 
-        self.vqa_head = VQAMlpHead(dropout_ratio=0.5)
+        self.vqa_head = VQAPoolMlpHead(dropout_ratio=0.1)
         self.mask_token = nn.Parameter(torch.zeros(1, 1, self.decoder_dim))
         self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, self.decoder_dim,
                                             bias=False)
@@ -111,7 +111,7 @@ class VideoMAEVQA(nn.Module):
         full_mask = mask.reshape(B, *self.mask_shape).repeat_interleave(self.mask_stride[0], dim=1).repeat_interleave(
             self.mask_stride[1], dim=2).repeat_interleave(self.mask_stride[2], dim=3)
         full_mask = full_mask.flatten(2)
-        encoder_logits_backbone, patch_embed, x_vis_list = self.backbone(x_data, ~(full_mask.flatten(1)))
+        encoder_logits_backbone,feats, patch_embed, x_vis_list = self.backbone(x_data, ~(full_mask.flatten(1)))
         b, t, p = full_mask.size()
         if self.training:
             encoder_logits = self.encoder_to_decoder(encoder_logits_backbone)
@@ -131,7 +131,7 @@ class VideoMAEVQA(nn.Module):
             pred_pixels = pred_pixels[(~mask).flatten(1, 2)].reshape(B, -1, C)
         else:
             pred_pixels = None
-        preds_score = self.vqa_head(self.encoder_to_cls_decoder(encoder_logits_backbone))
+        preds_score = self.vqa_head(feats)
         output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score}
         return output
 
@@ -272,7 +272,7 @@ class VideoMAEVQAWrapper(BaseModel):
 
             vqa_loss = mse_loss + p_loss + 10 * r_loss
             mae_loss = nn.MSELoss(reduction='none')(output['preds_pixel'], output['labels_pixel']).mean()
-            total_loss = mae_loss * 0.1 + vqa_loss
+            total_loss = mae_loss * 1 + vqa_loss
             return {'total_loss': total_loss, "vqa_lozz": vqa_loss,'mae_lozz':mae_loss, 'mse_lozz': mse_loss,
                     'p_lozz': p_loss, 'r_lozz': r_loss}
         elif mode == 'predict':
