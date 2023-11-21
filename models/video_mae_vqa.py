@@ -146,7 +146,7 @@ class VideoMAEVQA(nn.Module):
 
 class CellRunningMaskAgent(nn.Module):
     def __init__(self, mask_ratio=0):
-        mask_ratio=0.5
+        mask_ratio = 0.25
         super(CellRunningMaskAgent, self).__init__()
         self.patch_num = 8 * 14 * 14
         self.mask_num = int((8 * 14 * 14) * mask_ratio)  # 8*7*7*mark radio
@@ -288,7 +288,7 @@ class VideoMAEVQAWrapper(BaseModel):
             vqa_loss = mse_loss + p_loss + 10 * r_loss
             total_loss = vqa_loss
             return_dict = {'total_loss': total_loss, "vqa_lozz": vqa_loss, 'mse_lozz': mse_loss,
-                    'p_lozz': p_loss, 'r_lozz': r_loss}
+                           'p_lozz': p_loss, 'r_lozz': r_loss}
             if self.mask_radio > 0:
                 mae_loss = nn.MSELoss(reduction='none')(output['preds_pixel'], output['labels_pixel']).mean()
                 total_loss = mae_loss * 1 + total_loss
