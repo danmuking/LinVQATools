@@ -146,7 +146,7 @@ class VideoMAEVQA(nn.Module):
 
 class CellRunningMaskAgent(nn.Module):
     def __init__(self, mask_ratio=0):
-        mask_ratio=0.75
+        mask_ratio=0.5
         super(CellRunningMaskAgent, self).__init__()
         self.patch_num = 8 * 14 * 14
         self.mask_num = int((8 * 14 * 14) * mask_ratio)  # 8*7*7*mark radio
