@@ -231,7 +231,7 @@ class CellRunningMaskAgent(nn.Module):
 class RandomMaskAgent(nn.Module):
     def __init__(self, mask_ratio=0):
         super(RandomMaskAgent, self).__init__()
-        mask_ratio = 0.75
+        mask_ratio = 0.25
         self.patch_num = 8 * 14 * 14
         self.mask_num = int((8 * 14 * 14) * mask_ratio)  # 8*7*7*mark radio
         self.mask_list = torch.tensor([1 for i in range(self.mask_num)] + [0 for i in range(self.patch_num - self.mask_num)])
