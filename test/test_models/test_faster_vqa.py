@@ -19,7 +19,7 @@ class TestFasterVQA(TestCase):
             backbone='vit',
             base_x_size=(16, 224, 224),
             vqa_head=dict(name='VQAHead',in_channels=384,drop_rate=0.8,fc_in=1568),
-            load_path="/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth"
+            load_path="/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth"
         )
         video = torch.ones((2, 3, 16, 224, 224))
         pos_embed = torch.ones((2,1568, 384))

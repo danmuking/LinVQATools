@@ -75,8 +75,9 @@ class FasterVQA(BaseModel):
             mse_loss = criterion(y_pred, y)
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
-            loss = mse_loss + p_loss + 3 * r_loss
-            return {'loss': loss, 'mse_loss': mse_loss, 'p_loss': p_loss, 'r_loss': r_loss}
+            loss = mse_loss + p_loss + 10 * r_loss
+            return {'total_loss': loss, 'mse_lozz': mse_loss, 'p_lozz': p_loss, 'r_lozz': r_loss}
+            # return {'loss': loss, 'mse_loss': mse_loss, 'p_loss': p_loss, 'r_loss': r_loss}
         elif mode == 'predict':
             scores = self.model(inputs, inference=True,
                                 reduce_scores=False)
@@ -121,9 +122,13 @@ class FasterVQA(BaseModel):
         # recorder.iter_y_pre = result[0]
         # recorder.iter_y = result[1]
 
-        losses = {'loss': losses['loss'], 'mse_loss': losses['mse_loss'], 'p_loss': losses['p_loss'],
-                  'r_loss': losses['r_loss']}
+        losses = {'total_loss': losses['total_loss'], 'mse_lozz': losses['mse_lozz'], 'p_lozz': losses['p_lozz'],
+                  'r_lozz': losses['r_lozz']}
+        # print(losses)
+        # losses = {'loss': losses['loss'], 'mse_loss': losses['mse_loss'], 'p_loss': losses['p_loss'],
+        #           'r_loss': losses['r_loss']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
+        # print(parsed_losses)
         optim_wrapper.update_params(parsed_losses)
         return log_vars
 

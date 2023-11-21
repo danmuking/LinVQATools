@@ -13,7 +13,7 @@ from models.backbones.video_mae_v2 import VisionTransformer
 from models.evaluators import DiViDeAddEvaluator
 from models.faster_vqa import plcc_loss, rank_loss
 from models.heads import VQAHead
-from models.heads.vqa_mlp_head import VQAMlpHead,VQAPoolMlpHead
+from models.heads.vqa_mlp_head import VQAMlpHead, VQAPoolMlpHead
 from models.backbones.vit_videomae import PretrainVisionTransformerEncoder, PretrainVisionTransformerDecoder, \
     build_video_mae_s, build_video_mae_b
 from models.backbones.vit_videomae import get_sinusoid_encoding_table
@@ -21,7 +21,8 @@ from models.backbones.vit_videomae import get_sinusoid_encoding_table
 
 class VideoMAEVQA(nn.Module):
     def __init__(self,
-                 model_type='s'):
+                 model_type='s',
+                 mask_ratio=0):
         super(VideoMAEVQA, self).__init__()
         if model_type == 's':
             self.backbone_embed_dim = 384
@@ -47,7 +48,7 @@ class VideoMAEVQA(nn.Module):
                            (self.patches_shape[1] // self.mask_stride[1]),
                            (self.patches_shape[2] // self.mask_stride[2])]
 
-        self.vqa_head = VQAPoolMlpHead(dropout_ratio=0.1)
+        self.vqa_head = VQAMlpHead(dropout_ratio=0.5)
         self.mask_token = nn.Parameter(torch.zeros(1, 1, self.decoder_dim))
         self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, self.decoder_dim,
                                             bias=False)
@@ -69,6 +70,11 @@ class VideoMAEVQA(nn.Module):
             self.mask_token_cls = nn.Parameter(torch.zeros(1, 1, 512))
         if self.fc_norm_mean_pooling:
             self.fc_norm = nn.LayerNorm(self.backbone_embed_dim, eps=1e-6)
+
+        self.mask_radio = mask_ratio
+        if mask_ratio <= 0:
+            self.decoder = nn.Identity()
+            self.encoder_to_decoder = nn.Identity()
 
     def forward(self, video, mask):
         x_data = video
@@ -111,35 +117,38 @@ class VideoMAEVQA(nn.Module):
         full_mask = mask.reshape(B, *self.mask_shape).repeat_interleave(self.mask_stride[0], dim=1).repeat_interleave(
             self.mask_stride[1], dim=2).repeat_interleave(self.mask_stride[2], dim=3)
         full_mask = full_mask.flatten(2)
-        encoder_logits_backbone,feats, patch_embed, x_vis_list = self.backbone(x_data, ~(full_mask.flatten(1)))
+        encoder_logits_backbone, feats, patch_embed, x_vis_list = self.backbone(x_data, ~(full_mask.flatten(1)))
         b, t, p = full_mask.size()
         if self.training:
-            encoder_logits = self.encoder_to_decoder(encoder_logits_backbone)
-            c = encoder_logits.size(-1)
-            full_mask = full_mask.flatten(1, 2)
-            mask_token = self.mask_token.type_as(encoder_logits).repeat(b, t * p, 1)
-            mask_token[full_mask, :] = encoder_logits.flatten(0, 1)
-            logits_full = mask_token + self.pos_embed.detach().clone()
-            pred_pixels = self.decoder(logits_full, -1)
-            pred_pixels = rearrange(pred_pixels, 'b (t s0 h s1 w s2) c -> b (t h w) (s0 s1 s2 c)',
-                                    s0=self.mask_stride[0],
-                                    s1=self.mask_stride[1],
-                                    s2=self.mask_stride[2],
-                                    t=t // self.mask_stride[0],
-                                    h=h // self.mask_stride[1],
-                                    w=w // self.mask_stride[2])
-            pred_pixels = pred_pixels[(~mask).flatten(1, 2)].reshape(B, -1, C)
+            pred_pixels = None
+            if self.mask_radio > 0:
+                encoder_logits = self.encoder_to_decoder(encoder_logits_backbone)
+                c = encoder_logits.size(-1)
+                full_mask = full_mask.flatten(1, 2)
+                mask_token = self.mask_token.type_as(encoder_logits).repeat(b, t * p, 1)
+                mask_token[full_mask, :] = encoder_logits.flatten(0, 1)
+                logits_full = mask_token + self.pos_embed.detach().clone()
+                pred_pixels = self.decoder(logits_full, -1)
+                pred_pixels = rearrange(pred_pixels, 'b (t s0 h s1 w s2) c -> b (t h w) (s0 s1 s2 c)',
+                                        s0=self.mask_stride[0],
+                                        s1=self.mask_stride[1],
+                                        s2=self.mask_stride[2],
+                                        t=t // self.mask_stride[0],
+                                        h=h // self.mask_stride[1],
+                                        w=w // self.mask_stride[2])
+                pred_pixels = pred_pixels[(~mask).flatten(1, 2)].reshape(B, -1, C)
         else:
             pred_pixels = None
-        preds_score = self.vqa_head(feats)
+        preds_score = self.vqa_head(encoder_logits_backbone)
         output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score}
         return output
 
+
 class CellRunningMaskAgent(nn.Module):
-    def __init__(self):
+    def __init__(self, mask_ratio=0):
         super(CellRunningMaskAgent, self).__init__()
         self.patch_num = 8 * 14 * 14
-        self.mask_num = int((8 * 14 * 14) * 0.5)  # 8*7*7*mark radio
+        self.mask_num = int((8 * 14 * 14) * mask_ratio)  # 8*7*7*mark radio
         self.mask_shape = [16 // 2, 14, 14]
         self.mask_stride = [1, 2, 2]
         self.spatial_small_patch_num = (self.mask_shape[1] // self.mask_stride[1]) * (
@@ -223,17 +232,22 @@ class VideoMAEVQAWrapper(BaseModel):
     def __init__(
             self,
             model_type="s",
+            mask_ratio=0,
             **kwargs
     ):
         super().__init__()
-        self.model = VideoMAEVQA(model_type=model_type)
-        self.agent = CellRunningMaskAgent()
+        self.mask_radio = mask_ratio
+        self.model = VideoMAEVQA(model_type=model_type, mask_ratio=mask_ratio)
+        self.agent = CellRunningMaskAgent(mask_ratio)
 
         if model_type == 'b':
-            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth",map_location='cpu')
-            decode_weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_k400.pth",map_location='cpu')
+            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth",
+                                map_location='cpu')
+            decode_weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_k400.pth",
+                                       map_location='cpu')
         elif model_type == 's':
-            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth",map_location='cpu')
+            weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_s_k710_dl_from_giant.pth",
+                                map_location='cpu')
             decode_weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/video_mae_v1_s_pretrain.pth",
                                        map_location='cpu')
         weight = weight['module']
@@ -271,10 +285,16 @@ class VideoMAEVQAWrapper(BaseModel):
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
 
             vqa_loss = mse_loss + p_loss + 10 * r_loss
-            mae_loss = nn.MSELoss(reduction='none')(output['preds_pixel'], output['labels_pixel']).mean()
-            total_loss = mae_loss * 1 + vqa_loss
-            return {'total_loss': total_loss, "vqa_lozz": vqa_loss,'mae_lozz':mae_loss, 'mse_lozz': mse_loss,
+            total_loss = vqa_loss
+            return_dict = {'total_loss': total_loss, "vqa_lozz": vqa_loss, 'mse_lozz': mse_loss,
                     'p_lozz': p_loss, 'r_lozz': r_loss}
+            if self.mask_radio > 0:
+                mae_loss = nn.MSELoss(reduction='none')(output['preds_pixel'], output['labels_pixel']).mean()
+                total_loss = mae_loss * 1 + total_loss
+                return_dict["total_loss"] = total_loss
+                return_dict["mae_lozz"] = mae_loss
+
+            return return_dict
         elif mode == 'predict':
             self.agent.eval()
             mask = self.agent(inputs, [8, 14, 14])['mask']
@@ -315,15 +335,9 @@ class VideoMAEVQAWrapper(BaseModel):
             data = self.data_preprocessor(data, True)
             losses = self._run_forward(data, mode='loss')  # type: ignore
 
-        # 略作修改，适配一下train hook
-        # result = losses['result']
-        # recorder = TrainResultRecorder.get_instance('mmengine')
-        # recorder.iter_y_pre = result[0]
-        # recorder.iter_y = result[1]
-
-        losses = {'total_loss': losses['total_loss'], 'vqa_lozz': losses['vqa_lozz'],
-                  'mse_lozz': losses['mse_lozz'], 'mae_lozz': losses['mae_lozz'],'p_lozz': losses['p_lozz'],
-                  'r_lozz': losses['r_lozz']}
+        # losses = {'total_loss': losses['total_loss'], 'vqa_lozz': losses['vqa_lozz'],
+        #           'mse_lozz': losses['mse_lozz'], 'mae_lozz': losses['mae_lozz'], 'p_lozz': losses['p_lozz'],
+        #           'r_lozz': losses['r_lozz']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
         optim_wrapper.update_params(parsed_losses)
         return log_vars

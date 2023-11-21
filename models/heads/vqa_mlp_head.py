@@ -212,26 +212,9 @@ class VQAMlpHead(nn.Module):
     """
 
     def __init__(
-            self, in_channels=512, hidden_channels=64, dropout_ratio=0.5, fc_in=1176, **kwargs
+            self, in_channels=384, hidden_channels=64, dropout_ratio=0.5, **kwargs
     ):
         super().__init__()
-
-        # self.num_features = 512
-        # self.num_heads = 4
-        # drop_path = 0
-        # depth = 2
-        # attn_drop_out = 0
-        # ffn_drop_out = 0.0
-        # mlp_mult_override = 4
-        #
-        # dpr = [x.item() for x in torch.linspace(0, drop_path, depth)]  # stochastic depth decay rule
-        # self.mask_inv_test = False
-        # self.blocks = nn.ModuleList([
-        #     BaseTransformerLayer(cfg=None, num_heads_override=self.num_heads, dim_override=self.num_features,
-        #                          drop_path_rate=dpr[i], attn_dropout_override=attn_drop_out,
-        #                          ff_dropout_override=ffn_drop_out, mlp_mult_override=mlp_mult_override)
-        #     for i in range(depth)])
-        # self.norm = nn.LayerNorm(self.num_features, eps=1e-6)
 
         self.dropout_ratio = dropout_ratio
         self.in_channels = in_channels
@@ -244,20 +227,12 @@ class VQAMlpHead(nn.Module):
         self.fc_last = nn.Sequential(
             nn.Dropout(p=self.dropout_ratio) if self.dropout_ratio > 0 else nn.Identity(),
             nn.Linear(self.hidden_channels, 1),
-            nn.GELU()
         )
 
-
     def forward(self, x):
-        # out = x
-        # for blk in self.blocks:
-        #     out = blk(out)
-        # out = self.norm(out)
-        # x = out
-
         qlt_score = self.fc_hid(x)
         qlt_score = self.fc_last(qlt_score)
-        qlt_score = torch.mean(qlt_score.flatten(1),dim=-1,keepdim=True)
+        qlt_score = torch.mean(qlt_score.flatten(1), dim=-1, keepdim=True)
 
         return qlt_score
 
@@ -265,7 +240,7 @@ class VQAMlpHead(nn.Module):
 def global_std_pool1d(x):
     """2D global standard variation pooling"""
     # x: (B, N, C)
-    return torch.std(x,dim=1)
+    return torch.std(x, dim=1)
 
 
 class VQAPoolMlpHead(nn.Module):
@@ -281,27 +256,27 @@ class VQAPoolMlpHead(nn.Module):
     ):
         super().__init__()
 
-        self.norm = nn.LayerNorm(384,eps=1e-6)
+        self.norm = nn.LayerNorm(384, eps=1e-6)
         self.dropout_ratio = dropout_ratio
         self.in_channels = in_channels
         self.hidden_channels = hidden_channels
         self.encode_to_vqa = nn.Sequential(
-            nn.Linear(4608,2*4608),
-            nn.Linear(2*4608, 4608),
+            nn.Linear(4608, 2 * 4608),
+            nn.Linear(2 * 4608, 4608),
         )
         self.fc_hid = nn.Sequential(
             nn.Dropout(p=self.dropout_ratio) if self.dropout_ratio > 0 else nn.Identity(),
-            nn.Linear(4608, 4608//4),
-            nn.LayerNorm(4608//4,eps=1e-6)
+            nn.Linear(4608, 4608 // 4),
+            nn.LayerNorm(4608 // 4, eps=1e-6)
         )
         self.fc_last = nn.Sequential(
-            nn.Linear(4608//4, 1),
+            nn.Linear(4608 // 4, 1),
         )
 
     def forward(self, x):
         for i in range(len(x)):
-            x[i] = self.norm(torch.cat([torch.mean(x[i],dim=1)],dim=-1))
-        x = torch.cat(x,dim=-1)
+            x[i] = self.norm(torch.cat([torch.mean(x[i], dim=1)], dim=-1))
+        x = torch.cat(x, dim=-1)
         qlt_score = self.fc_hid(x)
         qlt_score = self.fc_last(qlt_score)
 
