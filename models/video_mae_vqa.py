@@ -277,7 +277,7 @@ class BlockMaskAgent(nn.Module):
 
 class RandomCellMaskAgent(nn.Module):
     def __init__(self, mask_ratio=0):
-        mask_ratio = 0.75
+        mask_ratio = 0.5
         super(RandomCellMaskAgent, self).__init__()
         self.patch_num = 8 * 14 * 14
         self.mask_num = int((8 * 14 * 14) * mask_ratio)
