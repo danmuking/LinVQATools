@@ -253,7 +253,7 @@ class RandomMaskAgent(nn.Module):
 class BlockMaskAgent(nn.Module):
     def __init__(self, mask_ratio=0):
         super(BlockMaskAgent, self).__init__()
-        mask_ratio = 0.5
+        mask_ratio = 0.75
         self.block_num = 4 * 7 * 7
         self.mask_num = int((4 * 7 * 7) * mask_ratio)  # 8*7*7*mark radio
         self.mask_list = torch.tensor(
