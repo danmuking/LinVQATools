@@ -3,11 +3,8 @@ from unittest import TestCase
 
 import numpy as np
 import torch
-from einops import rearrange
-from torch import nn
 
-from models.video_mae_vqa import VideoMAEVQA, CellRunningMaskAgent, VideoMAEVQAWrapper, RandomMaskAgent, BlockMaskAgent, \
-    RandomCellMaskAgent
+from models.video_mae_vqa import VideoMAEVQA, VideoMAEVQAWrapper, RandomCellMaskAgent
 
 
 class TestVideoMAEVQA(TestCase):

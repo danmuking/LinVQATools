@@ -71,8 +71,8 @@ class VideoMAEVQA(nn.Module):
         if self.fc_norm_mean_pooling:
             self.fc_norm = nn.LayerNorm(self.backbone_embed_dim, eps=1e-6)
 
-        self.mask_radio = mask_ratio
-        if mask_ratio <= 0:
+        self.mask_ratio = mask_ratio
+        if self.mask_ratio <= 0:
             self.decoder = nn.Identity()
             self.encoder_to_decoder = nn.Identity()
 
@@ -121,7 +121,7 @@ class VideoMAEVQA(nn.Module):
         b, t, p = full_mask.size()
         if self.training:
             pred_pixels = None
-            if self.mask_radio > 0:
+            if self.mask_ratio > 0:
                 encoder_logits = self.encoder_to_decoder(encoder_logits_backbone)
                 c = encoder_logits.size(-1)
                 full_mask = full_mask.flatten(1, 2)
@@ -146,7 +146,6 @@ class VideoMAEVQA(nn.Module):
 
 class CellRunningMaskAgent(nn.Module):
     def __init__(self, mask_ratio=0):
-        mask_ratio = 0.25
         super(CellRunningMaskAgent, self).__init__()
         self.patch_num = 8 * 14 * 14
         self.mask_num = int((8 * 14 * 14) * mask_ratio)  # 8*7*7*mark radio
@@ -277,7 +276,6 @@ class BlockMaskAgent(nn.Module):
 
 class RandomCellMaskAgent(nn.Module):
     def __init__(self, mask_ratio=0):
-        mask_ratio = 0.5
         super(RandomCellMaskAgent, self).__init__()
         self.patch_num = 8 * 14 * 14
         self.mask_num = int((8 * 14 * 14) * mask_ratio)
@@ -314,9 +312,9 @@ class VideoMAEVQAWrapper(BaseModel):
             **kwargs
     ):
         super().__init__()
-        self.mask_radio = mask_ratio
+        self.mask_ratio = mask_ratio
         self.model = VideoMAEVQA(model_type=model_type, mask_ratio=mask_ratio)
-        self.agent = RandomCellMaskAgent(mask_ratio)
+        self.agent = CellRunningMaskAgent(mask_ratio)
 
         if model_type == 'b':
             weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth",
@@ -366,7 +364,7 @@ class VideoMAEVQAWrapper(BaseModel):
             total_loss = vqa_loss
             return_dict = {'total_loss': total_loss, "vqa_lozz": vqa_loss, 'mse_lozz': mse_loss,
                            'p_lozz': p_loss, 'r_lozz': r_loss}
-            if self.mask_radio > 0:
+            if self.mask_ratio > 0:
                 mae_loss = nn.MSELoss(reduction='none')(output['preds_pixel'], output['labels_pixel']).mean()
                 total_loss = mae_loss * 1 + total_loss
                 return_dict["total_loss"] = total_loss

@@ -2,20 +2,20 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/video_mae_vqa/11221525 vit random_cell_mask_50'
+work_dir = 'work_dir/video_mae_vqa/11221542 vit run_cell_mask_75 mae'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='video mae vqa', name='11221525 vit random_cell_mask_50')
+            init_kwargs=dict(project='video mae vqa', name='11221542 vit run_cell_mask_75 mae')
         ),
     ],
 )
 model = dict(
     type='VideoMAEVQAWrapper',
     model_type='s',
-    mask_radio=0,
+    mask_ratio=0.75,
 )
 epochs = 600
 batch_size = 6
