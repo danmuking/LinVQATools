@@ -251,7 +251,7 @@ class RandomMaskAgent(nn.Module):
 class BlockMaskAgent(nn.Module):
     def __init__(self, mask_ratio=0):
         super(BlockMaskAgent, self).__init__()
-        mask_ratio = 0.75
+        # mask_ratio = 0.75
         self.block_num = 4 * 7 * 7
         self.mask_num = int((4 * 7 * 7) * mask_ratio)  # 8*7*7*mark radio
         self.mask_list = torch.tensor(
@@ -313,7 +313,7 @@ class VideoMAEVQAWrapper(BaseModel):
         super().__init__()
         self.mask_ratio = mask_ratio
         self.model = VideoMAEVQA(model_type=model_type, mask_ratio=mask_ratio)
-        self.agent = RandomMaskAgent(mask_ratio)
+        self.agent = BlockMaskAgent(mask_ratio)
 
         if model_type == 'b':
             weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth",
