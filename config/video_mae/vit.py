@@ -2,13 +2,13 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-work_dir = 'work_dir/video_mae_vqa/11220933 vit block_mask_75'
+work_dir = 'work_dir/video_mae_vqa/11221522 vit random_cell_mask_75'
 visualizer = dict(
     type='Visualizer',
     vis_backends=[
         dict(
             type='WandbVisBackend',
-            init_kwargs=dict(project='video mae vqa', name='11220933 vit block_mask_75')
+            init_kwargs=dict(project='video mae vqa', name='11221522 vit random_cell_mask_75')
         ),
     ],
 )

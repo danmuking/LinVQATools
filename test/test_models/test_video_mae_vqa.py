@@ -6,7 +6,8 @@ import torch
 from einops import rearrange
 from torch import nn
 
-from models.video_mae_vqa import VideoMAEVQA, CellRunningMaskAgent, VideoMAEVQAWrapper, RandomMaskAgent, BlockMaskAgent
+from models.video_mae_vqa import VideoMAEVQA, CellRunningMaskAgent, VideoMAEVQAWrapper, RandomMaskAgent, BlockMaskAgent, \
+    RandomCellMaskAgent
 
 
 class TestVideoMAEVQA(TestCase):
@@ -28,7 +29,8 @@ class TestVideoMAEVQA(TestCase):
         # print(mask[0].reshape(8,14,14))
 
         torch.set_printoptions(threshold=np.inf)
-        model = BlockMaskAgent()
+        # model = BlockMaskAgent()
+        model = RandomCellMaskAgent()
         x = {'video': torch.rand((2, 3, 16, 224, 224)), "mask": torch.zeros((2, 8 * 14 * 14)).long()}
         y = model(x, [8, 14, 14])
         mask = y['mask']

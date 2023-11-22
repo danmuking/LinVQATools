@@ -275,6 +275,36 @@ class BlockMaskAgent(nn.Module):
         return output
 
 
+class RandomCellMaskAgent(nn.Module):
+    def __init__(self, mask_ratio=0):
+        mask_ratio = 0.75
+        super(RandomCellMaskAgent, self).__init__()
+        self.patch_num = 8 * 14 * 14
+        self.mask_num = int((8 * 14 * 14) * mask_ratio)
+        self.mask_shape = [16 // 2, 14, 14]
+        self.mask_stride = [2, 2, 2]
+        self.small_patch_num = (self.mask_shape[0] // self.mask_stride[0]) * (self.mask_shape[1] // self.mask_stride[1]) * (
+                self.mask_shape[2] // self.mask_stride[2])  # 4 7 7
+        self.per_patch_num = self.mask_stride[0]*self.mask_stride[1]*self.mask_stride[2]
+        mask_per_patch = self.mask_num // self.small_patch_num
+        # 每一个patch的mask表
+        self.mask_list = torch.tensor([1 for i in range(mask_per_patch)] + [0 for i in range(self.per_patch_num - mask_per_patch)])
+
+    def forward(self, x, mask_shape):
+        if isinstance(x, dict):
+            x = x['video']
+        B, C, T, H, W = x.size()
+        selected_mask = []
+        for i in range(B):
+            mask = []
+            for j in range(self.small_patch_num):
+                mask.append(self.mask_list[torch.randperm(self.per_patch_num)])
+            mask = rearrange(torch.cat(mask), "(t h w s0 s1 s2) -> (t s0) (w s1) (h s2)",t=4,h=7,w=7,s0=2,s1=2,s2=2).flatten(1)
+            selected_mask.append(mask)
+        selected_mask = torch.stack(selected_mask).to(x.device)
+        output = {"mask": 1.0 - selected_mask}
+        return output
+
 @MODELS.register_module()
 class VideoMAEVQAWrapper(BaseModel):
     def __init__(
@@ -286,7 +316,7 @@ class VideoMAEVQAWrapper(BaseModel):
         super().__init__()
         self.mask_radio = mask_ratio
         self.model = VideoMAEVQA(model_type=model_type, mask_ratio=mask_ratio)
-        self.agent = BlockMaskAgent(mask_ratio)
+        self.agent = RandomCellMaskAgent(mask_ratio)
 
         if model_type == 'b':
             weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth",
