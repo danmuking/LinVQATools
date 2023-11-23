@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = "11231421 vit random_cell_mask_75 mae"
+name = "11240034 vit random_cell_mask_75 mae last3"
 work_dir = 'work_dir/video_mae_vqa/'+name
 visualizer = dict(
     type='Visualizer',
