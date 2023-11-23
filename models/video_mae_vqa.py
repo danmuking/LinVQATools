@@ -313,7 +313,7 @@ class VideoMAEVQAWrapper(BaseModel):
         super().__init__()
         self.mask_ratio = mask_ratio
         self.model = VideoMAEVQA(model_type=model_type, mask_ratio=mask_ratio)
-        self.agent = RandomCellMaskAgent(mask_ratio)
+        self.agent = RandomMaskAgent(mask_ratio)
 
         if model_type == 'b':
             weight = torch.load("/data/ly/code/LinVQATools/pretrained_weights/vit_b_k710_dl_from_giant.pth",
