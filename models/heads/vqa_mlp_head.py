@@ -260,7 +260,7 @@ class VQAPoolMlpHead(nn.Module):
         self.dropout_ratio = dropout_ratio
         self.in_channels = in_channels
         self.hidden_channels = hidden_channels
-        dim = 384*6
+        dim = 384*4
         self.encode_to_vqa = nn.Sequential(
             nn.Linear(dim, 2 * dim),
             nn.Linear(2 * dim, dim),
@@ -275,7 +275,8 @@ class VQAPoolMlpHead(nn.Module):
         )
 
     def forward(self, x):
-        x = x[-6:]
+        x = x[2::3]
+        print(len(x))
         for i in range(len(x)):
             x[i] = self.norm(torch.cat([torch.mean(x[i], dim=1)], dim=-1))
         x = torch.cat(x, dim=-1)
