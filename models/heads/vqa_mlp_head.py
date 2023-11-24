@@ -39,6 +39,7 @@ class Block(nn.Module):
             x = x + self.drop_path(self.gamma_2 * self.mlp(self.norm2(x)))
         return x
 
+
 class VQAMlpHead(nn.Module):
     """MLP Regression Head for VQA.
     Args:
@@ -52,7 +53,7 @@ class VQAMlpHead(nn.Module):
     ):
         super().__init__()
 
-        self.gap_layer = Block(dim=384,num_heads=3,init_values=0.0)
+        self.gap_layer = Block(dim=384, num_heads=3, init_values=0.0)
         self.dropout_ratio = dropout_ratio
         self.in_channels = in_channels
         self.hidden_channels = hidden_channels
