@@ -53,7 +53,6 @@ class VQAMlpHead(nn.Module):
     ):
         super().__init__()
 
-        self.gap_layer = Block(dim=384, num_heads=3, init_values=0.0)
         self.dropout_ratio = dropout_ratio
         self.in_channels = in_channels
         self.hidden_channels = hidden_channels
@@ -68,7 +67,6 @@ class VQAMlpHead(nn.Module):
         )
 
     def forward(self, x):
-        x = self.gap_layer(x)
         qlt_score = self.fc_hid(x)
         qlt_score = self.fc_last(qlt_score)
         qlt_score = torch.mean(qlt_score.flatten(1), dim=-1, keepdim=True)
@@ -99,22 +97,20 @@ class VQAPoolMlpHead(nn.Module):
         self.dropout_ratio = dropout_ratio
         self.in_channels = in_channels
         self.hidden_channels = hidden_channels
-        dim = 384 * 9
         self.encode_to_vqa = nn.Sequential(
-            nn.Linear(dim, 2 * dim),
-            nn.Linear(2 * dim, dim),
+            nn.Linear(4608, 2 * 4608),
+            nn.Linear(2 * 4608, 4608),
         )
         self.fc_hid = nn.Sequential(
             nn.Dropout(p=self.dropout_ratio) if self.dropout_ratio > 0 else nn.Identity(),
-            nn.Linear(dim, dim // 4),
-            nn.LayerNorm(dim // 4, eps=1e-6)
+            nn.Linear(4608, 4608 // 4),
+            nn.LayerNorm(4608 // 4, eps=1e-6)
         )
         self.fc_last = nn.Sequential(
-            nn.Linear(dim // 4, 1),
+            nn.Linear(4608 // 4, 1),
         )
 
     def forward(self, x):
-        x = x[-9:]
         for i in range(len(x)):
             x[i] = self.norm(torch.cat([torch.mean(x[i], dim=1)], dim=-1))
         x = torch.cat(x, dim=-1)

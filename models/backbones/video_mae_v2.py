@@ -524,7 +524,7 @@ class PreTrainVisionTransformer(nn.Module):
             # sine-cosine positional embeddings is on the way
             self.pos_embed = get_sinusoid_encoding_table(
                 num_patches, embed_dim)
-
+        self.pos_embed = torch.zeros_like(self.pos_embed)
         self.pos_drop = nn.Dropout(p=drop_rate)
 
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)
