@@ -28,8 +28,7 @@ class SingleBranchDataset(Dataset):
             anno_reader: str = 'ODVVQAReader',
             split_file: str = './data/odv_vqa/tr_te_VQA_ODV.txt',
             phase: str = 'train',
-            norm: bool = True,
-            clip=1,
+            norm: bool = True
 
     ):
         # 数据集声明文件夹路径
@@ -42,7 +41,6 @@ class SingleBranchDataset(Dataset):
         self.phase = phase
         # 是否归一化
         self.norm = norm
-        self.clip = clip
 
         # 数据集信息
         self.video_info = self.anno_reader.read()
@@ -64,17 +62,13 @@ class SingleBranchDataset(Dataset):
         score = video_info["score"]
         frame_num = video_info['frame_num']
 
-        videos = []
-        for i in range(self.clip):
-            video = self.video_loader(video_path=video_path, frame_num=frame_num)
-            videos.append(video)
-        video = torch.stack(videos, dim=0)
+        video = self.video_loader(video_path=video_path, frame_num=frame_num)
 
         if self.norm:
-            video = video / 255.0
-            video = ((video.permute(0, 2, 3, 4, 1) - self.mean) / self.std).permute(0,4, 1, 2, 3)
+            video = video/255.0
+            video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
         data = {
-            "inputs": video, "num_clips": self.clip,
+            "inputs": video, "num_clips": {},
             # "frame_inds": frame_idxs,
             "gt_label": score,
             "name": osp.basename(video_path)
