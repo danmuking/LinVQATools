@@ -6,7 +6,7 @@ import numpy as np
 import torch
 
 from data.default_dataset import SingleBranchDataset
-from data.shuffler import MixShuffler
+# from data.shuffler import MixShuffler
 
 
 class TestSingleBranchDataset(TestCase):
@@ -14,7 +14,7 @@ class TestSingleBranchDataset(TestCase):
         os.chdir('../../')
         video_loader = dict(
             name='FragmentLoader',
-            prefix='fragment',
+            prefix='4frame',
             argument=[
                 # dict(
                 #     name='FragmentShuffler',
@@ -36,8 +36,6 @@ class TestSingleBranchDataset(TestCase):
         data = dataset[0]
         # video = torch.from_numpy(np.load("temp.npy"))
         video = data['inputs']
-        pos_embed = data['pos_embed']
-        print(pos_embed.shape)
         # print(data)
         print(video.shape)
         fourcc = cv2.VideoWriter_fourcc(*'XVID')

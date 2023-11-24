@@ -48,7 +48,7 @@ class VideoMAEVQA(nn.Module):
                            (self.patches_shape[1] // self.mask_stride[1]),
                            (self.patches_shape[2] // self.mask_stride[2])]
 
-        self.vqa_head = VQAPoolMlpHead(dropout_ratio=0.5)
+        self.vqa_head = VQAMlpHead(dropout_ratio=0.5)
         self.mask_token = nn.Parameter(torch.zeros(1, 1, self.decoder_dim))
         self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, self.decoder_dim,
                                             bias=False)
@@ -139,7 +139,7 @@ class VideoMAEVQA(nn.Module):
                 pred_pixels = pred_pixels[(~mask).flatten(1, 2)].reshape(B, -1, C)
         else:
             pred_pixels = None
-        preds_score = self.vqa_head(feats)
+        preds_score = self.vqa_head(encoder_logits_backbone)
         output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score}
         return output
 
@@ -349,7 +349,9 @@ class VideoMAEVQAWrapper(BaseModel):
             Union[
                 Dict[str, torch.Tensor], list]:
         y = gt_label.float().unsqueeze(-1)
+        B,Clip,C,D,H,W = inputs.shape
         if mode == 'loss':
+            inputs = rearrange(inputs,"b clip c t h w -> (b clip) c t h w")
             self.agent.train()
             mask = self.agent(inputs, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
@@ -371,11 +373,14 @@ class VideoMAEVQAWrapper(BaseModel):
 
             return return_dict
         elif mode == 'predict':
+            inputs = rearrange(inputs, "b clip c t h w -> (b clip) c t h w")
             self.agent.eval()
             mask = self.agent(inputs, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
             output = self.model(inputs, mask)
             y_pred = output['preds_score']
+            y_pred = rearrange(y_pred, "(b clip) 1 -> b clip", b=B, clip=Clip)
+            y_pred = y_pred.mean(dim=1)
             return y_pred, y
 
     def train_step(self, data: Union[dict, tuple, list],

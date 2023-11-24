@@ -276,7 +276,6 @@ class VQAPoolMlpHead(nn.Module):
 
     def forward(self, x):
         x = x[2::3]
-        print(len(x))
         for i in range(len(x)):
             x[i] = self.norm(torch.cat([torch.mean(x[i], dim=1)], dim=-1))
         x = torch.cat(x, dim=-1)
