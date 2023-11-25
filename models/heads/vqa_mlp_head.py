@@ -53,6 +53,7 @@ class VQAMlpHead(nn.Module):
     ):
         super().__init__()
 
+        self.gap_layer = Block(dim=384, num_heads=8, init_values=0.0)
         self.dropout_ratio = dropout_ratio
         self.in_channels = in_channels
         self.hidden_channels = hidden_channels
@@ -67,6 +68,7 @@ class VQAMlpHead(nn.Module):
         )
 
     def forward(self, x):
+        x = self.gap_layer(x)
         qlt_score = self.fc_hid(x)
         qlt_score = self.fc_last(qlt_score)
         qlt_score = torch.mean(qlt_score.flatten(1), dim=-1, keepdim=True)

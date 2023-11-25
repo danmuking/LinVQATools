@@ -52,8 +52,6 @@ class VideoMAEVQA(nn.Module):
         self.mask_token = nn.Parameter(torch.zeros(1, 1, self.decoder_dim))
         self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, self.decoder_dim,
                                             bias=False)
-        self.encoder_to_cls_decoder = nn.Linear(self.backbone_embed_dim,
-                                                512, bias=False)
 
         self.pos_embed = get_sinusoid_encoding_table(self.backbone.pos_embed.shape[1],
                                                      self.decoder_dim)
