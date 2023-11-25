@@ -524,7 +524,7 @@ class PreTrainVisionTransformer(nn.Module):
             # sine-cosine positional embeddings is on the way
             self.pos_embed = get_sinusoid_encoding_table(
                 num_patches, embed_dim)
-        self.pos_embed = torch.zeros_like(self.pos_embed)
+
         self.pos_drop = nn.Dropout(p=drop_rate)
 
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)
@@ -599,7 +599,14 @@ class PreTrainVisionTransformer(nn.Module):
         x = self.patch_embed(x)
         B, _, C = x.shape
         if self.pos_embed is not None:
-            x = x + self.pos_embed.expand(B, -1, -1).type_as(x).to(
+            pos = []
+            temp_pos_embed = rearrange(self.pos_embed, 'b (s0 t s1 h s2 w) c -> b (s0 s1 s2) t h w c', s0=2, s1=2, s2=2,
+                                       t=4, h=7, w=7)
+            for i in range(B):
+                pos.append(temp_pos_embed[:, torch.randperm(temp_pos_embed.size(1)), ...])
+            pos = torch.cat(pos, dim=0)
+            pos = rearrange(pos, 'b (s0 s1 s2) t h w c -> b (s0 t s1 h s2 w) c', s0=2, s1=2, s2=2,t=4, h=7, w=7)
+            x = x + pos.type_as(x).to(
                 x.device).clone().detach()
         x = self.pos_drop(x)
 
@@ -615,12 +622,12 @@ class PreTrainVisionTransformer(nn.Module):
             return self.fc_norm(x_vis.mean(1))
         else:
             x = self.norm(x_vis)
-            return x,feats
+            return x, feats
 
     def forward(self, x, mask, **kwargs):
-        x,feats = self.forward_features(x, mask)
+        x, feats = self.forward_features(x, mask)
 
-        return x,feats, None, None
+        return x, feats, None, None
 
 
 @register_model
