@@ -3,6 +3,7 @@ from unittest import TestCase
 
 import numpy as np
 import torch
+from einops import rearrange
 
 from models.video_mae_vqa import VideoMAEVQA, VideoMAEVQAWrapper, RandomCellMaskAgent
 
@@ -67,3 +68,8 @@ class TestVideoMAEVQA(TestCase):
         model = VideoMAEVQAWrapper()
         info = model.load_state_dict(t_state_dict, strict=False)
         print(info)
+
+    def test(self):
+        x = torch.tensor([i for i in range(12)])
+        x = rearrange(x,"(r w) -> r w",r=3,w=4)
+        print(x)
