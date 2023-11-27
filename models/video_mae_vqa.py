@@ -48,10 +48,12 @@ class VideoMAEVQA(nn.Module):
                            (self.patches_shape[1] // self.mask_stride[1]),
                            (self.patches_shape[2] // self.mask_stride[2])]
 
-        self.vqa_head = VQAMlpHead(dropout_ratio=0.5)
+        self.vqa_head = VQAPoolMlpHead(dropout_ratio=0.5)
         self.mask_token = nn.Parameter(torch.zeros(1, 1, self.decoder_dim))
         self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, self.decoder_dim,
                                             bias=False)
+        self.encoder_to_cls_decoder = nn.Linear(self.backbone_embed_dim,
+                                                512, bias=False)
 
         self.pos_embed = get_sinusoid_encoding_table(self.backbone.pos_embed.shape[1],
                                                      self.decoder_dim)
@@ -137,7 +139,7 @@ class VideoMAEVQA(nn.Module):
                 pred_pixels = pred_pixels[(~mask).flatten(1, 2)].reshape(B, -1, C)
         else:
             pred_pixels = None
-        preds_score = self.vqa_head(encoder_logits_backbone)
+        preds_score = self.vqa_head(feats)
         output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score}
         return output
 
@@ -228,7 +230,6 @@ class CellRunningMaskAgent(nn.Module):
 class RandomMaskAgent(nn.Module):
     def __init__(self, mask_ratio=0):
         super(RandomMaskAgent, self).__init__()
-        mask_ratio = 0.5
         self.patch_num = 8 * 14 * 14
         self.mask_num = int((8 * 14 * 14) * mask_ratio)  # 8*7*7*mark radio
         self.mask_list = torch.tensor(
@@ -250,7 +251,7 @@ class RandomMaskAgent(nn.Module):
 class BlockMaskAgent(nn.Module):
     def __init__(self, mask_ratio=0):
         super(BlockMaskAgent, self).__init__()
-        mask_ratio = 0.75
+        # mask_ratio = 0.75
         self.block_num = 4 * 7 * 7
         self.mask_num = int((4 * 7 * 7) * mask_ratio)  # 8*7*7*mark radio
         self.mask_list = torch.tensor(
