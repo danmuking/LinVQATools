@@ -277,7 +277,7 @@ class VQAPoolMlpHead(nn.Module):
     def forward(self, x):
         x = x[-6:]
         for i in range(len(x)):
-            x[i] = self.norm(torch.cat([torch.mean(x[i], dim=1), torch.max(x[i], dim=1)[0]], dim=-1))
+            x[i] = self.norm(torch.cat([torch.mean(x[i], dim=1), global_std_pool1d(x[i])], dim=-1))
         x = torch.cat(x, dim=-1)
         qlt_score = self.fc_hid(x)
         qlt_score = self.fc_last(qlt_score)
