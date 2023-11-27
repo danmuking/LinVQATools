@@ -256,8 +256,8 @@ class VQAPoolMlpHead(nn.Module):
     ):
         super().__init__()
 
-        self.norm = nn.LayerNorm(384*3, eps=1e-6)
-        dim = 384 * 3
+        self.norm = nn.LayerNorm(384*6, eps=1e-6)
+        dim = 384 * 6
         self.dropout_ratio = dropout_ratio
         self.in_channels = in_channels
         self.hidden_channels = hidden_channels
@@ -272,7 +272,7 @@ class VQAPoolMlpHead(nn.Module):
         )
 
     def forward(self, x):
-        x = x[-3:]
+        x = x[-6:]
         # for i in range(len(x)):
         #     # x[i] = self.norm(torch.cat([torch.mean(x[i], dim=1)], dim=-1))
         #     x[i] = self.norm(x[i])
