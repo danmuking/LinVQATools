@@ -349,7 +349,9 @@ class VideoMAEVQAWrapper(BaseModel):
             Union[
                 Dict[str, torch.Tensor], list]:
         y = gt_label.float().unsqueeze(-1)
+        B,Clip,C,D,H,W = inputs.shape
         if mode == 'loss':
+            inputs = rearrange(inputs,"b clip c t h w -> (b clip) c t h w")
             self.agent.train()
             mask = self.agent(inputs, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
@@ -371,11 +373,14 @@ class VideoMAEVQAWrapper(BaseModel):
 
             return return_dict
         elif mode == 'predict':
+            inputs = rearrange(inputs, "b clip c t h w -> (b clip) c t h w")
             self.agent.eval()
             mask = self.agent(inputs, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
             output = self.model(inputs, mask)
             y_pred = output['preds_score']
+            y_pred = rearrange(y_pred, "(b clip) 1 -> b clip", b=B, clip=Clip)
+            y_pred = y_pred.mean(dim=1)
             return y_pred, y
 
     def train_step(self, data: Union[dict, tuple, list],

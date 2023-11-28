@@ -20,10 +20,7 @@ class ImgReader:
         :return: 成功返回视频，失败返回none
         """
         # 直接读取视频
-        if is_train:
-            num = random.randint(0, 39)
-        else:
-            num = 0
+        num = random.randint(0, 39)
         # 预处理好的视频路径
         video_pre_path = video_path.split('/')
         video_pre_path.insert(3, self.prefix)

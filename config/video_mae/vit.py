@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = "11271450 vit random_cell_mask_75 mae last6"
+name = "11271932 vit random_cell_mask_75 mae last6 4clip"
 work_dir = 'work_dir/video_mae_vqa/'+name
 visualizer = dict(
     type='Visualizer',
@@ -77,14 +77,15 @@ val_dataloader = dict(
         anno_reader='ODVVQAReader',
         split_file='./data/odv_vqa/tr_te_VQA_ODV.txt',
         phase='test',
-        norm=True
+        norm=True,
+        clip=4
     ),
     sampler=dict(
         type='DefaultSampler',
         shuffle=False
     ),
     collate_fn=dict(type='default_collate'),
-    batch_size=batch_size,
+    batch_size=1,
     pin_memory=True,
     num_workers=num_workers)
 
