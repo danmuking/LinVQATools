@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'konvid_1k', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = "11271921 vit random_cell_mask_75 mae last6 kv1k"
+name = "11281426 vit random_cell_mask_75 mae last6 4clip kv1k"
 work_dir = 'work_dir/video_mae_vqa/'+name
 visualizer = dict(
     type='Visualizer',
@@ -47,7 +47,8 @@ val_dataloader = dict(
         type='KoVid_1KDataset',
         argument=argument,
         phase='test',
-        norm=True
+        norm=True,
+        clip=4
     ),
     sampler=dict(
         type='DefaultSampler',

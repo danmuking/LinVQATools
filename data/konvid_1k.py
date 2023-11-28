@@ -432,7 +432,7 @@ class FragmentSampleFrames:
 
 @DATASETS.register_module()
 class KoVid_1KDataset(torch.utils.data.Dataset):
-    def __init__(self, root='/data/ly/KoNViD_1k', phase='train', norm=True,argument: List[Dict] = [],):
+    def __init__(self, root='/data/ly/KoNViD_1k', phase='train', norm=True,argument: List[Dict] = [],clip=1,):
         super().__init__()
         self.phase = phase
         self.norm = norm
@@ -441,6 +441,7 @@ class KoVid_1KDataset(torch.utils.data.Dataset):
         self.data_prefix = root
         # 数据增强
         self.argument = [getattr(shuffler, item['name'])(**item) for item in argument]
+        self.clip = clip
 
         self.mean = torch.FloatTensor([0.485, 0.456, 0.406])
         self.std = torch.FloatTensor([0.229, 0.224, 0.225])
@@ -462,14 +463,17 @@ class KoVid_1KDataset(torch.utils.data.Dataset):
 
         ## Read Original Frames
         ## Process Frames
-        video, frame_inds = get_spatial_and_temporal_samples(video_path, self.samplers)
-
-        # 视频后处理
-        for item in self.argument:
-            video = item(video)
+        videos = []
+        for i in range(self.clip):
+            video, frame_inds = get_spatial_and_temporal_samples(video_path, self.samplers)
+            # 视频后处理
+            for item in self.argument:
+                video = item(video)
+            videos.append(video)
+        video = torch.stack(videos, dim=0)
         if self.norm:
             video = video / 255.0
-            video = ((video.permute(1, 2, 3, 0) - self.mean) / self.std).permute(3, 0, 1, 2)
+            video = ((video.permute(0, 2, 3, 4, 1) - self.mean) / self.std).permute(0, 4, 1, 2, 3)
 
         data = {
             "inputs": video, "num_clips": {},

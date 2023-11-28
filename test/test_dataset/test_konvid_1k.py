@@ -21,7 +21,7 @@ class TestKoVid_1KDataset(TestCase):
         dataset = KoVid_1KDataset(norm=False,argument=argument)
         data = dataset[0]
         # video = torch.from_numpy(np.load("temp.npy"))
-        video = data['inputs']
+        video = data['inputs'][0]
         # pos_embed = data['pos_embed']
         # print(pos_embed.shape)
         # print(data)
