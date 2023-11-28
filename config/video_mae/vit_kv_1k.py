@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'konvid_1k', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = "11281426 vit random_cell_mask_75 mae last6 4clip kv1k"
+name = "11281428 vit random_cell_mask_75 mae last6 4clip kv1k"
 work_dir = 'work_dir/video_mae_vqa/'+name
 visualizer = dict(
     type='Visualizer',
@@ -67,7 +67,7 @@ train_cfg = dict(
 val_cfg = dict()
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.00001, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=0.00005, weight_decay=0.05),
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
@@ -91,7 +91,7 @@ param_scheduler = [
         by_epoch=True,
         begin=40,
         T_max=epochs,
-        eta_min=0.00001*0.01,
+        eta_min=0.00005*0.01,
         convert_to_iter_based=True
     ),
 ]
