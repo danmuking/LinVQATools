@@ -23,11 +23,13 @@ class VideoMAEVQA(nn.Module):
     def __init__(self,
                  model_type='s',
                  mask_ratio=0.,
-                 head_dropout=0.5,):
+                 head_dropout=0.5,
+                 drop_path_rate=0
+                 ):
         super(VideoMAEVQA, self).__init__()
         if model_type == 's':
             self.backbone_embed_dim = 384
-            self.backbone, self.decoder = build_video_mae_s()
+            self.backbone, self.decoder = build_video_mae_s(drop_path_rate)
 
         elif model_type == 'b':
             self.backbone_embed_dim = 384 * 2
@@ -310,11 +312,12 @@ class VideoMAEVQAWrapper(BaseModel):
             model_type="s",
             mask_ratio=0,
             head_dropout=0.5,
+            drop_path_rate=0,
             **kwargs
     ):
         super().__init__()
         self.mask_ratio = mask_ratio
-        self.model = VideoMAEVQA(model_type=model_type, mask_ratio=mask_ratio,head_dropout=head_dropout)
+        self.model = VideoMAEVQA(model_type=model_type, mask_ratio=mask_ratio,head_dropout=head_dropout,drop_path_rate=drop_path_rate)
         self.agent = CellRunningMaskAgent(mask_ratio)
 
         if model_type == 'b':
