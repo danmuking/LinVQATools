@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = "11271932 vit random_cell_mask_75 mae last6 4clip"
+name = "11290938 vit random_cell_mask_75 mae last6 4clip"
 work_dir = 'work_dir/video_mae_vqa/'+name
 visualizer = dict(
     type='Visualizer',
@@ -17,6 +17,7 @@ model = dict(
     type='VideoMAEVQAWrapper',
     model_type='s',
     mask_ratio=0.75,
+    head_dropout=0.1,
 )
 epochs = 600
 batch_size = 6
@@ -136,6 +137,7 @@ val_evaluator = [
 default_hooks = dict(
     checkpoint=dict(type='CheckpointHook', interval=1, max_keep_ckpts=10, save_best='SROCC', rule='greater'))
 custom_hooks = [
+    dict(type='EMAHook', ema_type='ExponentialMovingAverage',momentum=0.1)
     # dict(type='TrainEvaluatorHook'),
     # dict(type='CustomEMAHook',momentum=0.01)
     # dict(type='EmptyCacheHook', after_epoch=True)
