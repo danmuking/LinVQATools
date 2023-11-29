@@ -880,10 +880,18 @@ def build_video_mae_s(drop_path_rate=0):
     return encoder, decoder
 
 
-def build_video_mae_b():
-    encoder = PretrainVisionTransformerEncoder(embed_dim=768, depth=12, num_heads=12, mlp_ratio=4,
-                                               drop_rate=0.0,
-                                               attn_drop_rate=0.0,
-                                               drop_path_rate=0.1)
+def build_video_mae_b(drop_path_rate=0):
+    encoder = PreTrainVisionTransformer(
+        patch_size=16,
+        embed_dim=768,
+        depth=12,
+        num_heads=12,
+        mlp_ratio=4,
+        qkv_bias=True,
+        norm_layer=partial(nn.LayerNorm, eps=1e-6),
+        num_classes=0,
+        use_mean_pooling=False,
+        drop_path_rate=drop_path_rate,
+    )
     decoder = PretrainVisionTransformerDecoder()
     return encoder, decoder
