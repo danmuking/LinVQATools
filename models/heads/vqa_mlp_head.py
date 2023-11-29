@@ -256,11 +256,11 @@ class VQAPoolMlpHead(nn.Module):
     ):
         super().__init__()
 
-        self.norm = nn.LayerNorm(384 *2, eps=1e-6)
+        self.norm = nn.LayerNorm(384, eps=1e-6)
         self.dropout_ratio = dropout_ratio
         self.in_channels = in_channels
         self.hidden_channels = hidden_channels
-        dim = 384 * 6 * 2
+        dim = 384 * 6
         self.encode_to_vqa = nn.Sequential(
             nn.Linear(dim, 2 * dim),
             nn.Linear(2 * dim, dim),
