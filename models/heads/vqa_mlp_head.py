@@ -258,7 +258,6 @@ class VQAPoolMlpHead(nn.Module):
 
         self.norm = nn.LayerNorm(384, eps=1e-6)
         self.dropout_ratio = dropout_ratio
-        self.dropout_ratio = 0.1
         self.in_channels = in_channels
         self.hidden_channels = hidden_channels
         dim = 384 * 6

@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'konvid_1k', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = "11281428 vit random_cell_mask_75 mae last6 4clip kv1k"
+name = "11290926 vit random_cell_mask_75 mae last6 4clip kv1k"
 work_dir = 'work_dir/video_mae_vqa/'+name
 visualizer = dict(
     type='Visualizer',
@@ -17,6 +17,7 @@ model = dict(
     type='VideoMAEVQAWrapper',
     model_type='s',
     mask_ratio=0.75,
+    head_dropout=0.5,
 )
 epochs = 600
 batch_size = 6

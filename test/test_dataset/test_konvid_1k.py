@@ -18,10 +18,12 @@ class TestKoVid_1KDataset(TestCase):
                 frame_cube=4
             ),
         ]
-        dataset = KoVid_1KDataset(norm=False,argument=argument)
+        dataset = KoVid_1KDataset(norm=False,argument=argument,clip=4)
         data = dataset[0]
         # video = torch.from_numpy(np.load("temp.npy"))
-        video = data['inputs'][0]
+        video = data['inputs']
+        print(video.shape)
+        video = video[1]
         # pos_embed = data['pos_embed']
         # print(pos_embed.shape)
         # print(data)

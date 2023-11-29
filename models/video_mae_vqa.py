@@ -22,7 +22,8 @@ from models.backbones.vit_videomae import get_sinusoid_encoding_table
 class VideoMAEVQA(nn.Module):
     def __init__(self,
                  model_type='s',
-                 mask_ratio=0):
+                 mask_ratio=0.,
+                 head_dropout=0.5,):
         super(VideoMAEVQA, self).__init__()
         if model_type == 's':
             self.backbone_embed_dim = 384
@@ -48,7 +49,7 @@ class VideoMAEVQA(nn.Module):
                            (self.patches_shape[1] // self.mask_stride[1]),
                            (self.patches_shape[2] // self.mask_stride[2])]
 
-        self.vqa_head = VQAPoolMlpHead(dropout_ratio=0.5)
+        self.vqa_head = VQAPoolMlpHead(dropout_ratio=head_dropout)
         self.mask_token = nn.Parameter(torch.zeros(1, 1, self.decoder_dim))
         self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, self.decoder_dim,
                                             bias=False)
@@ -308,11 +309,12 @@ class VideoMAEVQAWrapper(BaseModel):
             self,
             model_type="s",
             mask_ratio=0,
+            head_dropout=0.5,
             **kwargs
     ):
         super().__init__()
         self.mask_ratio = mask_ratio
-        self.model = VideoMAEVQA(model_type=model_type, mask_ratio=mask_ratio)
+        self.model = VideoMAEVQA(model_type=model_type, mask_ratio=mask_ratio,head_dropout=head_dropout)
         self.agent = CellRunningMaskAgent(mask_ratio)
 
         if model_type == 'b':
