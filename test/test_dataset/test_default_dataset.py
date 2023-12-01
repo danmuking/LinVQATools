@@ -1,4 +1,5 @@
 import os
+import random
 from unittest import TestCase
 
 import cv2
@@ -6,7 +7,6 @@ import numpy as np
 import torch
 
 from data.default_dataset import SingleBranchDataset
-from data.shuffler import MixShuffler
 
 
 class TestSingleBranchDataset(TestCase):
@@ -54,8 +54,11 @@ class TestSingleBranchDataset(TestCase):
             out.write(fra)
         out.release()
 
-    def test_mix(self):
-        shuffler = MixShuffler(32)
-        video = [x for x in range(224*224)]
-        video = torch.tensor(video).reshape(1,1,224,224)
-        shuffler(video)
+    def test_anno(self):
+        with open("/data/ly/LIVE Video Quality Challenge (VQC) Database-selected/labels.txt",'r') as f:
+            lines = f.readlines();
+        random.shuffle(lines)
+        with open("/data/ly/LIVE Video Quality Challenge (VQC) Database-selected/train.txt",'w') as f:
+            f.writelines(lines[:int(len(lines)*0.8)])
+        with open("/data/ly/LIVE Video Quality Challenge (VQC) Database-selected/test.txt",'w') as f:
+            f.writelines(lines[int(len(lines)*0.8):])
