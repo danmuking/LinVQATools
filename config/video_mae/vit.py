@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = "12010934 vit random_cell_mask_75 mae last6 4clip"
+name = "12010937 vit random_cell_mask_75 mae last6 4clip"
 work_dir = 'work_dir/video_mae_vqa/'+name
 visualizer = dict(
     type='Visualizer',
@@ -145,8 +145,8 @@ custom_hooks = [
 ]
 launcher = 'none'
 # randomness = dict(seed=42)
-randomness = dict(seed=3407)
-# randomness = dict(seed=114514)
+# randomness = dict(seed=3407)
+randomness = dict(seed=114514)
 env_cfg = dict(
     cudnn_benchmark=True,
     backend='nccl',
