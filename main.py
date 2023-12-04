@@ -10,9 +10,9 @@ from mmengine import Config
 
 from mmengine.runner import Runner
 
-config = Config.fromfile('./config/video_mae/vit_live_vqc.py')
+config = Config.fromfile('./config/video_mae/vit_lsvq.py')
 runner = Runner.from_cfg(config)
 runner.train()
-while True:
-    pass
+# while True:
+#     pass
 
