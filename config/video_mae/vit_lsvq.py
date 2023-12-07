@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'lsvq', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = "12051819 vit random_cell_mask_75 mae last6 4clip lsvq"
+name = "12071423 vit random_cell_mask_75 mae last6 4clip lsvq"
 work_dir = 'work_dir/video_mae_vqa/'+name
 visualizer = dict(
     type='Visualizer',
@@ -20,8 +20,8 @@ model = dict(
     head_dropout=0.1,
     drop_path_rate=0.1
 )
-epochs = 60
-batch_size = 16
+epochs = 100
+batch_size = 6
 num_workers = 6
 argument = [
         dict(
@@ -69,7 +69,7 @@ train_cfg = dict(
 val_cfg = dict()
 optim_wrapper = dict(
     type='OptimWrapper',
-    optimizer=dict(type='AdamW', lr=0.0001, weight_decay=0.05),
+    optimizer=dict(type='AdamW', lr=0.00005, weight_decay=0.05),
     # accumulative_counts=4,
     paramwise_cfg=dict(
         custom_keys={
@@ -84,16 +84,16 @@ param_scheduler = [
         start_factor=0.001,
         by_epoch=True,
         begin=0,
-        end=3,
+        end=10,
         convert_to_iter_based=True
     ),
     # 在 [100, 900) 迭代时使用余弦学习率
     dict(
         type='CosineAnnealingLR',
         by_epoch=True,
-        begin=3,
+        begin=10,
         T_max=epochs,
-        eta_min=0.00001*0.01,
+        eta_min=0.00005*0.01,
         convert_to_iter_based=True
     ),
 ]
