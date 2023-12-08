@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = "12011456 vit random_cell_mask_75 mae last6 4clip"
+name = "12081446 vit random_cell_mask_75 mae last6 4clip"
 work_dir = 'work_dir/video_mae_vqa/'+name
 visualizer = dict(
     type='Visualizer',
@@ -144,14 +144,14 @@ custom_hooks = [
     # dict(type='EmptyCacheHook', after_epoch=True)
 ]
 launcher = 'none'
-# randomness = dict(seed=42)
+randomness = dict(seed=42)
 # randomness = dict(seed=3407)
 # randomness = dict(seed=114514)
-randomness = dict(seed=237376)
+# randomness = dict(seed=237376)
 env_cfg = dict(
     cudnn_benchmark=True,
     backend='nccl',
     mp_cfg=dict(mp_start_method='fork'))
 log_level = 'INFO'
-load_from = None
+load_from = '/data/ly/code/LinVQATools/work_dir/video_mae_vqa/12041446 vit random_cell_mask_75 mae last6 4clip lsvq/best_SROCC_epoch_55.pth'
 resume = False
