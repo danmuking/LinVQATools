@@ -10,7 +10,7 @@ from mmengine import Config
 
 from mmengine.runner import Runner
 
-config = Config.fromfile('./config/video_mae/vit.py')
+config = Config.fromfile('./config/video_mae/vit_kv_1k.py')
 runner = Runner.from_cfg(config)
 runner.train()
 # while True:

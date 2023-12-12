@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'konvid_1k', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = "11290926 vit random_cell_mask_75 mae last6 4clip kv1k"
+name = "12121435 vit random_cell_mask_75 mae last6 4clip kv1k"
 work_dir = 'work_dir/video_mae_vqa/'+name
 visualizer = dict(
     type='Visualizer',
@@ -120,5 +120,5 @@ env_cfg = dict(
     backend='nccl',
     mp_cfg=dict(mp_start_method='fork'))
 log_level = 'INFO'
-load_from = None
+load_from = '/data/ly/code/LinVQATools/work_dir/video_mae_vqa/12041446 vit random_cell_mask_75 mae last6 4clip lsvq/best_SROCC_epoch_55.pth'
 resume = False
