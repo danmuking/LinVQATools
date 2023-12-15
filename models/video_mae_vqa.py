@@ -42,7 +42,7 @@ class VideoMAEVQA(nn.Module):
         self.patch_size = 16
         self.tubelet_size = 2
         self.mask_stride = [1, 1, 1]
-        self.input_size = [16, 224]
+        self.input_size = [16, 448]
         # 8 14 14
         self.patches_shape = [self.input_size[0] // self.tubelet_size, self.input_size[1] // self.patch_size,
                               self.input_size[1] // self.patch_size]
@@ -150,9 +150,10 @@ class VideoMAEVQA(nn.Module):
 class CellRunningMaskAgent(nn.Module):
     def __init__(self, mask_ratio=0):
         super(CellRunningMaskAgent, self).__init__()
-        self.patch_num = 8 * 14 * 14
-        self.mask_num = int((8 * 14 * 14) * mask_ratio)  # 8*7*7*mark radio
-        self.mask_shape = [16 // 2, 14, 14]
+        self.fragment_num = 14*2
+        self.patch_num = 8 * self.fragment_num * self.fragment_num
+        self.mask_num = int((8 * self.fragment_num * self.fragment_num) * mask_ratio)  # 8*7*7*mark radio
+        self.mask_shape = [16 // 2, self.fragment_num, self.fragment_num]
         self.mask_stride = [1, 2, 2]
         self.spatial_small_patch_num = (self.mask_shape[1] // self.mask_stride[1]) * (
                 self.mask_shape[2] // self.mask_stride[2])  # 8 7 7
@@ -358,7 +359,7 @@ class VideoMAEVQAWrapper(BaseModel):
         if mode == 'loss':
             inputs = rearrange(inputs,"b clip c t h w -> (b clip) c t h w")
             self.agent.train()
-            mask = self.agent(inputs, [8, 14, 14])['mask']
+            mask = self.agent(inputs, [8, 14*2, 14*2])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
             output = self.model(inputs, mask)
             y_pred = output['preds_score']

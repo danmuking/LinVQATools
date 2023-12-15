@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from einops import rearrange
 
-from models.video_mae_vqa import VideoMAEVQA, VideoMAEVQAWrapper, RandomCellMaskAgent
+from models.video_mae_vqa import VideoMAEVQA, VideoMAEVQAWrapper, RandomCellMaskAgent, CellRunningMaskAgent
 
 
 class TestVideoMAEVQA(TestCase):
@@ -28,18 +28,18 @@ class TestVideoMAEVQA(TestCase):
 
         torch.set_printoptions(threshold=np.inf)
         # model = BlockMaskAgent()
-        model = RandomCellMaskAgent()
-        x = {'video': torch.rand((2, 3, 16, 224, 224)), "mask": torch.zeros((2, 8 * 14 * 14)).long()}
-        y = model(x, [8, 14, 14])
+        model = CellRunningMaskAgent(mask_ratio=0.75)
+        x = {'video': torch.rand((2, 3, 16, 224*2, 224*2)), "mask": torch.zeros((2, 8 * 14*2 * 14*2)).long()}
+        y = model(x, [8, 14*2, 14*2])
         mask = y['mask']
         print(mask.shape)
         mask = mask.reshape(mask.size(0), 8, -1)
         print(mask.shape)
-        print(mask[0].reshape(8, 14, 14))
+        print(mask[0].reshape(8, 14*2, 14*2))
 
     def test_VideoMAEVQAWrapper(self):
-        model = VideoMAEVQAWrapper(model_type="b")
-        y = model(inputs=torch.rand((1,4, 3, 16, 224, 224)), gt_label=torch.rand((2)),mode='predict')
+        model = VideoMAEVQAWrapper(model_type="s",mask_ratio=0.75)
+        y = model(inputs=torch.rand((2,1, 3, 16, 448, 448)), gt_label=torch.rand((2)),mode='loss')
         print(y)
 
     def test_load(self):

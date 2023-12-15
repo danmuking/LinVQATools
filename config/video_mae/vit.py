@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = "12081446 vit random_cell_mask_75 mae last6 4clip"
+name = "12151416 vit random_cell_mask_75 mae last6 4clip"
 work_dir = 'work_dir/video_mae_vqa/'+name
 visualizer = dict(
     type='Visualizer',
@@ -23,7 +23,7 @@ model = dict(
 epochs = 600
 batch_size = 6
 num_workers = 6
-prefix = '4frame'
+prefix = 'temp'
 argument = [
         dict(
             name='FragmentShuffler',
@@ -153,5 +153,5 @@ env_cfg = dict(
     backend='nccl',
     mp_cfg=dict(mp_start_method='fork'))
 log_level = 'INFO'
-load_from = '/data/ly/code/LinVQATools/work_dir/video_mae_vqa/12041446 vit random_cell_mask_75 mae last6 4clip lsvq/best_SROCC_epoch_55.pth'
+load_from = None
 resume = False
