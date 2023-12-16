@@ -261,11 +261,11 @@ class VQAPoolMlpHead(nn.Module):
         self.in_channels = in_channels
         self.hidden_channels = hidden_channels
         dim = 384 * 6
-        self.encode_to_vqa = nn.Sequential(
-            nn.Linear(dim, 2 * dim),
-            nn.Linear(2 * dim, dim),
-            nn.LayerNorm(dim // 4, eps=1e-6)
-        )
+        # self.encode_to_vqa = nn.Sequential(
+        #     nn.Linear(dim, 2 * dim),
+        #     nn.Linear(2 * dim, dim),
+        #     nn.LayerNorm(dim // 4, eps=1e-6)
+        # )
         self.fc_hid = nn.Sequential(
             nn.Dropout(p=self.dropout_ratio) if self.dropout_ratio > 0 else nn.Identity(),
             nn.Linear(dim, dim // 4),

@@ -862,7 +862,7 @@ def build_video_mae_s(drop_path_rate=0):
     #                                            attn_drop_rate=0.0,
     #                                            drop_path_rate=0.1)
     encoder = PreTrainVisionTransformer(
-        img_size=448,
+        img_size=320,
         patch_size=16,
         embed_dim=384,
         depth=12,
@@ -875,7 +875,7 @@ def build_video_mae_s(drop_path_rate=0):
         drop_path_rate=drop_path_rate,
     )
     decoder = PretrainVisionTransformerDecoder(
-        img_size=448,
+        img_size=320,
         embed_dim=192,
         num_heads=3,
         depth=4,

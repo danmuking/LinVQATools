@@ -42,7 +42,7 @@ class VideoMAEVQA(nn.Module):
         self.patch_size = 16
         self.tubelet_size = 2
         self.mask_stride = [1, 1, 1]
-        self.input_size = [16, 448]
+        self.input_size = [16, 320]
         # 8 14 14
         self.patches_shape = [self.input_size[0] // self.tubelet_size, self.input_size[1] // self.patch_size,
                               self.input_size[1] // self.patch_size]
@@ -55,8 +55,8 @@ class VideoMAEVQA(nn.Module):
         self.mask_token = nn.Parameter(torch.zeros(1, 1, self.decoder_dim))
         self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, self.decoder_dim,
                                             bias=False)
-        self.encoder_to_cls_decoder = nn.Linear(self.backbone_embed_dim,
-                                                512, bias=False)
+        # self.encoder_to_cls_decoder = nn.Linear(self.backbone_embed_dim,
+        #                                         512, bias=False)
 
         self.pos_embed = get_sinusoid_encoding_table(self.backbone.pos_embed.shape[1],
                                                      self.decoder_dim)
@@ -150,7 +150,7 @@ class VideoMAEVQA(nn.Module):
 class CellRunningMaskAgent(nn.Module):
     def __init__(self, mask_ratio=0):
         super(CellRunningMaskAgent, self).__init__()
-        self.fragment_num = 14*2
+        self.fragment_num = 20
         self.patch_num = 8 * self.fragment_num * self.fragment_num
         self.mask_num = int((8 * self.fragment_num * self.fragment_num) * mask_ratio)  # 8*7*7*mark radio
         self.mask_shape = [16 // 2, self.fragment_num, self.fragment_num]
@@ -359,7 +359,7 @@ class VideoMAEVQAWrapper(BaseModel):
         if mode == 'loss':
             inputs = rearrange(inputs,"b clip c t h w -> (b clip) c t h w")
             self.agent.train()
-            mask = self.agent(inputs, [8, 14*2, 14*2])['mask']
+            mask = self.agent(inputs, [8, 20, 20])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
             output = self.model(inputs, mask)
             y_pred = output['preds_score']
@@ -381,7 +381,7 @@ class VideoMAEVQAWrapper(BaseModel):
         elif mode == 'predict':
             inputs = rearrange(inputs, "b clip c t h w -> (b clip) c t h w")
             self.agent.eval()
-            mask = self.agent(inputs, [8, 14, 14])['mask']
+            mask = self.agent(inputs, [8, 20, 20])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
             output = self.model(inputs, mask)
             y_pred = output['preds_score']
