@@ -21,9 +21,9 @@ model = dict(
     drop_path_rate=0.1
 )
 epochs = 600
-batch_size = 4
+batch_size = 6
 num_workers = 6
-prefix = 'temp'
+prefix = '4frame'
 argument = [
         dict(
             name='FragmentShuffler',
@@ -143,7 +143,7 @@ custom_hooks = [
     # dict(type='CustomEMAHook',momentum=0.01)
     # dict(type='EmptyCacheHook', after_epoch=True)
 ]
-launcher = 'pytorch'
+launcher = 'none'
 randomness = dict(seed=42)
 # randomness = dict(seed=3407)
 # randomness = dict(seed=114514)
@@ -153,5 +153,5 @@ env_cfg = dict(
     backend='nccl',
     mp_cfg=dict(mp_start_method='fork'))
 log_level = 'INFO'
-load_from = None
+load_from = '/data/ly/code/LinVQATools/work_dir/video_mae_vqa/12041446 vit random_cell_mask_75 mae last6 4clip lsvq/best_SROCC_epoch_55.pth'
 resume = False

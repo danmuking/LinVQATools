@@ -14,13 +14,13 @@ class TestSingleBranchDataset(TestCase):
         os.chdir('../../')
         video_loader = dict(
             name='FragmentLoader',
-            prefix='temp',
+            prefix='4frame',
             argument=[
-                dict(
-                    name='FragmentShuffler',
-                    fragment_size=32,
-                    frame_cube=4
-                ),
+                # dict(
+                #     name='FragmentShuffler',
+                #     fragment_size=32,
+                #     frame_cube=4
+                # ),
                 # # dict(
                 #     name='SpatialShuffler',
                 #     fragment_size=32,
@@ -43,14 +43,15 @@ class TestSingleBranchDataset(TestCase):
         fps = 10
         # 设置视频大小
         size = video.shape[-2], video.shape[-1]
-        out = cv2.VideoWriter('./out.avi', fourcc, fps, size)
+        # out = cv2.VideoWriter('./out.avi', fourcc, fps, size)
         for i in range(video.shape[1]):
             fra = video[:, i, :, :]
             fra = fra.permute(1, 2, 0)
             fra = fra.numpy().astype(np.uint8)
             fra = cv2.cvtColor(fra, cv2.COLOR_RGB2BGR)
-            out.write(fra)
-        out.release()
+            # out.write(fra)
+            cv2.imwrite("{}.jpg".format(i),fra)
+        # out.release()
 
     def test_anno(self):
         with open("/data/ly/LIVE Video Quality Challenge (VQC) Database-selected/labels.txt",'r') as f:

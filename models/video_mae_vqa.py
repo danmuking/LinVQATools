@@ -42,7 +42,7 @@ class VideoMAEVQA(nn.Module):
         self.patch_size = 16
         self.tubelet_size = 2
         self.mask_stride = [1, 1, 1]
-        self.input_size = [16, 320]
+        self.input_size = [16, 224]
         # 8 14 14
         self.patches_shape = [self.input_size[0] // self.tubelet_size, self.input_size[1] // self.patch_size,
                               self.input_size[1] // self.patch_size]
@@ -150,10 +150,9 @@ class VideoMAEVQA(nn.Module):
 class CellRunningMaskAgent(nn.Module):
     def __init__(self, mask_ratio=0):
         super(CellRunningMaskAgent, self).__init__()
-        self.fragment_num = 20
-        self.patch_num = 8 * self.fragment_num * self.fragment_num
-        self.mask_num = int((8 * self.fragment_num * self.fragment_num) * mask_ratio)  # 8*7*7*mark radio
-        self.mask_shape = [16 // 2, self.fragment_num, self.fragment_num]
+        self.patch_num = 8 * 14 * 14
+        self.mask_num = int((8 * 14 * 14) * mask_ratio)  # 8*7*7*mark radio
+        self.mask_shape = [16 // 2, 14, 14]
         self.mask_stride = [1, 2, 2]
         self.spatial_small_patch_num = (self.mask_shape[1] // self.mask_stride[1]) * (
                 self.mask_shape[2] // self.mask_stride[2])  # 8 7 7
@@ -350,16 +349,16 @@ class VideoMAEVQAWrapper(BaseModel):
         info = self.load_state_dict(t_state_dict, strict=False)
         print(info)
 
-    def forward(self, inputs: torch.Tensor, gt_label, data_samples: Optional[list] = None, mode: str = 'tensor',
+    def forward(self, inputs: torch.Tensor, gt_label=None, data_samples: Optional[list] = None, mode: str = 'tensor',
                 **kargs) -> \
             Union[
                 Dict[str, torch.Tensor], list]:
-        y = gt_label.float().unsqueeze(-1)
-        B,Clip,C,D,H,W = inputs.shape
+        B, Clip, C, D, H, W = inputs.shape
         if mode == 'loss':
-            inputs = rearrange(inputs,"b clip c t h w -> (b clip) c t h w")
+            y = gt_label.float().unsqueeze(-1)
+            inputs = rearrange(inputs, "b clip c t h w -> (b clip) c t h w")
             self.agent.train()
-            mask = self.agent(inputs, [8, 20, 20])['mask']
+            mask = self.agent(inputs, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
             output = self.model(inputs, mask)
             y_pred = output['preds_score']
@@ -379,15 +378,26 @@ class VideoMAEVQAWrapper(BaseModel):
 
             return return_dict
         elif mode == 'predict':
+            y = gt_label.float().unsqueeze(-1)
             inputs = rearrange(inputs, "b clip c t h w -> (b clip) c t h w")
             self.agent.eval()
-            mask = self.agent(inputs, [8, 20, 20])['mask']
+            mask = self.agent(inputs, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
             output = self.model(inputs, mask)
             y_pred = output['preds_score']
             y_pred = rearrange(y_pred, "(b clip) 1 -> b clip", b=B, clip=Clip)
             y_pred = y_pred.mean(dim=1)
             return y_pred, y
+        elif mode == 'tensor':
+            inputs = rearrange(inputs, "b clip c t h w -> (b clip) c t h w")
+            self.agent.eval()
+            mask = self.agent(inputs, [8, 14, 14])['mask']
+            mask = mask.reshape(mask.size(0), 8, -1)
+            output = self.model(inputs, mask)
+            y_pred = output['preds_score']
+            y_pred = rearrange(y_pred, "(b clip) 1 -> b clip", b=B, clip=Clip)
+            y_pred = y_pred.mean(dim=1)
+            return y_pred
 
     def train_step(self, data: Union[dict, tuple, list],
                    optim_wrapper: OptimWrapper) -> Dict[str, torch.Tensor]:
