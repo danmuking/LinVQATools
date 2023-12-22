@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = "12211547 vit random_cell_mask_75 mae last6 4clip"
+name = "12221620 vit random_cell_mask_75 mae last6 4clip"
 work_dir = 'work_dir/video_mae_vqa/'+name
 visualizer = dict(
     type='Visualizer',
@@ -25,11 +25,11 @@ batch_size = 6
 num_workers = 6
 prefix = '4frame'
 argument = [
-        dict(
-            name='FragmentShuffler',
-            fragment_size=32,
-            frame_cube=4
-        ),
+        # dict(
+        #     name='FragmentShuffler',
+        #     fragment_size=32,
+        #     frame_cube=4
+        # ),
         dict(
             name='PostProcessSampler',
             frame_cube=4,
