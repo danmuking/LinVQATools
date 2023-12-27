@@ -22,7 +22,9 @@ def get_sinusoid_encoding_table(n_position, d_hid):
         [get_position_angle_vec(pos_i) for pos_i in range(n_position)])
     sinusoid_table[:, 0::2] = np.sin(sinusoid_table[:, 0::2])  # dim 2i
     sinusoid_table[:, 1::2] = np.cos(sinusoid_table[:, 1::2])  # dim 2i+1
-
+    # sinusoid_table = torch.tensor(sinusoid_table.reshape(4,7,7,-1))
+    # sinusoid_table = sinusoid_table.repeat_interleave(2,dim=0).repeat_interleave(2,dim=1).repeat_interleave(2,dim=2)
+    # sinusoid_table = rearrange(sinusoid_table, "t r w c -> (t r w) c")
     # t = 8
     # h = 14
     # w = 14
@@ -67,7 +69,7 @@ def get_sinusoid_encoding_table1(n_position, d_hid):
         sinusoid_table, dtype=torch.float, requires_grad=False).unsqueeze(0)
 
 if __name__ == '__main__':
-    pos_embed = get_sinusoid_encoding_table(14 * 14 * 8, 384)
+    pos_embed = get_sinusoid_encoding_table(7 * 7 * 4, 384)
     print(pos_embed.shape)
     pos_embed = pos_embed[0]
     print(pos_embed[0, :].unsqueeze(0).repeat(14 * 14 * 8, 1).shape)
@@ -130,12 +132,14 @@ if __name__ == '__main__':
 
     plt.show()
 
-    # pos = [x for x in range(8*14*14)]
-    # t=8
-    # h=14
-    # w=14
+    # pos = [x for x in range(4*7*7)]
+    # t=4
+    # h=7
+    # w=7
     # pos = torch.tensor(pos)
     # pos = rearrange(pos,"(t r w) -> t r w",t=t,r=h,w=w)
+    # pos = pos.repeat_interleave(2, dim=0).repeat_interleave(2, dim=1).repeat_interleave(2, dim=1)
+    # print(pos)
     # pos = rearrange(pos,'t r (w c1) -> (t r w) c1',w=w//2,c1=2)
     # pos = rearrange(pos,'(n r) w -> n r w',n=t*h*w//2//4,r=4)
     # pos = rearrange(pos,'(n1 n2 n3) (a b) w -> n1 n2 n3 a b w',n1=t//2,n2=h//2,n3=w//2,a=2,b=2)
