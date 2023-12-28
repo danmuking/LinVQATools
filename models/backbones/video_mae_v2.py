@@ -328,8 +328,8 @@ def get_sinusoid_encoding_table(n_position, d_hid):
     # sinusoid_table = rearrange(sinusoid_table, 'n1 n2 n3 a b w c -> (n1 a) (n2 b) (n3 w) c')
     # sinusoid_table = rearrange(sinusoid_table, 'n1 n2 n3 c -> (n1 n2 n3) c')
 
-    sinusoid_table = torch.tensor(sinusoid_table.reshape(4, 7, 7, -1))
-    sinusoid_table = sinusoid_table.repeat_interleave(2, dim=0).repeat_interleave(2, dim=1).repeat_interleave(2, dim=2)
+    sinusoid_table = torch.tensor(sinusoid_table.reshape(8, 7, 7, -1))
+    sinusoid_table = sinusoid_table.repeat_interleave(2, dim=1).repeat_interleave(2, dim=2)
     sinusoid_table = rearrange(sinusoid_table, "t r w c -> (t r w) c")
 
     return torch.tensor(
@@ -538,7 +538,7 @@ class PreTrainVisionTransformer(nn.Module):
         else:
             # sine-cosine positional embeddings is on the way
             self.pos_embed = get_sinusoid_encoding_table(
-                num_patches//8, embed_dim)
+                num_patches//4, embed_dim)
 
         self.pos_drop = nn.Dropout(p=drop_rate)
 
