@@ -11,7 +11,7 @@ from models.video_mae_vqa import VideoMAEVQAWrapper
 from sklearn.svm import SVR
 
 if __name__ == '__main__':
-    os.chdir('../')
+    # os.chdir('../')
     # video_loader = dict(
     #     name='FragmentLoader',
     #     prefix='4frame',
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     # test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
     #
     # weight = torch.load(
-    #     "/data/ly/code/LinVQATools/work_dir/video_mae_vqa/11240027 vit random_cell_mask_75 mae last1/best_SROCC_epoch_358.pth",
+    #     "/data/ly/code/LinVQATools/work_dir/video_mae_vqa/01121446 vit random_cell_mask_75 mae 4_stage 4clip/best_SROCC_epoch_256.pth",
     #     map_location='cpu')["state_dict"]
     # t_state_dict = OrderedDict()
     # for key in weight.keys():
@@ -62,27 +62,27 @@ if __name__ == '__main__':
     #     filename.write(str(predict_list[i])+" "+str(gt_list[i])+"\n")
     # filename.close()
 
-    # predict_list = []
-    # gt_list = []
-    # with open("/data/ly/code/LinVQATools/visualize/1.txt",'r') as f:
-    #     lines = f.readlines()
-    # for line in lines:
-    #     line = line.strip().split(" ")
-    #     predict_list.append(float(line[0]))
-    #     gt_list.append(float(line[1]))
-    # predict_list = np.array(predict_list).reshape((-1,1))
-    # gt_list = np.array(gt_list).reshape((-1,1))
-    # plt.scatter(predict_list, gt_list)
-    #
-    #
-    # linear_svr = SVR(kernel='poly',degree=2)
-    # linear_svr.fit(predict_list, gt_list)
-    # predict_list = np.sort(predict_list,axis=0)
-    # y = linear_svr.predict(predict_list)
-    # plt.plot(predict_list,y,color='red')
-    # title_text_obj = plt.title('Ours', fontsize=23, va="bottom")
-    # xaxis_label_text_obj = plt.xlabel('Predict Score', fontsize=16,
-    #                                   alpha=1.0)
-    # yaxis_label_text_obj = plt.ylabel("Subject Score", fontsize=16,
-    #                                   alpha=1.0)
-    # plt.show()
+    predict_list = []
+    gt_list = []
+    with open("/data/ly/code/LinVQATools/visualize/1.txt",'r') as f:
+        lines = f.readlines()
+    for line in lines:
+        line = line.strip().split(" ")
+        predict_list.append(float(line[0]))
+        gt_list.append(float(line[1]))
+    predict_list = np.array(predict_list).reshape((-1,1))
+    gt_list = np.array(gt_list).reshape((-1,1))
+    plt.scatter(predict_list, gt_list)
+
+
+    linear_svr = SVR(C=0.1)
+    linear_svr.fit(predict_list, gt_list)
+    predict_list = np.sort(predict_list,axis=0)
+    y = linear_svr.predict(predict_list)
+    plt.plot(predict_list,y,color='red')
+    title_text_obj = plt.title('Ours', fontsize=23, va="bottom")
+    xaxis_label_text_obj = plt.xlabel('Predict Score', fontsize=16,
+                                      alpha=1.0)
+    yaxis_label_text_obj = plt.ylabel("Subject Score", fontsize=16,
+                                      alpha=1.0)
+    plt.show()
