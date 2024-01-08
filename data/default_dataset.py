@@ -69,12 +69,14 @@ class SingleBranchDataset(Dataset):
             video = self.video_loader(video_path=video_path, frame_num=frame_num)
             videos.append(video)
         video = torch.stack(videos, dim=0)
-
+        raw_video = video
         if self.norm:
             video = video / 255.0
             video = ((video.permute(0, 2, 3, 4, 1) - self.mean) / self.std).permute(0,4, 1, 2, 3)
         data = {
-            "inputs": video, "num_clips": self.clip,
+            "inputs": video,
+            "raw_video": raw_video,
+            "num_clips": self.clip,
             # "frame_inds": frame_idxs,
             "gt_label": score,
             "name": osp.basename(video_path)

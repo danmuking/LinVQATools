@@ -1,22 +1,30 @@
+import os
 from collections import OrderedDict
 from functools import partial
 from typing import Union, Dict, Optional
 
+import numpy as np
 import torch
 from einops import rearrange
+from matplotlib import pyplot as plt
 from mmengine.model import BaseModel
 from mmengine.optim import OptimWrapper
+from mmengine.visualization import Visualizer
 from torch import nn
 
+from data.default_dataset import SingleBranchDataset
 from models.faster_vqa import plcc_loss, rank_loss
 from models.heads.vqa_mlp_head import VQAMlpHead, VQAPoolMlpHead
 from models.backbones.vit_videomae import get_sinusoid_encoding_table, PatchEmbed, Block
 import torch.utils.checkpoint as cp
 
 res = []
+
+
 class PretrainVisionTransformerDecoder(nn.Module):
     """ Vision Transformer with support for patch or hybrid CNN input stage
     """
+
     def __init__(
             self,
             img_size=224,
@@ -107,6 +115,8 @@ class PretrainVisionTransformerDecoder(nn.Module):
             x = self.head(self.norm(x))
 
         return x
+
+
 class PreTrainVisionTransformer(nn.Module):
     """ Vision Transformer with support for patch or hybrid CNN input stage
     """
@@ -182,7 +192,6 @@ class PreTrainVisionTransformer(nn.Module):
             embed_dim)
         self.fc_norm = norm_layer(embed_dim) if use_mean_pooling else None
 
-
         # self.apply(self._init_weights)
         #
         # self.head.weight.data.mul_(init_scale)
@@ -238,12 +247,14 @@ class PreTrainVisionTransformer(nn.Module):
             return self.fc_norm(x_vis.mean(1))
         else:
             x = self.norm(x_vis)
-            return x,feats
+            return x, feats
 
     def forward(self, x, mask, **kwargs):
-        x,feats = self.forward_features(x, mask)
+        x, feats = self.forward_features(x, mask)
 
-        return x,feats, None, None
+        return x, feats, None, None
+
+
 def build_video_mae_s(drop_path_rate=0):
     # encoder = PretrainVisionTransformerEncoder(embed_dim=384, depth=12, num_heads=6, mlp_ratio=4,
     #                                            drop_rate=0.0,
@@ -283,6 +294,8 @@ def build_video_mae_b(drop_path_rate=0):
     )
     decoder = PretrainVisionTransformerDecoder()
     return encoder, decoder
+
+
 class VideoMAEVQA(nn.Module):
     def __init__(self,
                  model_type='s',
@@ -407,7 +420,7 @@ class VideoMAEVQA(nn.Module):
         else:
             pred_pixels = None
         preds_score = self.vqa_head(feats)
-        output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score}
+        output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score, 'feats': feats}
         return output
 
 
@@ -493,6 +506,7 @@ class CellRunningMaskAgent(nn.Module):
             output = {"mask": 1.0 - selected_mask}
         return output
 
+
 class VideoMAEVQAWrapper(BaseModel):
     def __init__(
             self,
@@ -504,7 +518,8 @@ class VideoMAEVQAWrapper(BaseModel):
     ):
         super().__init__()
         self.mask_ratio = mask_ratio
-        self.model = VideoMAEVQA(model_type=model_type, mask_ratio=mask_ratio,head_dropout=head_dropout,drop_path_rate=drop_path_rate)
+        self.model = VideoMAEVQA(model_type=model_type, mask_ratio=mask_ratio, head_dropout=head_dropout,
+                                 drop_path_rate=drop_path_rate)
         self.agent = CellRunningMaskAgent(mask_ratio)
 
         if model_type == 'b':
@@ -584,7 +599,7 @@ class VideoMAEVQAWrapper(BaseModel):
             y_pred = output['preds_score']
             y_pred = rearrange(y_pred, "(b clip) 1 -> b clip", b=B, clip=Clip)
             y_pred = y_pred.mean(dim=1)
-            return y_pred
+            return output['feats']
 
     def train_step(self, data: Union[dict, tuple, list],
                    optim_wrapper: OptimWrapper) -> Dict[str, torch.Tensor]:
@@ -625,6 +640,128 @@ class VideoMAEVQAWrapper(BaseModel):
         optim_wrapper.update_params(parsed_losses)
         return log_vars
 
+
 if __name__ == '__main__':
+    os.chdir('../')
+    weight = torch.load(
+        "/data/ly/code/LinVQATools/work_dir/video_mae_vqa/11240027 vit random_cell_mask_75 mae last1/best_SROCC_epoch_358.pth",
+        map_location='cpu')["state_dict"]
+    t_state_dict = OrderedDict()
+    for key in weight.keys():
+        if key == "steps":
+            continue
+        weight_value = weight[key]
+        # key = key[7:]
+        t_state_dict[key] = weight_value
     model = VideoMAEVQAWrapper(model_type="s", mask_ratio=0.75)
-    y = model(inputs=torch.rand((2, 1, 3, 16, 224, 224)), gt_label=torch.rand((2)), mode='predict')
+    info = model.load_state_dict(t_state_dict, strict=False)
+
+    video_loader = dict(
+        name='FragmentLoader',
+        prefix='4frame',
+        argument=[
+            # dict(
+            #     name='FragmentShuffler',
+            #     fragment_size=32,
+            #     frame_cube=4
+            # ),
+            # # dict(
+            #     name='SpatialShuffler',
+            #     fragment_size=32,
+            # ),
+            dict(
+                name='PostProcessSampler',
+                num=4,
+                frame_cube=4
+            )
+        ]
+    )
+
+    mask = [
+        [0,0],
+        [0,1]
+    ]
+    mask = torch.Tensor(mask).repeat(7,7)
+    mask = mask.repeat_interleave(16, dim=0).repeat_interleave(16, dim=1)
+    mask = mask.reshape(224,224)
+    # print(mask.shape)
+
+    visualizer = Visualizer()
+    fig, axes = plt.subplots(nrows=3, ncols=6, figsize=(12, 6))
+    left_edge = axes[0][0].get_position().get_points()[0][0]
+    fig.text(left_edge - 0.01,
+             (axes[0][0].get_position().get_points()[0][1] + axes[0][1].get_position().get_points()[1][1]) / 2,
+             f'Example 1', ha='center', va='center', rotation='vertical', fontsize=12)
+    left_edge = axes[1][0].get_position().get_points()[0][0]
+    fig.text(left_edge - 0.01,
+             (axes[1][0].get_position().get_points()[0][1] + axes[1][1].get_position().get_points()[1][1]) / 2,
+             f'Example 2', ha='center', va='center', rotation='vertical', fontsize=12)
+    left_edge = axes[2][0].get_position().get_points()[0][0]
+    fig.text(left_edge - 0.01,
+             (axes[2][0].get_position().get_points()[0][1] + axes[2][1].get_position().get_points()[1][1]) / 2,
+             f'Example 3', ha='center', va='center', rotation='vertical', fontsize=12)
+    # 为最下面的子图添加标签
+    for j, ax in enumerate(axes[2]):
+        ax.text(0.5, -0.15, f"{(j+1)*2}", ha='center', va='center', transform=ax.transAxes)
+
+    ax_title = fig.add_subplot(111, frame_on=False)
+    ax_title.set_xticks([])
+    ax_title.set_yticks([])
+    ax_title.set_frame_on(False)
+    ax_title.text(0.5, 1.05, 'Multi Stage Attention', ha='center', va='center', fontsize=16,
+                  fontweight='bold')
+
+    dataset = SingleBranchDataset(video_loader=video_loader, norm=True, clip=1)
+
+    data = dataset[0]
+    inputs = data['inputs'].unsqueeze(0)
+    raw_video = data['raw_video'].unsqueeze(0)
+    feats = model(inputs, gt_label=torch.rand((2)), mode='tensor')
+
+    for j,feat in enumerate(feats[1::2]):
+        feat = feat.reshape(8, 7, 7, 384).detach().cpu().permute(3, 0, 1, 2)
+        img = raw_video[0,0,:,0,...].detach().cpu().permute(1, 2, 0).numpy().astype('uint8')
+        mask = mask.bool()
+        img = img[mask].reshape(112,112,3)
+        print(img.shape)
+        drawn_img = visualizer.draw_featmap(feat[:, 0, ...],img, channel_reduction='select_max')
+        # 绘制小图
+        axes[0, j].imshow(drawn_img, cmap='viridis')  # 可以根据需要设置不同的颜色映射
+        axes[0, j].axis('off')  # 关闭坐标轴
+
+    data = dataset[50]
+    inputs = data['inputs'].unsqueeze(0)
+    raw_video = data['raw_video'].unsqueeze(0)
+    feats = model(inputs, gt_label=torch.rand((2)), mode='tensor')
+
+    for j, feat in enumerate(feats[1::2]):
+        feat = feat.reshape(8, 7, 7, 384).detach().cpu().permute(3, 0, 1, 2)
+        img = raw_video[0, 0, :, 0, ...].detach().cpu().permute(1, 2, 0).numpy().astype('uint8')
+        mask = mask.bool()
+        img = img[mask].reshape(112, 112, 3)
+        print(img.shape)
+        drawn_img = visualizer.draw_featmap(feat[:, 0, ...], img, channel_reduction='select_max')
+        # 绘制小图
+        axes[1, j].imshow(drawn_img, cmap='viridis')  # 可以根据需要设置不同的颜色映射
+        axes[1, j].axis('off')  # 关闭坐标轴
+
+    data = dataset[200]
+    inputs = data['inputs'].unsqueeze(0)
+    raw_video = data['raw_video'].unsqueeze(0)
+    feats = model(inputs, gt_label=torch.rand((2)), mode='tensor')
+
+    for j, feat in enumerate(feats[1::2]):
+        feat = feat.reshape(8, 7, 7, 384).detach().cpu().permute(3, 0, 1, 2)
+        img = raw_video[0, 0, :, 0, ...].detach().cpu().permute(1, 2, 0).numpy().astype('uint8')
+        mask = mask.bool()
+        img = img[mask].reshape(112, 112, 3)
+        print(img.shape)
+        drawn_img = visualizer.draw_featmap(feat[:, 0, ...], img, channel_reduction='select_max')
+        # 绘制小图
+        axes[2, j].imshow(drawn_img, cmap='viridis')  # 可以根据需要设置不同的颜色映射
+        axes[2, j].axis('off')  # 关闭坐标轴
+    # 调整布局
+    plt.subplots_adjust(hspace=0.2, wspace=0.1)
+
+    # 显示图形
+    plt.show()
