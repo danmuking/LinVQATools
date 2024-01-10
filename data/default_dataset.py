@@ -1,10 +1,14 @@
+import random
+
 import torch
 from typing import Dict, List, Any
 
+from decord import VideoReader
 from torch.utils.data import Dataset
 from mmengine import DATASETS
 import os.path as osp
 import decord
+from torchvision.transforms import transforms
 
 from data import logger
 import data.meta_reader as meta_reader
@@ -12,7 +16,7 @@ from data.meta_reader import AbstractReader
 from data.split.dataset_split import DatasetSplit
 from data import loader
 
-decord.bridge.set_bridge("torch")
+decord.bridge.set_bridge("native")
 
 
 @DATASETS.register_module()
@@ -30,7 +34,6 @@ class SingleBranchDataset(Dataset):
             phase: str = 'train',
             norm: bool = True,
             clip=1,
-
     ):
         # 数据集声明文件夹路径
         self.anno_root = anno_root
@@ -58,23 +61,44 @@ class SingleBranchDataset(Dataset):
         # 视频加载器
         self.video_loader = getattr(loader, video_loader['name'])(**video_loader)
 
+        self.img_transform = transforms.Compose([
+                                transforms.ToPILImage(mode='RGB'),
+                                transforms.Resize(448),
+                                # transforms.RandomHorizontalFlip(),
+                                transforms.CenterCrop(224),
+                                # transforms.ColorJitter(brightness=0.5, contrast=0.5, hue=0.5),
+                                transforms.ToTensor(),
+                                transforms.Normalize(self.mean, self.std)
+                            ])
+
     def __getitem__(self, index):
         video_info = self.data[index]
         video_path: Dict = video_info["video_path"]
+        vr = VideoReader(video_path)
         score = video_info["score"]
         frame_num = video_info['frame_num']
 
         videos = []
+        imgs = []
         for i in range(self.clip):
             video = self.video_loader(video_path=video_path, frame_num=frame_num)
             videos.append(video)
+
+            frame_index = random.randint(0, len(vr)-1)
+            # 交换维度
+            img = vr[frame_index].asnumpy()
+            # print(img.shape)
+            img = self.img_transform(img)
+            imgs.append(img)
+
         video = torch.stack(videos, dim=0)
+        img=torch.stack(imgs,dim=0)
         raw_video = video
         if self.norm:
             video = video / 255.0
             video = ((video.permute(0, 2, 3, 4, 1) - self.mean) / self.std).permute(0,4, 1, 2, 3)
         data = {
-            "inputs": video,
+            "inputs": {'video':video,'img':img},
             "raw_video": raw_video,
             "num_clips": self.clip,
             # "frame_inds": frame_idxs,

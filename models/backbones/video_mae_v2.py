@@ -574,13 +574,15 @@ class PreTrainVisionTransformer(nn.Module):
             self.load(load_path)
 
     def load(self, load_path):
-        weight = torch.load(load_path)['module']
+        weight = torch.load(load_path)['state_dict']
         from collections import OrderedDict
         s_state_dict = OrderedDict()
         t_state_dict = self.state_dict()
         for key in weight.keys():
-            if key in t_state_dict.keys() and t_state_dict[key].shape == weight[key].shape:
-                s_state_dict[key] = weight[key]
+            format_key = key.replace('model.backbone.', '')
+            format_key=format_key.replace('model.','')
+            if format_key in t_state_dict.keys() and t_state_dict[format_key].shape == weight[key].shape:
+                s_state_dict[format_key] = weight[key]
         info = self.load_state_dict(s_state_dict, strict=False)
         logger.info("vit加载{}权重,info:{} ".format(load_path, info))
 

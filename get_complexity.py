@@ -12,7 +12,7 @@ from thop import profile, clever_format
 # print("Model Parameters:{}".format(analysis_results['params_str']))
 # # Model Parameters:25.659M
 
-model = VideoMAEVQAWrapper(model_type="s",mask_ratio=0.75,).eval()
+model = VideoMAEVQAWrapper(model_type="s",mask_ratio=0.750).eval()
 input = torch.randn(1,1, 3, 16, 224, 224)
 macs, params = profile(model, inputs=(input, ))
 macs, params = clever_format([macs, params], "%.3f")
