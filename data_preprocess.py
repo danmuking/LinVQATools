@@ -39,7 +39,7 @@ def sampler(video_path: str, epoch: int):
         img = vreader[i]
         img = rearrange(img, 'h w c -> c h w')
         save_path = get_save_path(video_path, i, 0)
-        target_img = transforms.Resize(512)(img)
+        target_img = transforms.Resize(448)(img)
         target_img = rearrange(target_img, 'c h w -> h w c ')
         target_img = target_img.numpy()
         target_img = cv2.cvtColor(target_img, cv2.COLOR_RGB2BGR)
@@ -53,7 +53,7 @@ if __name__ == '__main__':
     file = os.path.dirname(os.path.abspath(__file__))
     anno_path = os.path.join(file, './data/odv_vqa')
     data_anno = ODVVQAReader(anno_path).read()
-    # pool = Pool(4)
+    # pool = Pool(6)
     # for video_info in data_anno:
     #     video_path = video_info['video_path']
     #     print(video_path)
@@ -63,3 +63,4 @@ if __name__ == '__main__':
     for video_info in data_anno:
         video_path = video_info['video_path']
         sampler(video_path, 0)
+        # break
