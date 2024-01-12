@@ -67,7 +67,8 @@ class SingleBranchDataset(Dataset):
                                 # transforms.ToPILImage(mode='RGB'),
                                 transforms.Resize(448),
                                 # transforms.RandomHorizontalFlip(),
-                                transforms.CenterCrop(224),
+                                # transforms.CenterCrop(224),
+                                transforms.RandomCrop(224),
                                 # transforms.ColorJitter(brightness=0.5, contrast=0.5, hue=0.5),
                                 transforms.ToTensor(),
                                 transforms.Normalize(self.mean, self.std)
