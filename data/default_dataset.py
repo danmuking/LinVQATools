@@ -1,8 +1,10 @@
+import os
 import random
 
 import torch
 from typing import Dict, List, Any
 
+from PIL import Image
 from decord import VideoReader
 from torch.utils.data import Dataset
 from mmengine import DATASETS
@@ -62,7 +64,7 @@ class SingleBranchDataset(Dataset):
         self.video_loader = getattr(loader, video_loader['name'])(**video_loader)
 
         self.img_transform = transforms.Compose([
-                                transforms.ToPILImage(mode='RGB'),
+                                # transforms.ToPILImage(mode='RGB'),
                                 transforms.Resize(448),
                                 # transforms.RandomHorizontalFlip(),
                                 transforms.CenterCrop(224),
@@ -71,6 +73,14 @@ class SingleBranchDataset(Dataset):
                                 transforms.Normalize(self.mean, self.std)
                             ])
 
+    def get_img(self,video_path,index):
+        video_pre_path = video_path.split('/')
+        video_pre_path.insert(3, 'frame')
+        video_pre_path.insert(4, '{}'.format(0))
+        video_pre_path = os.path.join('/', *video_pre_path)[:-4]
+        img_path = os.path.join(video_pre_path, "{}.png".format(index))
+        img = Image.open(img_path)
+        return img
     def __getitem__(self, index):
         video_info = self.data[index]
         video_path: Dict = video_info["video_path"]
@@ -86,9 +96,10 @@ class SingleBranchDataset(Dataset):
 
             frame_index = random.randint(0, len(vr)-1)
             # 交换维度
-            img = vr[frame_index].asnumpy()
+            img = self.get_img(video_path,frame_index)
             # print(img.shape)
             img = self.img_transform(img)
+            # print(img.shape)
             imgs.append(img)
 
         video = torch.stack(videos, dim=0)
