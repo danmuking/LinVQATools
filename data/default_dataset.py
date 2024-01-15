@@ -64,11 +64,10 @@ class SingleBranchDataset(Dataset):
         self.video_loader = getattr(loader, video_loader['name'])(**video_loader)
 
         self.img_transform = transforms.Compose([
-                                # transforms.ToPILImage(mode='RGB'),
-                                transforms.Resize(448),
+                                transforms.ToPILImage(mode='RGB'),
+                                # transforms.Resize(448),
                                 # transforms.RandomHorizontalFlip(),
-                                # transforms.CenterCrop(224),
-                                transforms.RandomCrop(224),
+                                transforms.CenterCrop(224),
                                 # transforms.ColorJitter(brightness=0.5, contrast=0.5, hue=0.5),
                                 transforms.ToTensor(),
                                 transforms.Normalize(self.mean, self.std)
@@ -97,7 +96,7 @@ class SingleBranchDataset(Dataset):
 
             frame_index = random.randint(0, len(vr)-1)
             # 交换维度
-            img = self.get_img(video_path,frame_index)
+            img = vr[frame_index].asnumpy()
             # print(img.shape)
             img = self.img_transform(img)
             # print(img.shape)

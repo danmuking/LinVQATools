@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['model', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = "01122322 model random-crop 4clip"
+name = "01151430 model wo_resize 4clip"
 work_dir = 'work_dir/model/' + name
 visualizer = dict(
     type='Visualizer',
