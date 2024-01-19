@@ -203,7 +203,7 @@ if __name__ == '__main__':
     similar = []
     pos_embed = get_sinusoid_encoding_table1(14 * 14 * 8, 384)
     pos_embed = pos_embed[0]
-    pos_embed = pos_embed[:8]
+    pos_embed = pos_embed[14*8:14*8+8]
     for i in range(pos_embed.shape[0]):
         for j in range(pos_embed.shape[0]):
             similar.append(F.cosine_similarity(pos_embed[i].unsqueeze(0), pos_embed[j].unsqueeze(0)))
@@ -215,7 +215,35 @@ if __name__ == '__main__':
     similar = []
     pos_embed = get_sinusoid_encoding_table1(14 * 14 * 8, 384)
     pos_embed = pos_embed[0]
-    diff_pos_embed = pos_embed[384:384+8]
+    diff_pos_embed = pos_embed[7*8:7*8+8]
+    pos_embed = pos_embed[:8]
+    for i in range(pos_embed.shape[0]):
+        for j in range(pos_embed.shape[0]):
+            similar.append(F.cosine_similarity(pos_embed[i].unsqueeze(0), diff_pos_embed[j].unsqueeze(0)))
+    similar = torch.tensor(similar).reshape(8, 8)
+    print(similar.min())
+    plt.axis('off')  # 取消坐标轴
+    plt.imshow(similar, vmin=0.2690, vmax=1)
+    plt.show()
+
+    similar = []
+    pos_embed = get_sinusoid_encoding_table1(14 * 14 * 8, 384)
+    pos_embed = pos_embed[0]
+    diff_pos_embed = pos_embed[15*8:15*8 + 8]
+    pos_embed = pos_embed[:8]
+    for i in range(pos_embed.shape[0]):
+        for j in range(pos_embed.shape[0]):
+            similar.append(F.cosine_similarity(pos_embed[i].unsqueeze(0), diff_pos_embed[j].unsqueeze(0)))
+    similar = torch.tensor(similar).reshape(8, 8)
+    print(similar.min())
+    plt.axis('off')  # 取消坐标轴
+    plt.imshow(similar, vmin=0.2690, vmax=1)
+    plt.show()
+
+    similar = []
+    pos_embed = get_sinusoid_encoding_table1(14 * 14 * 8, 384)
+    pos_embed = pos_embed[0]
+    diff_pos_embed = pos_embed[21*8:21*8 + 8]
     pos_embed = pos_embed[:8]
     for i in range(pos_embed.shape[0]):
         for j in range(pos_embed.shape[0]):
