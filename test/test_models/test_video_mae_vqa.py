@@ -38,7 +38,7 @@ class TestVideoMAEVQA(TestCase):
         print(mask[0].reshape(8, 20, 20))
 
     def test_VideoMAEVQAWrapper(self):
-        model = VideoMAEVQAWrapper(model_type="s",mask_ratio=0.75)
+        model = VideoMAEVQAWrapper(model_type="s",mask_ratio=0.0)
         y = model(inputs=torch.rand((2,1, 3, 16, 224, 224)), gt_label=torch.rand((2)),mode='loss')
         print(y)
 

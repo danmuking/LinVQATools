@@ -29,7 +29,7 @@ class VideoMAEVQA(nn.Module):
         super(VideoMAEVQA, self).__init__()
         if model_type == 's':
             self.backbone_embed_dim = 384
-            self.backbone, self.decoder = build_video_mae_s(drop_path_rate)
+            self.backbone, self.decoder = build_video_mae_s()
 
         elif model_type == 'b':
             self.backbone_embed_dim = 384 * 2
