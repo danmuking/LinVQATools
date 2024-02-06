@@ -6,7 +6,7 @@ from einops import rearrange
 from models.video_mae_vqa import CellRunningMaskAgent
 
 if __name__ == '__main__':
-    video_path = "/data/ly/VQA_ODV/Group3/G3BackcountrySkiing_ERP_3840x1920_fps25_qp27_19131k.mp4"
+    video_path = "/data/ly/VQA_ODV/Group1/G1AbandonedKingdom_ERP_7680x3840_fps30_qp27_45406k.mp4"
     videoCapture = cv2.VideoCapture(video_path)
 
     fps = videoCapture.get(cv2.CAP_PROP_FPS)
