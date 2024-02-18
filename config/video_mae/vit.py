@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['video_mae_vqa', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = "02152255 vit mask_75 mae 4clip"
+name = "02181009 vit mask_75 mae learnable_position 4clip"
 work_dir = 'work_dir/video_mae_vqa/'+name
 visualizer = dict(
     type='Visualizer',
@@ -16,7 +16,7 @@ visualizer = dict(
 model = dict(
     type='VideoMAEVQAWrapper',
     model_type='s',
-    mask_ratio=0.50,
+    mask_ratio=0.75,
     head_dropout=0.1,
     drop_path_rate=0.1
 )
