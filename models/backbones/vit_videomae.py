@@ -872,7 +872,7 @@ def build_video_mae_s(drop_path_rate=0):
         num_classes=0,
         use_mean_pooling=False,
         drop_path_rate=drop_path_rate,
-        use_learnable_pos_emb=True
+        use_learnable_pos_emb=False
     )
     decoder = PretrainVisionTransformerDecoder(
         embed_dim=192,
