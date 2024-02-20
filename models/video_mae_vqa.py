@@ -143,7 +143,7 @@ class VideoMAEVQA(nn.Module):
         else:
             pred_pixels = None
         preds_score = self.vqa_head(feats)
-        output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score}
+        output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score,"feats":feats}
         return output
 
 
@@ -397,7 +397,7 @@ class VideoMAEVQAWrapper(BaseModel):
             y_pred = output['preds_score']
             y_pred = rearrange(y_pred, "(b clip) 1 -> b clip", b=B, clip=Clip)
             y_pred = y_pred.mean(dim=1)
-            return y_pred
+            return output
 
     def train_step(self, data: Union[dict, tuple, list],
                    optim_wrapper: OptimWrapper) -> Dict[str, torch.Tensor]:
