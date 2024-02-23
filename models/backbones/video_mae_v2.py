@@ -317,16 +317,16 @@ def get_sinusoid_encoding_table(n_position, d_hid):
     sinusoid_table[:, 0::2] = np.sin(sinusoid_table[:, 0::2])  # dim 2i
     sinusoid_table[:, 1::2] = np.cos(sinusoid_table[:, 1::2])  # dim 2i+1
 
-    t = 8
-    h = 14
-    w = 14
-    sinusoid_table = rearrange(sinusoid_table, "(t r w) c -> t r w c", t=t, r=h, w=w)
-    sinusoid_table = rearrange(sinusoid_table, 't r (w c1) c -> (t r w) c1 c', w=w // 2, c1=2)
-    sinusoid_table = rearrange(sinusoid_table, '(n r) w c -> n r w c', n=t * h * w // 2 // 4, r=4)
-    sinusoid_table = rearrange(sinusoid_table, '(n1 n2 n3) (a b) w c -> n1 n2 n3 a b w c', n1=t // 2, n2=h // 2,
-                               n3=w // 2, a=2, b=2)
-    sinusoid_table = rearrange(sinusoid_table, 'n1 n2 n3 a b w c -> (n1 a) (n2 b) (n3 w) c')
-    sinusoid_table = rearrange(sinusoid_table, 'n1 n2 n3 c -> (n1 n2 n3) c')
+    # t = 8
+    # h = 14
+    # w = 14
+    # sinusoid_table = rearrange(sinusoid_table, "(t r w) c -> t r w c", t=t, r=h, w=w)
+    # sinusoid_table = rearrange(sinusoid_table, 't r (w c1) c -> (t r w) c1 c', w=w // 2, c1=2)
+    # sinusoid_table = rearrange(sinusoid_table, '(n r) w c -> n r w c', n=t * h * w // 2 // 4, r=4)
+    # sinusoid_table = rearrange(sinusoid_table, '(n1 n2 n3) (a b) w c -> n1 n2 n3 a b w c', n1=t // 2, n2=h // 2,
+    #                            n3=w // 2, a=2, b=2)
+    # sinusoid_table = rearrange(sinusoid_table, 'n1 n2 n3 a b w c -> (n1 a) (n2 b) (n3 w) c')
+    # sinusoid_table = rearrange(sinusoid_table, 'n1 n2 n3 c -> (n1 n2 n3) c')
 
     return torch.tensor(
         sinusoid_table, dtype=torch.float, requires_grad=False).unsqueeze(0)
