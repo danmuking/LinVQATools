@@ -87,7 +87,7 @@ class Model(nn.Module):
             num_classes=0,
             use_mean_pooling=False,
             drop_path_rate=drop_path_rate,
-            load_path='/data/ly/code/LinVQATools/work_dir/video_mae_vqa/11240027 vit random_cell_mask_75 mae last1/best_SROCC_epoch_358.pth'
+            load_path='/data/ly/code/LinVQATools/work_dir/video_mae_vqa/02261626 vit mask_75 mae 4clip/best_SROCC_epoch_312.pth'
         )
         self.cnn_backbone = timm.create_model('tf_efficientnetv2_b0', pretrained=True, features_only=True, )
         self.patch_size = 16
