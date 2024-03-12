@@ -17,7 +17,7 @@ class TestCellRunningMaskAgent(TestCase):
         model(inputs,mask)
 
     def test_model_wrapper(self):
-        model = ModelWrapper()
-        inputs = {"video":torch.rand((3,2, 3, 16, 224, 224)),"img":torch.rand((3,2,3,224,224))}
-        y = model(inputs,gt_label=torch.rand((3)),mode='predict')
+        model = ModelWrapper(mask_ratio=0.5)
+        inputs = {"video":torch.rand((3,1, 3, 16, 224, 224)),"img":torch.rand((3,1,3,224,224))}
+        y = model(inputs,gt_label=torch.rand((3)),mode='loss')
         print(y)

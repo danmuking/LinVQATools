@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['model', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = "03110928 model baseline 4clip"
+name = "03121437 model baseline 4clip"
 work_dir = 'work_dir/model/' + name
 visualizer = dict(
     type='Visualizer',
@@ -15,6 +15,10 @@ visualizer = dict(
 )
 model = dict(
     type='ModelWrapper',
+    model_type='s',
+    mask_ratio=0.75,
+    head_dropout=0.1,
+    drop_path_rate=0.1
 )
 epochs = 600
 batch_size = 6
