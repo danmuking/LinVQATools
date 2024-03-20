@@ -2,6 +2,7 @@ from collections import OrderedDict
 from functools import partial
 from typing import Union, Dict, Optional
 
+import open_clip
 import timm
 import torch
 from einops import rearrange
@@ -38,12 +39,12 @@ def plcc_loss(y_pred, y):
 class Head(nn.Module):
     def __init__(self):
         super(Head, self).__init__()
-        dim = 384
+        dim = 1024
         self.dropout_ratio = 0
         self.img2decoder = nn.Linear(192, 384)
-        self.video2decoder = nn.Linear(384, 384)
-        self.norm = nn.LayerNorm(384, eps=1e-6)
-        self.fusion2decoder = nn.Linear(384, 384)
+        self.video2decoder = nn.Linear(384, 1024)
+        self.norm = nn.LayerNorm(1024, eps=1e-6)
+        self.fusion2decoder = nn.Linear(1024, 384)
         self.fc_hid = nn.Sequential(
             nn.Dropout(p=self.dropout_ratio) if self.dropout_ratio > 0 else nn.Identity(),
             nn.Linear(dim, dim // 4),
@@ -53,22 +54,32 @@ class Head(nn.Module):
             nn.Linear(dim // 4, 1),
         )
 
-    def forward(self, img_feats, video_feats):
+    def forward(self, img_feats, video_feats,text_features):
         img_feat = img_feats[-1]
-        img_feat = rearrange(img_feat, 'b c h w -> b (h w) c')
+        # img_feat = rearrange(img_feat, 'b c h w -> b (h w) c')
         video_feats = video_feats[-1]
-        img_feat = self.img2decoder(img_feat)
+        # 先展开 在池化
         video_feats = self.video2decoder(video_feats)
+        video_feats = video_feats.mean(dim=1)
+        video_feats = video_feats/video_feats.norm(dim=-1, keepdim=True)
+        # print("video_feats",video_feats.shape)
+        # print("img_feats", img_feats.shape)
+        # img_feat = self.img2decoder(img_feat)
         # 拼接
-        x = torch.cat([img_feat, video_feats], dim=1)
-        x = self.norm(x)
-        x = self.fusion2decoder(x)
-        # mean
-        x = x.mean(dim=1)
-        x = self.fc_hid(x)
+        # x = torch.cat([img_feat, video_feats], dim=0)
+        x = img_feat+video_feats
+        # print("x",x.shape)
+        feat = self.norm(x)
+        # print("x", x.shape)
+        # x = self.fusion2decoder(x)
+        # # mean
+        # x = x.mean(dim=1)
+        x = self.fc_hid(feat)
         x = self.fc_last(x)
+        text_probs = feat @ text_features.T
+        # print(text_probs.shape)
 
-        return x
+        return x,text_probs
 
 
 class Model(nn.Module):
@@ -136,6 +147,20 @@ class Model(nn.Module):
                            (self.patches_shape[2] // self.mask_stride[2])]
         self.head = Head()
 
+    #     clip
+        self.model, _, preprocess = open_clip.create_model_and_transforms('RN50', pretrained='openai')
+        tokenizer = open_clip.get_tokenizer('ViT-B-32')
+        text = tokenizer(["a bad quality video",
+                          "a poor quality video",
+                          "a fair quality video",
+                          "a good quality video",
+                          "a perfect quality video"])
+        with torch.no_grad():
+            self.text_features = self.model.encode_text(text)
+            self.text_features = self.text_features / self.text_features.norm(dim=1, keepdim=True)
+            self.text_features = self.text_features/self.text_features.norm(dim=-1, keepdim=True)
+            self.text_features = self.text_features.cuda()
+
     def forward(self, inputs, mask):
         # vit过程
         video = inputs['video']
@@ -198,10 +223,12 @@ class Model(nn.Module):
             pred_pixels = None
 
         img = inputs['img']
-        img_feat = self.cnn_backbone(img)
+        # 1,1024
+        img_feat = self.model.encode_image(img)
+        img_feat = img_feat/img_feat.norm(dim=-1, keepdim=True)
 
-        preds_score = self.head(img_feat, feats)
-        output = {"preds_score": preds_score}
+        preds_score,text_probs = self.head(img_feat, feats,self.text_features)
+        output = {"preds_score": preds_score,'text_probs':text_probs}
         return output
 
 
@@ -331,7 +358,7 @@ class ModelWrapper(BaseModel):
         info = self.load_state_dict(t_state_dict, strict=False)
         print(info)
 
-    def forward(self, inputs: torch.Tensor, gt_label=None, data_samples: Optional[list] = None, mode: str = 'tensor',
+    def forward(self, inputs: torch.Tensor, gt_label=None,gt_class=None, data_samples: Optional[list] = None, mode: str = 'tensor',
                 **kargs) -> \
             Union[
                 Dict[str, torch.Tensor], list]:
@@ -348,14 +375,21 @@ class ModelWrapper(BaseModel):
             mask = mask.reshape(mask.size(0), 8, -1)
             output = self.model(inputs, mask)
             y_pred = output['preds_score']
+            class_pred = output['text_probs']
             criterion = nn.MSELoss()
             mse_loss = criterion(y_pred, y)
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
-
-            vqa_loss = mse_loss + p_loss + 10 * r_loss
+            gt_class = gt_class
+            ce_loss = nn.CrossEntropyLoss()
+            # print(class_pred.shape)
+            # print(gt_class.shape)
+            # print(class_pred)
+            # print(gt_class)
+            celoss = ce_loss(class_pred, gt_class)
+            vqa_loss = mse_loss + p_loss + 10 * r_loss+celoss
             total_loss = vqa_loss
             return_dict = {'total_loss': total_loss, "vqa_lozz": vqa_loss, 'mse_lozz': mse_loss,
-                           'p_lozz': p_loss, 'r_lozz': r_loss}
+                           'p_lozz': p_loss, 'r_lozz': r_loss,"celoss":celoss}
             return return_dict
         elif mode == 'predict':
             y = gt_label.float().unsqueeze(-1)

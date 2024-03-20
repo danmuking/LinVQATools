@@ -108,13 +108,15 @@ class SingleBranchDataset(Dataset):
         if self.norm:
             video = video / 255.0
             video = ((video.permute(0, 2, 3, 4, 1) - self.mean) / self.std).permute(0,4, 1, 2, 3)
+        # print("score:",score)
         data = {
             "inputs": {'video':video,'img':img},
             "raw_video": raw_video,
             "num_clips": self.clip,
             # "frame_inds": frame_idxs,
             "gt_label": score,
-            "name": osp.basename(video_path)
+            "name": osp.basename(video_path),
+            "gt_class":int(score//0.2)
         }
 
         return data
