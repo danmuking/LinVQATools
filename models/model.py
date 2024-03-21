@@ -148,7 +148,7 @@ class Model(nn.Module):
         self.head = Head()
 
     #     clip
-        self.model, _, preprocess = open_clip.create_model_and_transforms('RN50', pretrained='openai')
+        self.model, self.preprocess, _ = open_clip.create_model_and_transforms('RN50', pretrained='openai')
         tokenizer = open_clip.get_tokenizer('ViT-B-32')
         text = tokenizer(["a bad quality video",
                           "a poor quality video",
@@ -224,6 +224,7 @@ class Model(nn.Module):
 
         img = inputs['img']
         # 1,1024
+        # img = self.preprocess(img)
         img_feat = self.model.encode_image(img)
         img_feat = img_feat/img_feat.norm(dim=-1, keepdim=True)
 

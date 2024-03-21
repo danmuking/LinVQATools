@@ -6,6 +6,7 @@ from typing import Dict, List, Any
 
 from PIL import Image
 from decord import VideoReader
+from open_clip.transform import image_transform_v2, PreprocessCfg
 from torch.utils.data import Dataset
 from mmengine import DATASETS
 import os.path as osp
@@ -63,17 +64,22 @@ class SingleBranchDataset(Dataset):
         # 视频加载器
         self.video_loader = getattr(loader, video_loader['name'])(**video_loader)
 
-        self.img_transform = transforms.Compose([
-                                transforms.ToPILImage(mode='RGB'),
-                                # transforms.Resize(448),
-                                # transforms.RandomHorizontalFlip(),
-                                transforms.CenterCrop(224),
-                                # transforms.ColorJitter(brightness=0.5, contrast=0.5, hue=0.5),
-                                transforms.ToTensor(),
-                                transforms.Normalize(self.mean, self.std)
-                            ])
+        # self.img_transform = transforms.Compose([
+        #                         transforms.ToPILImage(mode='RGB'),
+        #                         # transforms.Resize(448),
+        #                         # transforms.RandomHorizontalFlip(),
+        #                         transforms.CenterCrop(224),
+        #                         # transforms.ColorJitter(brightness=0.5, contrast=0.5, hue=0.5),
+        #                         transforms.ToTensor(),
+        #                         transforms.Normalize(self.mean, self.std)
+        #                     ])
+        pp_cfg = PreprocessCfg()
+        self.img_transform = image_transform_v2(
+            pp_cfg,
+            is_train=True,
+        )
 
-    def get_img(self,video_path,index):
+    def get_img(self, video_path, index):
         video_pre_path = video_path.split('/')
         video_pre_path.insert(3, 'frame')
         video_pre_path.insert(4, '{}'.format(0))
@@ -81,6 +87,7 @@ class SingleBranchDataset(Dataset):
         img_path = os.path.join(video_pre_path, "{}.png".format(index))
         img = Image.open(img_path)
         return img
+
     def __getitem__(self, index):
         video_info = self.data[index]
         video_path: Dict = video_info["video_path"]
@@ -94,29 +101,34 @@ class SingleBranchDataset(Dataset):
             video = self.video_loader(video_path=video_path, frame_num=frame_num)
             videos.append(video)
 
-            frame_index = random.randint(0, len(vr)-1)
+            frame_index = random.randint(0, len(vr) - 1)
             # 交换维度
-            img = vr[frame_index].asnumpy()
+            # print(video_path)
+            video_item = video_path.split('/')
+            img_path = "/data/ly/center_crop_224/0/VQA_ODV/{}/{}/{}.png".format(video_item[4],video_item[5][:-4],frame_index)
+            # print(img_path)
             # print(img.shape)
+            img = Image.open(img_path)
             img = self.img_transform(img)
+            # print(img.shape)
             # print(img.shape)
             imgs.append(img)
 
         video = torch.stack(videos, dim=0)
-        img=torch.stack(imgs,dim=0)
+        img = torch.stack(imgs, dim=0)
         raw_video = video
         if self.norm:
             video = video / 255.0
-            video = ((video.permute(0, 2, 3, 4, 1) - self.mean) / self.std).permute(0,4, 1, 2, 3)
+            video = ((video.permute(0, 2, 3, 4, 1) - self.mean) / self.std).permute(0, 4, 1, 2, 3)
         # print("score:",score)
         data = {
-            "inputs": {'video':video,'img':img},
+            "inputs": {'video': video, 'img': img},
             "raw_video": raw_video,
             "num_clips": self.clip,
             # "frame_inds": frame_idxs,
             "gt_label": score,
             "name": osp.basename(video_path),
-            "gt_class":int(score//0.2)
+            "gt_class": int(score // 0.2)
         }
 
         return data
