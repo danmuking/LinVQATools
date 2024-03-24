@@ -105,7 +105,7 @@ class SingleBranchDataset(Dataset):
             # 交换维度
             # print(video_path)
             video_item = video_path.split('/')
-            img_path = "/data/ly/center_crop_224/0/VQA_ODV/{}/{}/{}.png".format(video_item[4],video_item[5][:-4],frame_index)
+            img_path = "/data/ly/resize_center_crop_224/0/VQA_ODV/{}/{}/{}.png".format(video_item[4],video_item[5][:-4],frame_index)
             # print(img_path)
             # print(img.shape)
             img = Image.open(img_path)
