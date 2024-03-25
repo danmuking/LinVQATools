@@ -55,7 +55,7 @@ class Head(nn.Module):
         )
 
     def forward(self, img_feats, video_feats,text_features):
-        img_feat = img_feats[-1]
+        # img_feat = img_feats[-1]
         # img_feat = rearrange(img_feat, 'b c h w -> b (h w) c')
         video_feats = video_feats[-1]
         # 先展开 在池化
@@ -67,7 +67,7 @@ class Head(nn.Module):
         # img_feat = self.img2decoder(img_feat)
         # 拼接
         # x = torch.cat([img_feat, video_feats], dim=0)
-        x = img_feat+video_feats
+        x = img_feats+video_feats
         # print("x",x.shape)
         feat = self.norm(x)
         # print("x", x.shape)
@@ -78,7 +78,7 @@ class Head(nn.Module):
         x = self.fc_last(x)
         text_probs = feat @ text_features.T
         # print(text_probs.shape)
-
+        # print(feat.shape)
         return x,text_probs
 
 
