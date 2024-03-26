@@ -76,7 +76,7 @@ class Head(nn.Module):
         # x = x.mean(dim=1)
         x = self.fc_hid(feat)
         x = self.fc_last(x)
-        text_probs = feat @ text_features.T
+        text_probs = img_feats @ text_features.T
         # print(text_probs.shape)
         # print(feat.shape)
         return x,text_probs
