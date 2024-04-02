@@ -10,9 +10,32 @@ from mmengine import MODELS
 from mmengine.model import BaseModel
 from mmengine.optim import OptimWrapper
 from torch import nn
+import models.backbones.clip as clip
+import torch.nn.functional as F
+
 
 from models.backbones.video_mae_v2 import PreTrainVisionTransformer
 from models.backbones.vit_videomae import build_video_mae_s, get_sinusoid_encoding_table
+
+
+def text_encode(classnames, templates, model):
+    with torch.no_grad():
+        text_feat = []
+        for classname in classnames:
+            texts = [template.format(classname) for template in templates]  # format with class
+            texts = clip.tokenize(texts).cuda()  # tokenize
+            class_embeddings = model.encode_text(texts)  # embed with text encoder
+            class_embeddings /= class_embeddings.norm(dim=-1, keepdim=True)
+            class_embedding = class_embeddings.mean(dim=0)
+            class_embedding /= class_embedding.norm()
+            text_feat.append(class_embedding)
+        text_feat = torch.stack(text_feat, dim=1).cuda()
+    return text_feat
+
+imagenet_templates = [
+    "a {} quality video",
+]
+classes = ["bad","poor","fair","good","perfect"]
 
 
 def rank_loss(y_pred, y):
@@ -55,6 +78,9 @@ class Head(nn.Module):
         )
 
     def forward(self, img_feats, video_feats,text_features):
+        img_global_feat = img_feats[:, 0, :]
+        # img_spatial_feat = img_feats[:, 1:, :]
+        # img_spatial_feat = img_spatial_feat.permute(0, 2, 1)
         # img_feat = img_feats[-1]
         # img_feat = rearrange(img_feat, 'b c h w -> b (h w) c')
         video_feats = video_feats[-1]
@@ -67,7 +93,7 @@ class Head(nn.Module):
         # img_feat = self.img2decoder(img_feat)
         # 拼接
         # x = torch.cat([img_feat, video_feats], dim=0)
-        x = img_feats+video_feats
+        x = img_global_feat+video_feats
         # print("x",x.shape)
         feat = self.norm(x)
         # print("x", x.shape)
@@ -76,7 +102,7 @@ class Head(nn.Module):
         # x = x.mean(dim=1)
         x = self.fc_hid(feat)
         x = self.fc_last(x)
-        text_probs = img_feats @ text_features.T
+        text_probs = img_global_feat @ text_features
         # print(text_probs.shape)
         # print(feat.shape)
         return x,text_probs
@@ -148,7 +174,7 @@ class Model(nn.Module):
         self.head = Head()
 
     #     clip
-        self.model, self.preprocess, _ = open_clip.create_model_and_transforms('RN50', pretrained='openai')
+        self.model, preprocess = clip.load('RN50')
         tokenizer = open_clip.get_tokenizer('ViT-B-32')
         text = tokenizer(["a bad quality video",
                           "a poor quality video",
@@ -156,9 +182,11 @@ class Model(nn.Module):
                           "a good quality video",
                           "a perfect quality video"])
         with torch.no_grad():
-            self.text_features = self.model.encode_text(text)
-            self.text_features = self.text_features / self.text_features.norm(dim=1, keepdim=True)
-            self.text_features = self.text_features/self.text_features.norm(dim=-1, keepdim=True)
+            self.text_features = text_encode(classes, imagenet_templates, self.model)
+            # print(self.text_features.shape)
+            # self.text_features = self.model.encode_text(text)
+            # self.text_features = self.text_features / self.text_features.norm(dim=1, keepdim=True)
+            # self.text_features = self.text_features/self.text_features.norm(dim=-1, keepdim=True)
             self.text_features = self.text_features.cuda()
 
     def forward(self, inputs, mask):
@@ -225,9 +253,13 @@ class Model(nn.Module):
         img = inputs['img']
         # 1,1024
         # img = self.preprocess(img)
-        img_feat = self.model.encode_image(img)
-        img_feat = img_feat/img_feat.norm(dim=-1, keepdim=True)
-
+        with torch.no_grad():
+            img_feat = self.model.encode_image(img)
+        img_feat = img_feat.permute(1, 0, 2)
+        # img_feat = img_feat/img_feat.norm(dim=-1, keepdim=True)
+        # img_feat = img_feat.permute(1, 0, 2)
+        # img_feat /= img_feat.norm(dim=-1, keepdim=True)
+        # print(img_feat.shape)
         preds_score,text_probs = self.head(img_feat, feats,self.text_features)
         output = {"preds_score": preds_score,'text_probs':text_probs}
         return output
