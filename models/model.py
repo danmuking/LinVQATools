@@ -60,9 +60,10 @@ class Head(nn.Module):
         # img_feat = img_feats[-1]
         # img_feat = rearrange(img_feat, 'b c h w -> b (h w) c')
         video_feats = video_feats[-1]
-        img_global_feat = img_feats[:, 0,...]
-        mg_spatial_feat = img_feats[:, 1:, :]
-        img_spatial_feat = img_feats.permute(0, 2, 1)
+        img_global_feat = torch.mean(img_feats,dim=1)
+        # img_global_feat = img_feats[:, 0,...]
+        # mg_spatial_feat = img_feats[:, 1:, :]
+        # img_spatial_feat = img_feats.permute(0, 2, 1)
         # 先展开 在池化
         video_feats = self.video2decoder(video_feats)
         video_feats = video_feats.mean(dim=1)
