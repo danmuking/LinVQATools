@@ -4,8 +4,26 @@ import torch
 import torchvision
 
 import models.backbones.clip as clip
-from models.model import text_encode, classes, imagenet_templates
 
+
+def text_encode(classnames, templates, model):
+    with torch.no_grad():
+        text_feat = []
+        for classname in classnames:
+            texts = [template.format(classname) for template in templates]  # format with class
+            texts = clip.tokenize(texts).cuda()  # tokenize
+            class_embeddings = model.encode_text(texts)  # embed with text encoder
+            class_embeddings /= class_embeddings.norm(dim=-1, keepdim=True)
+            class_embedding = class_embeddings.mean(dim=0)
+            class_embedding /= class_embedding.norm()
+            text_feat.append(class_embedding)
+        text_feat = torch.stack(text_feat, dim=1).cuda()
+    return text_feat
+
+imagenet_templates = [
+    "a {} quality video",
+]
+classes = ["bad","poor","fair","good","perfect"]
 
 class TestClip(TestCase):
     def test_clip(self):
@@ -16,7 +34,7 @@ class TestClip(TestCase):
         # os.makedirs(label_path, exist_ok=True)
 
         clip.available_models()
-        model, preprocess = clip.load(backbone,device='cpu')
+        model, preprocess = clip.load(backbone)
         model.eval()
 
         # print(
@@ -33,8 +51,8 @@ class TestClip(TestCase):
         with torch.no_grad():
             images = torch.zeros(2,3,224,224)
             label = torch.zeros(2)
-            images = images#.cuda()
-            label = label#.cuda()
+            images = images.cuda()
+            label = label.cuda()
             features = model.encode_image(images)
 
             features = features.permute(1, 0, 2)

@@ -10,34 +10,13 @@ from mmengine import MODELS
 from mmengine.model import BaseModel
 from mmengine.optim import OptimWrapper
 from torch import nn
-import models.backbones.clip as clip
-import torch.nn.functional as F
+from torch.nn import functional as F
 
-
+from models.backbones.clip.model import AttentionPool2d
 from models.backbones.video_mae_v2 import PreTrainVisionTransformer
 from models.backbones.vit_videomae import build_video_mae_s, get_sinusoid_encoding_table
 
-
-def text_encode(classnames, templates, model):
-    with torch.no_grad():
-        text_feat = []
-        for classname in classnames:
-            texts = [template.format(classname) for template in templates]  # format with class
-            texts = clip.tokenize(texts).cuda()  # tokenize
-            class_embeddings = model.encode_text(texts)  # embed with text encoder
-            class_embeddings /= class_embeddings.norm(dim=-1, keepdim=True)
-            class_embedding = class_embeddings.mean(dim=0)
-            class_embedding /= class_embedding.norm()
-            text_feat.append(class_embedding)
-        text_feat = torch.stack(text_feat, dim=1).cuda()
-    return text_feat
-
-imagenet_templates = [
-    "a {} quality video",
-]
-classes = ["bad","poor","fair","good","perfect"]
-
-
+# torch.autograd.set_detect_anomaly(True)
 def rank_loss(y_pred, y):
     ranking_loss = torch.nn.functional.relu(
         (y_pred - y_pred.t()) * torch.sign((y.t() - y))
@@ -65,8 +44,8 @@ class Head(nn.Module):
         dim = 1024
         self.dropout_ratio = 0
         self.img2decoder = nn.Linear(192, 384)
-        self.video2decoder = nn.Linear(384, 1024)
-        self.norm = nn.LayerNorm(1024, eps=1e-6)
+        self.video2decoder = nn.Linear(384, dim)
+        self.norm = nn.LayerNorm(dim, eps=1e-6)
         self.fusion2decoder = nn.Linear(1024, 384)
         self.fc_hid = nn.Sequential(
             nn.Dropout(p=self.dropout_ratio) if self.dropout_ratio > 0 else nn.Identity(),
@@ -78,12 +57,12 @@ class Head(nn.Module):
         )
 
     def forward(self, img_feats, video_feats,text_features):
-        img_global_feat = img_feats[:, 0, :]
-        # img_spatial_feat = img_feats[:, 1:, :]
-        # img_spatial_feat = img_spatial_feat.permute(0, 2, 1)
         # img_feat = img_feats[-1]
         # img_feat = rearrange(img_feat, 'b c h w -> b (h w) c')
         video_feats = video_feats[-1]
+        img_global_feat = img_feats[:, 0,...]
+        mg_spatial_feat = img_feats[:, 1:, :]
+        img_spatial_feat = img_feats.permute(0, 2, 1)
         # 先展开 在池化
         video_feats = self.video2decoder(video_feats)
         video_feats = video_feats.mean(dim=1)
@@ -102,11 +81,10 @@ class Head(nn.Module):
         # x = x.mean(dim=1)
         x = self.fc_hid(feat)
         x = self.fc_last(x)
-        text_probs = img_global_feat @ text_features
+        text_probs = img_global_feat @ text_features.T
         # print(text_probs.shape)
         # print(feat.shape)
         return x,text_probs
-
 
 class Model(nn.Module):
     def __init__(self,
@@ -173,20 +151,20 @@ class Model(nn.Module):
                            (self.patches_shape[2] // self.mask_stride[2])]
         self.head = Head()
 
+
     #     clip
-        self.model, preprocess = clip.load('RN50')
+        self.model, self.preprocess, _ = open_clip.create_model_and_transforms('RN50', pretrained='openai')
         tokenizer = open_clip.get_tokenizer('ViT-B-32')
         text = tokenizer(["a bad quality video",
                           "a poor quality video",
                           "a fair quality video",
                           "a good quality video",
                           "a perfect quality video"])
+        self.model.visual.attnpool = AttentionPool2d(7,2048,32,1024)
         with torch.no_grad():
-            self.text_features = text_encode(classes, imagenet_templates, self.model)
-            # print(self.text_features.shape)
-            # self.text_features = self.model.encode_text(text)
-            # self.text_features = self.text_features / self.text_features.norm(dim=1, keepdim=True)
-            # self.text_features = self.text_features/self.text_features.norm(dim=-1, keepdim=True)
+            self.text_features = self.model.encode_text(text)
+            self.text_features = self.text_features / self.text_features.norm(dim=1, keepdim=True)
+            self.text_features = self.text_features/self.text_features.norm(dim=-1, keepdim=True)
             self.text_features = self.text_features.cuda()
 
     def forward(self, inputs, mask):
@@ -253,16 +231,19 @@ class Model(nn.Module):
         img = inputs['img']
         # 1,1024
         # img = self.preprocess(img)
-        with torch.no_grad():
-            img_feat = self.model.encode_image(img)
-        img_feat = img_feat.permute(1, 0, 2)
+        image_latent = self.clip_forward(img)
+        # img_feat = self.model.encode_image(img)
         # img_feat = img_feat/img_feat.norm(dim=-1, keepdim=True)
-        # img_feat = img_feat.permute(1, 0, 2)
-        # img_feat /= img_feat.norm(dim=-1, keepdim=True)
-        # print(img_feat.shape)
+        img_feat = image_latent
         preds_score,text_probs = self.head(img_feat, feats,self.text_features)
         output = {"preds_score": preds_score,'text_probs':text_probs}
         return output
+
+    def clip_forward(self,images, normalize: bool = True):
+        image_latent = self.model.visual(images)
+        image_latent = image_latent.permute(1, 0, 2)
+        image_latent = image_latent/image_latent.norm(dim=-1, keepdim=True)
+        return image_latent
 
 
 class CellRunningMaskAgent(nn.Module):
