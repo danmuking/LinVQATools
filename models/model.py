@@ -2,6 +2,7 @@ from collections import OrderedDict
 from functools import partial
 from typing import Union, Dict, Optional
 
+import numpy as np
 import open_clip
 import timm
 import torch
@@ -56,13 +57,42 @@ class Head(nn.Module):
             nn.Linear(dim // 4, 1),
         )
 
+        self.q1 = nn.Linear(1024, 1024)
+        self.k1 = nn.Linear(1024, 1024)
+        self.v1 = nn.Linear(1024, 1024)
+
+        self.q2 = nn.Linear(1024, 1024)
+        self.k2 = nn.Linear(1024, 1024)
+        self.v2 = nn.Linear(1024, 1024)
+        self.softmax = nn.Softmax(dim=2)
+        self.scale = np.power(1024, 0.5)
+
     def forward(self, img_feats, video_feats,text_features):
         # img_feat = img_feats[-1]
         # img_feat = rearrange(img_feat, 'b c h w -> b (h w) c')
         video_feats = video_feats[-1]
-        img_global_feat = torch.mean(img_feats,dim=1)
-        # img_global_feat = img_feats[:, 0,...]
-        # mg_spatial_feat = img_feats[:, 1:, :]
+        # img_global_feat = torch.mean(img_feats,dim=1)
+        img_global_feat = img_feats[:, 0,...].unsqueeze(1)
+        img_spatial_feat = img_feats[:, 1:, :]
+        q1 = self.q1(img_global_feat)
+        k1 = self.k1(img_global_feat)
+        v1 = self.v1(img_global_feat)
+        q2 = self.q2(img_spatial_feat)
+        k2 = self.k2(img_spatial_feat)
+        v2 = self.v2(img_spatial_feat)
+
+        u1 = torch.bmm(q1, k1.transpose(1, 2))
+        u1 = u1 / self.scale
+        attn1 = self.softmax(u1)
+        output1 = torch.bmm(attn1, v1)
+
+        u2 = torch.bmm(q2, k2.transpose(1, 2))
+        u2 = u2 / self.scale
+        attn2 = self.softmax(u2)
+        output2 = torch.bmm(attn2, v2)
+        img_feats = output1+torch.mean(output2,dim=1,keepdim=True)
+        img_feats = img_feats.squeeze(1)
+        img_global_feat = img_feats
         # img_spatial_feat = img_feats.permute(0, 2, 1)
         # 先展开 在池化
         video_feats = self.video2decoder(video_feats)
