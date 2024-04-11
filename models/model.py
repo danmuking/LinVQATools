@@ -92,7 +92,7 @@ class Head(nn.Module):
         output2 = torch.bmm(attn2, v2)
         img_feats = output1+torch.mean(output2,dim=1,keepdim=True)
         img_feats = img_feats.squeeze(1)
-        img_global_feat = img_feats
+        img_global_feat = img_feats/img_feats.norm(dim=-1, keepdim=True)
         # img_spatial_feat = img_feats.permute(0, 2, 1)
         # 先展开 在池化
         video_feats = self.video2decoder(video_feats)
