@@ -432,7 +432,7 @@ class ModelWrapper(BaseModel):
             # print(gt_class)
             celoss = ce_loss(class_pred, gt_class)
             vqa_loss = mse_loss + p_loss + 10 * r_loss
-            total_loss = vqa_loss+0.5*celoss
+            total_loss = vqa_loss+1*celoss
             return_dict = {'total_loss': total_loss, "vqa_lozz": vqa_loss, 'mse_lozz': mse_loss,
                            'p_lozz': p_loss, 'r_lozz': r_loss,"celoss":celoss}
             return return_dict
