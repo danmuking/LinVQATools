@@ -39,14 +39,34 @@ def plcc_loss(y_pred, y):
     return ((loss0 + loss1) / 2).float()
 
 
+class Fusion(nn.Module):
+    def __init__(self):
+        super(Fusion, self).__init__()
+        # self.video_self_attn = nn.MultiheadAttention(1024, 1, dropout=0.1)
+        # self.img_self_attn = nn.MultiheadAttention(1024, 1, dropout=0.1)
+        self.linear1 = nn.Linear(384,1024)
+        self.linear2 = nn.Linear(392*2, 50)
+
+    def forward(self, img_feats, video_feats):
+        video_feats = video_feats[-1]
+        video_feats = rearrange(video_feats, 'b n c -> b c n')
+        video_feats = self.linear2(video_feats)
+        video_feats = rearrange(video_feats, 'b c n -> b n c')
+        video_feats = self.linear1(video_feats)
+        # video_feats = self.video_self_attn(video_feats, video_feats, video_feats)[0]
+        # img_feats = self.img_self_attn(img_feats, img_feats, img_feats)[0]
+        # cross_video_feats = self.video_self_attn(img_feats, img_feats, video_feats)[0]
+        # cross_img_feats = self.video_self_attn(video_feats, video_feats, img_feats)[0]
+
+        return video_feats+img_feats
+
+
 class Head(nn.Module):
     def __init__(self):
         super(Head, self).__init__()
         dim = 1024
-        self.dropout_ratio = 0
-        self.img2decoder = nn.Linear(192, 384)
-        self.video2decoder = nn.Linear(384, dim)
         self.norm = nn.LayerNorm(dim, eps=1e-6)
+        self.dropout_ratio = 0.1
         self.fusion2decoder = nn.Linear(1024, 384)
         self.fc_hid = nn.Sequential(
             nn.Dropout(p=self.dropout_ratio) if self.dropout_ratio > 0 else nn.Identity(),
@@ -57,65 +77,12 @@ class Head(nn.Module):
             nn.Linear(dim // 4, 1),
         )
 
-        self.q1 = nn.Linear(1024, 1024)
-        self.k1 = nn.Linear(1024, 1024)
-        self.v1 = nn.Linear(1024, 1024)
-
-        self.q2 = nn.Linear(1024, 1024)
-        self.k2 = nn.Linear(1024, 1024)
-        self.v2 = nn.Linear(1024, 1024)
-        self.softmax = nn.Softmax(dim=2)
-        self.scale = np.power(1024, 0.5)
-
-    def forward(self, img_feats, video_feats,text_features):
-        # img_feat = img_feats[-1]
-        # img_feat = rearrange(img_feat, 'b c h w -> b (h w) c')
-        video_feats = video_feats[-1]
-        # img_global_feat = torch.mean(img_feats,dim=1)
-        img_global_feat = img_feats[:, 0,...].unsqueeze(1)
-        img_spatial_feat = img_feats[:, 1:, :]
-        q1 = self.q1(img_global_feat)
-        k1 = self.k1(img_global_feat)
-        v1 = self.v1(img_global_feat)
-        q2 = self.q2(img_spatial_feat)
-        k2 = self.k2(img_spatial_feat)
-        v2 = self.v2(img_spatial_feat)
-
-        u1 = torch.bmm(q1, k1.transpose(1, 2))
-        u1 = u1 / self.scale
-        attn1 = self.softmax(u1)
-        output1 = torch.bmm(attn1, v1)
-
-        u2 = torch.bmm(q2, k2.transpose(1, 2))
-        u2 = u2 / self.scale
-        attn2 = self.softmax(u2)
-        output2 = torch.bmm(attn2, v2)
-        img_feats = output1+torch.mean(output2,dim=1,keepdim=True)
-        img_feats = img_feats.squeeze(1)
-        img_global_feat = img_feats/img_feats.norm(dim=-1, keepdim=True)
-        # img_spatial_feat = img_feats.permute(0, 2, 1)
-        # 先展开 在池化
-        video_feats = self.video2decoder(video_feats)
-        video_feats = video_feats.mean(dim=1)
-        video_feats = video_feats/video_feats.norm(dim=-1, keepdim=True)
-        # print("video_feats",video_feats.shape)
-        # print("img_feats", img_feats.shape)
-        # img_feat = self.img2decoder(img_feat)
-        # 拼接
-        # x = torch.cat([img_feat, video_feats], dim=0)
-        x = img_global_feat+video_feats
-        # print("x",x.shape)
+    def forward(self, x):
         feat = self.norm(x)
-        # print("x", x.shape)
-        # x = self.fusion2decoder(x)
-        # # mean
-        # x = x.mean(dim=1)
         x = self.fc_hid(feat)
         x = self.fc_last(x)
-        text_probs = img_global_feat @ text_features.T
-        # print(text_probs.shape)
-        # print(feat.shape)
-        return x,text_probs
+        x = torch.mean(x, dim=1)
+        return x
 
 class Model(nn.Module):
     def __init__(self,
@@ -180,6 +147,9 @@ class Model(nn.Module):
         self.mask_shape = [(self.patches_shape[0] // self.mask_stride[0]),
                            (self.patches_shape[1] // self.mask_stride[1]),
                            (self.patches_shape[2] // self.mask_stride[2])]
+
+        self.linear = nn.Linear(1024, 1024)
+        self.fusion = Fusion()
         self.head = Head()
 
 
@@ -197,6 +167,7 @@ class Model(nn.Module):
             self.text_features = self.text_features / self.text_features.norm(dim=1, keepdim=True)
             self.text_features = self.text_features/self.text_features.norm(dim=-1, keepdim=True)
             self.text_features = self.text_features.cuda()
+
 
     def forward(self, inputs, mask):
         # vit过程
@@ -260,13 +231,15 @@ class Model(nn.Module):
             pred_pixels = None
 
         img = inputs['img']
-        # 1,1024
-        # img = self.preprocess(img)
-        image_latent = self.clip_forward(img)
-        # img_feat = self.model.encode_image(img)
-        # img_feat = img_feat/img_feat.norm(dim=-1, keepdim=True)
+        with torch.no_grad():
+            # b,n,c
+            image_latent = self.clip_forward(img)
         img_feat = image_latent
-        preds_score,text_probs = self.head(img_feat, feats,self.text_features)
+        img_feat = self.linear(img_feat)
+        img_global_feat = img_feat[:,0,:]
+        text_probs = img_global_feat @ self.text_features.T
+        fusion_feat = self.fusion(img_feat, feats)
+        preds_score = self.head(fusion_feat)
         output = {"preds_score": preds_score,'text_probs':text_probs}
         return output
 

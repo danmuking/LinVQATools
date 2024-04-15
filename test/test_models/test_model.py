@@ -9,7 +9,7 @@ from models.video_mae_vqa import CellRunningMaskAgent
 
 class TestCellRunningMaskAgent(TestCase):
     def test_Model(self):
-        agent = CellRunningMaskAgent(0.75)
+        agent = CellRunningMaskAgent(0.5)
         model = Model(mask_ratio=0.75).cuda()
         inputs = {"video":torch.rand((2, 3, 16, 224, 224)).cuda(),"img":torch.rand((2,3,224,224)).cuda()}
         agent.train()
