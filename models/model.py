@@ -107,8 +107,8 @@ class CrossAttention(nn.Module):
 class Fusion(nn.Module):
     def __init__(self):
         super(Fusion, self).__init__()
-        self.video_self_attn = CrossAttention(1024, 1024,1024,1024,1)
-        self.img_self_attn = CrossAttention(1024, 1024,1024,1024,1)
+        self.video_self_attn = CrossAttention(1024, 1024,1024,1024,6)
+        self.img_self_attn = CrossAttention(1024, 1024,1024,1024,6)
         self.linear1 = nn.Linear(384,1024)
         self.linear2 = nn.Linear(392*2, 50)
 
@@ -118,6 +118,9 @@ class Fusion(nn.Module):
         video_feats = self.linear2(video_feats)
         video_feats = rearrange(video_feats, 'b c n -> b n c')
         video_feats = self.linear1(video_feats)
+
+        video_feats = video_feats / video_feats.norm(dim=1, keepdim=True)
+        img_feats = img_feats / img_feats.norm(dim=1, keepdim=True)
         video_feats = self.video_self_attn(img_feats,video_feats)
         img_feats = self.img_self_attn(video_feats,img_feats)
         # cross_video_feats = self.video_self_attn(img_feats, img_feats, video_feats)[0]
@@ -230,7 +233,6 @@ class Model(nn.Module):
         with torch.no_grad():
             self.text_features = self.model.encode_text(text)
             self.text_features = self.text_features / self.text_features.norm(dim=1, keepdim=True)
-            self.text_features = self.text_features/self.text_features.norm(dim=-1, keepdim=True)
             self.text_features = self.text_features.cuda()
 
 
@@ -468,11 +470,11 @@ class ModelWrapper(BaseModel):
             # print(gt_class.shape)
             # print(class_pred)
             # print(gt_class)
-            celoss = ce_loss(class_pred, gt_class)
+            celoss = ce_loss(class_pred, gt_class)*0.5
             vqa_loss = mse_loss + p_loss + 10 * r_loss
-            total_loss = vqa_loss+1*celoss
+            total_loss = vqa_loss+celoss
             return_dict = {'total_loss': total_loss, "vqa_lozz": vqa_loss, 'mse_lozz': mse_loss,
-                           'p_lozz': p_loss, 'r_lozz': r_loss,"celoss":celoss}
+                           'p_lozz': p_loss, 'r_lozz': r_loss,"ce_lozz":celoss}
             return return_dict
         elif mode == 'predict':
             y = gt_label.float().unsqueeze(-1)
