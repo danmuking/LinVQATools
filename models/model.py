@@ -107,8 +107,10 @@ class CrossAttention(nn.Module):
 class Fusion(nn.Module):
     def __init__(self):
         super(Fusion, self).__init__()
-        self.video_self_attn = CrossAttention(1024, 1024,1024,1024,6)
-        self.img_self_attn = CrossAttention(1024, 1024,1024,1024,6)
+        self.video_self_attn = MultiHeadAttention(1024, 1024,1024,6)
+        self.img_self_attn = MultiHeadAttention(1024, 1024,1024,6)
+        self.video_cross_attn =  CrossAttention(1024, 1024,1024,1024,6)
+        self.img_cross_attn =  CrossAttention(1024, 1024,1024,1024,6)
         self.linear1 = nn.Linear(384,1024)
         self.linear2 = nn.Linear(392*2, 50)
 
@@ -121,12 +123,12 @@ class Fusion(nn.Module):
 
         video_feats = video_feats / video_feats.norm(dim=1, keepdim=True)
         img_feats = img_feats / img_feats.norm(dim=1, keepdim=True)
-        video_feats = self.video_self_attn(img_feats,video_feats)
-        img_feats = self.img_self_attn(video_feats,img_feats)
-        # cross_video_feats = self.video_self_attn(img_feats, img_feats, video_feats)[0]
-        # cross_img_feats = self.video_self_attn(video_feats, video_feats, img_feats)[0]
+        video_feats = self.video_self_attn(video_feats)
+        img_feats = self.img_self_attn(img_feats)
+        cross_video_feats = self.video_cross_attn(img_feats,video_feats)
+        cross_img_feats = self.img_cross_attn(video_feats,img_feats)
 
-        return video_feats+img_feats
+        return cross_video_feats+cross_img_feats
 
 
 class Head(nn.Module):
