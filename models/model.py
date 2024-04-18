@@ -300,9 +300,9 @@ class Model(nn.Module):
             pred_pixels = None
 
         img = inputs['img']
-        with torch.no_grad():
+        # with torch.no_grad():
             # b,n,c
-            image_latent = self.clip_forward(img)
+        image_latent = self.clip_forward(img)
         img_feat = image_latent
         img_feat = self.linear(img_feat)
         img_global_feat = img_feat[:,0,:]
