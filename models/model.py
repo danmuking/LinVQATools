@@ -17,6 +17,7 @@ from models.backbones.clip.model import AttentionPool2d
 from models.backbones.video_mae_v2 import PreTrainVisionTransformer
 from models.backbones.vit_videomae import build_video_mae_s, get_sinusoid_encoding_table
 
+
 # torch.autograd.set_detect_anomaly(True)
 def rank_loss(y_pred, y):
     ranking_loss = torch.nn.functional.relu(
@@ -104,31 +105,41 @@ class CrossAttention(nn.Module):
 
         return output
 
+
 class Fusion(nn.Module):
     def __init__(self):
         super(Fusion, self).__init__()
-        self.video_self_attn = MultiHeadAttention(1024, 1024,1024,6)
-        self.img_self_attn = MultiHeadAttention(1024, 1024,1024,6)
-        self.video_cross_attn =  CrossAttention(1024, 1024,1024,1024,6)
-        self.img_cross_attn =  CrossAttention(1024, 1024,1024,1024,6)
-        self.linear1 = nn.Linear(384,1024)
-        self.linear2 = nn.Linear(392*2, 50)
+        self.video_self_attn = MultiHeadAttention(1024, 1024, 1024, 6)
+        self.img_self_attn = MultiHeadAttention(1024, 1024, 1024, 6)
+        self.video_cross_attn = CrossAttention(1024, 1024, 1024, 1024, 6)
+        self.img_cross_attn = CrossAttention(1024, 1024, 1024, 1024, 6)
+        self.linear1 = nn.Linear(384, 1024)
+        self.linear2 = nn.Linear(392 * 2, 49)
+        self.linear3 = nn.Linear(2048, 1024)
 
     def forward(self, img_feats, video_feats):
         video_feats = video_feats[-1]
+        # print(video_feats.shape)
+        # print(img_feats.shape)
         video_feats = rearrange(video_feats, 'b n c -> b c n')
         video_feats = self.linear2(video_feats)
         video_feats = rearrange(video_feats, 'b c n -> b n c')
         video_feats = self.linear1(video_feats)
 
+        img_feats = rearrange(img_feats, 'b c h w -> b (h w) c')
+        img_feats = self.linear3(img_feats)
+
+        # print(video_feats.shape)
+        # print(img_feats.shape)
+
         video_feats = video_feats / video_feats.norm(dim=1, keepdim=True)
         img_feats = img_feats / img_feats.norm(dim=1, keepdim=True)
         video_feats = self.video_self_attn(video_feats)
         img_feats = self.img_self_attn(img_feats)
-        cross_video_feats = self.video_cross_attn(img_feats,video_feats)
-        cross_img_feats = self.img_cross_attn(video_feats,img_feats)
+        cross_video_feats = self.video_cross_attn(img_feats, video_feats)
+        cross_img_feats = self.img_cross_attn(video_feats, img_feats)
 
-        return cross_video_feats+cross_img_feats
+        return cross_video_feats + cross_img_feats
 
 
 class Head(nn.Module):
@@ -137,7 +148,6 @@ class Head(nn.Module):
         dim = 1024
         self.norm = nn.LayerNorm(dim, eps=1e-6)
         self.dropout_ratio = 0.1
-        self.fusion2decoder = nn.Linear(1024, 384)
         self.fc_hid = nn.Sequential(
             nn.Dropout(p=self.dropout_ratio) if self.dropout_ratio > 0 else nn.Identity(),
             nn.Linear(dim, dim // 4),
@@ -153,6 +163,7 @@ class Head(nn.Module):
         x = self.fc_last(x)
         x = torch.mean(x, dim=1)
         return x
+
 
 class Model(nn.Module):
     def __init__(self,
@@ -222,8 +233,7 @@ class Model(nn.Module):
         self.fusion = Fusion()
         self.head = Head()
 
-
-    #     clip
+        #     clip
         self.model, self.preprocess, _ = open_clip.create_model_and_transforms('RN50', pretrained='openai')
         tokenizer = open_clip.get_tokenizer('ViT-B-32')
         text = tokenizer(["a bad quality video",
@@ -231,14 +241,19 @@ class Model(nn.Module):
                           "a fair quality video",
                           "a good quality video",
                           "a perfect quality video"])
-        self.model.visual.attnpool = AttentionPool2d(7,2048,32,1024)
+        self.model.visual.attnpool = AttentionPool2d(7, 2048, 32, 1024)
         with torch.no_grad():
             self.text_features = self.model.encode_text(text)
             self.text_features = self.text_features / self.text_features.norm(dim=1, keepdim=True)
             self.text_features = self.text_features.cuda()
 
+        self.clip_features = []
+        for child in self.model.visual.children():
+            if not isinstance(child, nn.ReLU6):
+                child.register_forward_hook(hook=self.clip_hook)
 
     def forward(self, inputs, mask):
+        self.clip_features = []
         # vit过程
         video = inputs['video']
         x_data = video
@@ -301,22 +316,30 @@ class Model(nn.Module):
 
         img = inputs['img']
         # with torch.no_grad():
-            # b,n,c
+        # b,n,c
         image_latent = self.clip_forward(img)
         img_feat = image_latent
         img_feat = self.linear(img_feat)
-        img_global_feat = img_feat[:,0,:]
+        img_global_feat = img_feat[:, 0, :]
         text_probs = img_global_feat @ self.text_features.T
-        fusion_feat = self.fusion(img_feat, feats)
+
+        # for layer in self.clip_features:
+        #     print(layer.shape)
+
+        fusion_feat = self.fusion(self.clip_features[-2], feats)
         preds_score = self.head(fusion_feat)
-        output = {"preds_score": preds_score,'text_probs':text_probs}
+        output = {"preds_score": preds_score, 'text_probs': text_probs}
         return output
 
-    def clip_forward(self,images, normalize: bool = True):
+    def clip_forward(self, images):
         image_latent = self.model.visual(images)
         image_latent = image_latent.permute(1, 0, 2)
-        image_latent = image_latent/image_latent.norm(dim=-1, keepdim=True)
+        image_latent = image_latent / image_latent.norm(dim=-1, keepdim=True)
         return image_latent
+
+    def clip_hook(self, module, fea_in, fea_out):
+        # print(fea_out[0].shape)
+        self.clip_features.append(fea_out)
 
 
 class CellRunningMaskAgent(nn.Module):
@@ -413,7 +436,8 @@ class ModelWrapper(BaseModel):
             **kwargs
     ):
         super().__init__()
-        self.model = Model(model_type=model_type, mask_ratio=mask_ratio,head_dropout=head_dropout,drop_path_rate=drop_path_rate)
+        self.model = Model(model_type=model_type, mask_ratio=mask_ratio, head_dropout=head_dropout,
+                           drop_path_rate=drop_path_rate)
         self.agent = CellRunningMaskAgent(mask_ratio)
 
         if model_type == 'b':
@@ -445,7 +469,8 @@ class ModelWrapper(BaseModel):
         info = self.load_state_dict(t_state_dict, strict=False)
         print(info)
 
-    def forward(self, inputs: torch.Tensor, gt_label=None,gt_class=None, data_samples: Optional[list] = None, mode: str = 'tensor',
+    def forward(self, inputs: torch.Tensor, gt_label=None, gt_class=None, data_samples: Optional[list] = None,
+                mode: str = 'tensor',
                 **kargs) -> \
             Union[
                 Dict[str, torch.Tensor], list]:
@@ -472,11 +497,11 @@ class ModelWrapper(BaseModel):
             # print(gt_class.shape)
             # print(class_pred)
             # print(gt_class)
-            celoss = ce_loss(class_pred, gt_class)*1
+            celoss = ce_loss(class_pred, gt_class) * 0.5
             vqa_loss = mse_loss + p_loss + 10 * r_loss
-            total_loss = vqa_loss+celoss
+            total_loss = vqa_loss + celoss
             return_dict = {'total_loss': total_loss, "vqa_lozz": vqa_loss, 'mse_lozz': mse_loss,
-                           'p_lozz': p_loss, 'r_lozz': r_loss,"ce_lozz":celoss}
+                           'p_lozz': p_loss, 'r_lozz': r_loss, "ce_lozz": celoss}
             return return_dict
         elif mode == 'predict':
             y = gt_label.float().unsqueeze(-1)
