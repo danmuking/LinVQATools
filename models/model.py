@@ -106,16 +106,31 @@ class CrossAttention(nn.Module):
         return output
 
 
+class AttentionModule(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.video_self_attn = MultiHeadAttention(1024, 1024, 1024, 6)
+        self.img_self_attn = MultiHeadAttention(1024, 1024, 1024, 6)
+        self.video_cross_attn = CrossAttention(1024, 1024, 1024, 1024, 6)
+        self.img_cross_attn = CrossAttention(1024, 1024, 1024, 1024, 6)
+
+    def forward(self, img_feats, video_feats):
+        img_feats = img_feats / img_feats.norm(dim=1, keepdim=True)
+        video_feats = self.video_self_attn(video_feats)
+        img_feats = self.img_self_attn(img_feats)
+        cross_video_feats = self.video_cross_attn(img_feats, video_feats)
+        cross_img_feats = self.img_cross_attn(video_feats, img_feats)
+        return cross_img_feats, cross_video_feats
+
+
 class Fusion(nn.Module):
     def __init__(self):
         super(Fusion, self).__init__()
-        self.video_self_attn = MultiHeadAttention(1024, 1024, 1024, 8)
-        self.img_self_attn = MultiHeadAttention(1024, 1024, 1024, 8)
-        self.video_cross_attn = CrossAttention(1024, 1024, 1024, 1024, 8)
-        self.img_cross_attn = CrossAttention(1024, 1024, 1024, 1024, 8)
         self.linear1 = nn.Linear(384, 1024)
         self.linear2 = nn.Linear(392 * 2, 49)
         self.linear3 = nn.Linear(2048, 1024)
+        self.atte1 = AttentionModule()
+        self.atte2 = AttentionModule()
 
     def forward(self, img_feats, video_feats):
         video_feats = video_feats[-1]
@@ -134,12 +149,11 @@ class Fusion(nn.Module):
 
         video_feats = video_feats / video_feats.norm(dim=1, keepdim=True)
         img_feats = img_feats / img_feats.norm(dim=1, keepdim=True)
-        video_feats = self.video_self_attn(video_feats)
-        img_feats = self.img_self_attn(img_feats)
-        cross_video_feats = self.video_cross_attn(img_feats, video_feats)
-        cross_img_feats = self.img_cross_attn(video_feats, img_feats)
 
-        return cross_video_feats + cross_img_feats
+        img_feats, video_feats = self.atte1(img_feats, video_feats)
+        img_feats, video_feats = self.atte1(img_feats, video_feats)
+
+        return img_feats + video_feats
 
 
 class Head(nn.Module):
