@@ -115,7 +115,7 @@ class Fusion(nn.Module):
         self.img_cross_attn = CrossAttention(1024, 1024, 1024, 1024, 6)
         self.linear1 = nn.Linear(384, 1024)
         self.linear2 = nn.Linear(392 * 2, 49)
-        self.linear3 = nn.Linear(2048, 1024)
+        self.linear3 = nn.Linear(1024, 1024)
 
     def forward(self, img_feats, video_feats):
         video_feats = video_feats[-1]
@@ -125,8 +125,9 @@ class Fusion(nn.Module):
         video_feats = self.linear2(video_feats)
         video_feats = rearrange(video_feats, 'b c n -> b n c')
         video_feats = self.linear1(video_feats)
-
-        img_feats = rearrange(img_feats, 'b c h w -> b (h w) c')
+        # print(video_feats.shape)
+        # print(img_feats.shape)
+        # img_feats = rearrange(img_feats, 'b c h w -> b (h w) c')
         img_feats = self.linear3(img_feats)
 
         # print(video_feats.shape)
@@ -242,15 +243,17 @@ class Model(nn.Module):
                           "a good quality video",
                           "a perfect quality video"])
         self.model.visual.attnpool = AttentionPool2d(7, 2048, 32, 1024)
-        with torch.no_grad():
-            self.text_features = self.model.encode_text(text)
-            self.text_features = self.text_features / self.text_features.norm(dim=1, keepdim=True)
-            self.text_features = self.text_features.cuda()
+        # with torch.no_grad():
+        #     self.text_features = self.model.encode_text(text)
+        #     self.text_features = self.text_features / self.text_features.norm(dim=1, keepdim=True)
+        #     self.text_features = self.text_features.cuda()
 
         self.clip_features = []
         for child in self.model.visual.children():
             if not isinstance(child, nn.ReLU6):
                 child.register_forward_hook(hook=self.clip_hook)
+
+        self.classified = nn.Linear(1024, 5)
 
     def forward(self, inputs, mask):
         self.clip_features = []
@@ -321,12 +324,13 @@ class Model(nn.Module):
         img_feat = image_latent
         img_feat = self.linear(img_feat)
         img_global_feat = img_feat[:, 0, :]
-        text_probs = img_global_feat @ self.text_features.T
+        # text_probs = img_global_feat @ self.text_features.T
+        text_probs = self.classified(img_global_feat)
 
         # for layer in self.clip_features:
         #     print(layer.shape)
 
-        fusion_feat = self.fusion(self.clip_features[-2], feats)
+        fusion_feat = self.fusion(img_feat[:,1:,], feats)
         preds_score = self.head(fusion_feat)
         output = {"preds_score": preds_score, 'text_probs': text_probs}
         return output
