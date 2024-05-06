@@ -166,6 +166,10 @@ class Head(nn.Module):
         return x
 
 
+def rescale(x):
+    x = np.array(x)
+    x = (x - x.mean()) / x.std()
+    return 1 / (1 + np.exp(-x))
 class Model(nn.Module):
     def __init__(self,
                  model_type='s',
@@ -243,10 +247,6 @@ class Model(nn.Module):
                           "a good quality video",
                           "a perfect quality video"])
         self.model.visual.attnpool = AttentionPool2d(7, 2048, 32, 1024)
-        # with torch.no_grad():
-        #     self.text_features = self.model.encode_text(text)
-        #     self.text_features = self.text_features / self.text_features.norm(dim=1, keepdim=True)
-        #     self.text_features = self.text_features.cuda()
 
         self.clip_features = []
         for child in self.model.visual.children():
@@ -254,6 +254,21 @@ class Model(nn.Module):
                 child.register_forward_hook(hook=self.clip_hook)
 
         self.classified = nn.Linear(1024, 5)
+
+        device = "cuda"
+        self.clip_model, _, preprocess = open_clip.create_model_and_transforms("RN50", pretrained="openai")
+        self.clip_model = self.clip_model.to(device)
+
+        texts = [
+            "a high quality photo",
+            "a low quality photo",
+            "a good photo",
+            "a bad photo",
+        ]
+        self.tokenizer = open_clip.get_tokenizer("RN50")
+        self.text_tokens = tokenizer(texts).to(device)
+
+        self.project = nn.Linear(2,1)
 
     def forward(self, inputs, mask):
         self.clip_features = []
@@ -332,6 +347,24 @@ class Model(nn.Module):
 
         fusion_feat = self.fusion(img_feat[:,1:,], feats)
         preds_score = self.head(fusion_feat)
+
+        # ------------------------------clip-------------------------------------------
+        prs = []
+        with torch.no_grad():
+            image_features = self.clip_model.encode_image(img).float()  # .mean(0)
+            text_features = self.clip_model.encode_text(self.text_tokens).float()
+            logits_per_image = image_features @ text_features.T
+            probs_a = logits_per_image
+            semantic_affinity_index = torch.zeros(probs_a.shape[0],1).cuda()
+
+            for k in [0, 1]:
+                # pn_pair = torch.from_numpy(probs_a[..., 2 * k: 2 * k + 2]).float().numpy()
+                pn_pair = probs_a[..., 2 * k: 2 * k + 2]
+                semantic_affinity_index += pn_pair[...,None, 0] - pn_pair[...,None, 1]
+            prs = torch.sigmoid(semantic_affinity_index)
+        preds_score = torch.sigmoid(preds_score)
+        preds_score = self.project(torch.cat([prs, preds_score], dim=1))
+
         output = {"preds_score": preds_score, 'text_probs': text_probs}
         return output
 
