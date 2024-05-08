@@ -267,8 +267,11 @@ class Model(nn.Module):
         ]
         self.tokenizer = open_clip.get_tokenizer("RN50")
         self.text_tokens = tokenizer(texts).to(device)
-
+        self.clip_linear = nn.Linear(1024,1024)
         self.project = nn.Linear(2,1)
+
+        with torch.no_grad():
+            self.text_features = self.clip_model.encode_text(self.text_tokens).float()
 
     def forward(self, inputs, mask):
         self.clip_features = []
@@ -352,17 +355,17 @@ class Model(nn.Module):
         prs = []
         with torch.no_grad():
             image_features = self.clip_model.encode_image(img).float()  # .mean(0)
-            text_features = self.clip_model.encode_text(self.text_tokens).float()
-            logits_per_image = image_features @ text_features.T
-            probs_a = logits_per_image
-            semantic_affinity_index = torch.zeros(probs_a.shape[0],1).cuda()
+        image_features = self.clip_linear(image_features)
+        logits_per_image = image_features @ self.text_features.T
+        probs_a = logits_per_image
+        semantic_affinity_index = torch.zeros(probs_a.shape[0],1).cuda()
 
-            for k in [0, 1]:
-                # pn_pair = torch.from_numpy(probs_a[..., 2 * k: 2 * k + 2]).float().numpy()
-                pn_pair = probs_a[..., 2 * k: 2 * k + 2]
-                semantic_affinity_index += pn_pair[...,None, 0] - pn_pair[...,None, 1]
-        prs = torch.relu(semantic_affinity_index)
-        preds_score = torch.relu(preds_score)
+        for k in [0, 1]:
+            # pn_pair = torch.from_numpy(probs_a[..., 2 * k: 2 * k + 2]).float().numpy()
+            pn_pair = probs_a[..., 2 * k: 2 * k + 2]
+            semantic_affinity_index += pn_pair[...,None, 0] - pn_pair[...,None, 1]
+        prs = torch.sigmoid(semantic_affinity_index)
+        preds_score = torch.sigmoid(preds_score)
         preds_score = self.project(torch.cat([prs, preds_score], dim=1))
 
         output = {"preds_score": preds_score, 'text_probs': text_probs}
