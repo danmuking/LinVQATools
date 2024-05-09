@@ -353,8 +353,8 @@ class Model(nn.Module):
 
         # ------------------------------clip-------------------------------------------
         prs = []
-        with torch.no_grad():
-            image_features = self.clip_model.encode_image(img).float()  # .mean(0)
+        # with torch.no_grad():
+        image_features = self.clip_model.encode_image(img).float()  # .mean(0)
         image_features = self.clip_linear(image_features)
         logits_per_image = image_features @ self.text_features.T
         probs_a = logits_per_image
