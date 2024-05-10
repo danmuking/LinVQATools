@@ -44,11 +44,8 @@ class TestCellRunningMaskAgent(TestCase):
         print("text features shape:", text_features.shape)
         print("Label probs:", text_probs)  # prints: [[1., 0., 0.]]
     def test_celoss(self):
-        loss = nn.CrossEntropyLoss()
-        input = torch.randn(3, 5, requires_grad=True)
-        target = torch.empty(3, dtype=torch.long).random_(5)
-        print(input.shape)
-        print(target.shape)
-        print(target)
-        # output = loss(input, target)
-        # output.backward()
+        probs_a = [1,2,3,4]
+        probs_a = torch.tensor(probs_a).resize(1,4)
+        for k in [0, 1]:
+            pn_pair = probs_a[..., 2 * k: 2 * k + 2]
+            print(pn_pair)
