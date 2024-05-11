@@ -364,7 +364,7 @@ class Model(nn.Module):
                 pn_pair = probs_a[..., 2 * k: 2 * k + 2]
                 semantic_affinity_index += pn_pair[...,None, 0] - pn_pair[...,None, 1]
             prs = torch.sigmoid(semantic_affinity_index)
-        preds_score = torch.sigmoid(preds_score)
+        # preds_score = torch.sigmoid(preds_score)
         preds_score = self.project(torch.cat([prs, preds_score], dim=1))
 
         output = {"preds_score": preds_score, 'text_probs': text_probs}
