@@ -273,6 +273,8 @@ class Model(nn.Module):
         with torch.no_grad():
             self.text_features = self.clip_model.encode_text(self.text_tokens).float()
 
+        self.clip_linear = nn.Linear(4, 1)
+
     def forward(self, inputs, mask):
         self.clip_features = []
         # vit过程
@@ -366,8 +368,9 @@ class Model(nn.Module):
                 # pn_pair = torch.from_numpy(probs_a[..., 2 * k: 2 * k + 2]).float().numpy()
                 pn_pair = probs_a[..., 2 * k: 2 * k + 2]
                 semantic_affinity_index += pn_pair[...,None, 0] - pn_pair[...,None, 1]
-            semantic_affinity_index = rearrange(semantic_affinity_index, '(b n) c -> b n c', b=B, n=N)
-            semantic_affinity_index = torch.mean(semantic_affinity_index,dim=1)
+            semantic_affinity_index = rearrange(semantic_affinity_index, '(b n) c -> b c n', b=B, n=N)
+            semantic_affinity_index = self.clip_linear(semantic_affinity_index).squeeze(1)
+
             # print(semantic_affinity_index.shape)
             prs = torch.sigmoid(semantic_affinity_index)
         # preds_score = torch.sigmoid(preds_score)
