@@ -16,11 +16,11 @@ class TestSingleBranchDataset(TestCase):
             name='FragmentLoader',
             prefix='4frame',
             argument=[
-                dict(
-                    name='FragmentShuffler',
-                    fragment_size=32,
-                    frame_cube=4
-                ),
+                # dict(
+                #     name='FragmentShuffler',
+                #     fragment_size=32,
+                #     frame_cube=4
+                # ),
                 # # dict(
                 #     name='SpatialShuffler',
                 #     fragment_size=32,
@@ -33,9 +33,8 @@ class TestSingleBranchDataset(TestCase):
             ]
         )
         dataset = SingleBranchDataset(video_loader=video_loader, norm=False)
-        data = dataset[2]
-        print(data.keys())
-        print(data['inputs']['img'].shape)
+        data = dataset[2]['gt_class']
+        print(data)
         # video = torch.from_numpy(np.load("temp.npy"))
         # video = data['inputs'][0]
         # # print(data)

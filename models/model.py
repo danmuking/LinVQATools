@@ -261,9 +261,9 @@ class Model(nn.Module):
 
         texts = [
             "a high quality photo",
-            "a low quality photo",
+            "a not high quality photo",
             "a good photo",
-            "a bad photo",
+            "a not good photo",
         ]
         self.tokenizer = open_clip.get_tokenizer("ViT-B-32")
         self.text_tokens = tokenizer(texts).to(device)
@@ -272,8 +272,6 @@ class Model(nn.Module):
 
         with torch.no_grad():
             self.text_features = self.clip_model.encode_text(self.text_tokens).float()
-
-        self.clip_linear = nn.Linear(4, 1)
 
     def forward(self, inputs, mask):
         self.clip_features = []
@@ -337,7 +335,7 @@ class Model(nn.Module):
         else:
             pred_pixels = None
 
-        img = inputs['img'][:,0,...]
+        img = inputs['img']
         # with torch.no_grad():
         # b,n,c
         image_latent = self.clip_forward(img)
@@ -355,9 +353,6 @@ class Model(nn.Module):
 
         # ------------------------------clip-------------------------------------------
         prs = []
-        B = inputs['img'].size(0)
-        N = inputs['img'].size(1)
-        img = rearrange(inputs['img'], 'b n c h w -> (b n) c h w')
         with torch.no_grad():
             image_features = self.clip_model.encode_image(img)
             logits_per_image = image_features @ self.text_features.T
@@ -368,10 +363,6 @@ class Model(nn.Module):
                 # pn_pair = torch.from_numpy(probs_a[..., 2 * k: 2 * k + 2]).float().numpy()
                 pn_pair = probs_a[..., 2 * k: 2 * k + 2]
                 semantic_affinity_index += pn_pair[...,None, 0] - pn_pair[...,None, 1]
-            semantic_affinity_index = rearrange(semantic_affinity_index, '(b n) c -> b c n', b=B, n=N)
-            semantic_affinity_index = self.clip_linear(semantic_affinity_index).squeeze(1)
-
-            # print(semantic_affinity_index.shape)
             prs = torch.sigmoid(semantic_affinity_index)
         # preds_score = torch.sigmoid(preds_score)
         preds_score = self.project(torch.cat([prs, preds_score], dim=1))
@@ -528,7 +519,7 @@ class ModelWrapper(BaseModel):
             video = inputs['video']
             video = rearrange(video, "b clip c t h w -> (b clip) c t h w")
             img = inputs['img']
-            img = rearrange(img, "b clip n c h w -> (b clip) n c h w")
+            img = rearrange(img, "b clip c h w -> (b clip) c h w")
             inputs = {'video': video, 'img': img}
             self.agent.train()
             mask = self.agent(video, [8, 14, 14])['mask']
@@ -556,7 +547,7 @@ class ModelWrapper(BaseModel):
             video = inputs['video']
             video = rearrange(video, "b clip c t h w -> (b clip) c t h w")
             img = inputs['img']
-            img = rearrange(img, "b clip n c h w -> (b clip) n c h w")
+            img = rearrange(img, "b clip c h w -> (b clip) c h w")
             inputs = {'video': video, 'img': img}
             self.agent.eval()
             mask = self.agent(video, [8, 14, 14])['mask']

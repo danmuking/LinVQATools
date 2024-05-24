@@ -1,6 +1,5 @@
 from unittest import TestCase
-import os
-os.environ["CUDA_VISIBLE_DEVICES"] = '1'
+
 import torch
 from torch import nn
 
@@ -12,7 +11,7 @@ class TestCellRunningMaskAgent(TestCase):
     def test_Model(self):
         agent = CellRunningMaskAgent(0.5)
         model = Model(mask_ratio=0.75).cuda()
-        inputs = {"video":torch.rand((1, 3, 16, 224, 224)).cuda(),"img":torch.rand([1, 4, 3, 224, 224]).cuda()}
+        inputs = {"video":torch.rand((2, 3, 16, 224, 224)).cuda(),"img":torch.rand((2,3,224,224)).cuda()}
         agent.train()
         mask = agent(inputs, [8, 14, 14])['mask']
         mask = mask.reshape(mask.size(0), 8, -1).cuda()
@@ -20,7 +19,7 @@ class TestCellRunningMaskAgent(TestCase):
 
     def test_model_wrapper(self):
         model = ModelWrapper(mask_ratio=0.5).cuda()
-        inputs = {"video":torch.rand((6,1, 3, 16, 224, 224)).cuda(),"img":torch.rand((6, 1, 4, 3, 224, 224)).cuda()}
+        inputs = {"video":torch.rand((6,1, 3, 16, 224, 224)).cuda(),"img":torch.rand((6,1,3,224,224)).cuda()}
         y = model(inputs,gt_label=torch.rand((6)).cuda(),gt_class=torch.empty(6, dtype=torch.long).random_(5).cuda(),mode='loss')
         print(y)
     def test_clip(self):

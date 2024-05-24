@@ -101,17 +101,18 @@ class SingleBranchDataset(Dataset):
             video = self.video_loader(video_path=video_path, frame_num=frame_num)
             videos.append(video)
 
-            # frame_index = random.randint(0, len(vr) - 1)
+            frame_index = random.randint(0, len(vr) - 1)
             # 交换维度
             # print(video_path)
             video_item = video_path.split('/')
-            video_img = []
-            for i in range(4):
-                img_path = "/data/ly/resize_center_crop_224/0/VQA_ODV/{}/{}/{}.png".format(video_item[4],video_item[5][:-4],random.randint(0, len(vr) - 1))
-                img = Image.open(img_path)
-                img = self.img_transform(img)
-                video_img.append(img)
-            imgs.append(torch.stack(video_img, dim=0))
+            img_path = "/data/ly/resize_center_crop_224/0/VQA_ODV/{}/{}/{}.png".format(video_item[4],video_item[5][:-4],frame_index)
+            # print(img_path)
+            # print(img.shape)
+            img = Image.open(img_path)
+            img = self.img_transform(img)
+            # print(img.shape)
+            # print(img.shape)
+            imgs.append(img)
 
         video = torch.stack(videos, dim=0)
         img = torch.stack(imgs, dim=0)
