@@ -260,10 +260,10 @@ class Model(nn.Module):
         self.clip_model = self.clip_model.to(device)
 
         texts = [
-            "a high quality photo",
-            "a not high quality photo",
+            "This is a frame from a video that you think is of high quality",
+            "This is a frame from a video that you think is of low quality",
             "a good photo",
-            "a not good photo",
+            "a bad photo",
         ]
         self.tokenizer = open_clip.get_tokenizer("ViT-B-32")
         self.text_tokens = tokenizer(texts).to(device)
