@@ -182,7 +182,7 @@ class Model(nn.Module):
         super(Model, self).__init__()
         if model_type == 's':
             self.backbone_embed_dim = 384
-            self.backbone, self.decoder = build_video_mae_s(drop_path_rate)
+            self.backbone, _ = build_video_mae_s(drop_path_rate)
 
         self.decoder_dim = self.backbone_embed_dim // 2
         self.mean = nn.Parameter(torch.Tensor([0.485, 0.456, 0.406])[None, :, None, None, None], requires_grad=False)
@@ -243,35 +243,7 @@ class Model(nn.Module):
         video = inputs['video']
         x_data = video
         mask = mask.bool()
-        if self.training:
-            with torch.no_grad():
-                # calculate the predict label
-                mean = self.mean.data.clone().detach()
-                std = self.std.data.clone().detach()
-                unnorm_frames = x_data * std + mean
-                t, h, w = unnorm_frames.size(2) // self.tubelet_size, unnorm_frames.size(
-                    3) // self.patch_size, unnorm_frames.size(4) // self.patch_size
-                if self.normlize_target:
-                    images_squeeze = rearrange(unnorm_frames, 'b c (t p0) (h p1) (w p2) -> b (t h w) (p0 p1 p2) c',
-                                               p0=self.tubelet_size, p1=self.patch_size, p2=self.patch_size)
-                    images_norm = (images_squeeze - images_squeeze.mean(dim=-2, keepdim=True)
-                                   ) / (images_squeeze.var(dim=-2, unbiased=True, keepdim=True).sqrt() + 1e-6)
-                    # we find that the mean is about 0.48 and standard deviation is about 0.08.
-                    frames_patch = rearrange(images_norm, 'b n p c -> b n (p c)')
-                else:
-                    frames_patch = rearrange(unnorm_frames, 'b c (t p0) (h p1) (w p2) -> b (t h w) (p0 p1 p2 c)',
-                                             p0=self.tubelet_size, p1=self.patch_size, p2=self.patch_size)
-                frames_patch = rearrange(frames_patch, 'b (t s0 h s1 w s2) c -> b (t h w) (s0 s1 s2 c)',
-                                         s0=self.mask_stride[0],
-                                         s1=self.mask_stride[1],
-                                         s2=self.mask_stride[2],
-                                         t=t // self.mask_stride[0],
-                                         h=h // self.mask_stride[1],
-                                         w=w // self.mask_stride[2])
-                B, _, C = frames_patch.shape
-        else:
-            B = x_data.size(0)
-
+        B = x_data.size(0)
         full_mask = mask.reshape(B, *self.mask_shape).repeat_interleave(self.mask_stride[0], dim=1).repeat_interleave(
             self.mask_stride[1], dim=2).repeat_interleave(self.mask_stride[2], dim=3)
         full_mask = full_mask.flatten(2)
