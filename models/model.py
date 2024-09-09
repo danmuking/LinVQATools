@@ -170,6 +170,8 @@ def rescale(x):
     x = np.array(x)
     x = (x - x.mean()) / x.std()
     return 1 / (1 + np.exp(-x))
+
+
 class Model(nn.Module):
     def __init__(self,
                  model_type='s',
@@ -226,6 +228,7 @@ class Model(nn.Module):
         self.tubelet_size = 2
         self.mask_stride = [1, 1, 1]
         self.input_size = [16, 224]
+
         # 8 14 14
         self.patches_shape = [self.input_size[0] // self.tubelet_size, self.input_size[1] // self.patch_size,
                               self.input_size[1] // self.patch_size]
@@ -241,11 +244,6 @@ class Model(nn.Module):
         #     clip
         self.model, self.preprocess, _ = open_clip.create_model_and_transforms('RN50', pretrained='openai')
         tokenizer = open_clip.get_tokenizer('ViT-B-32')
-        # text = tokenizer(["a bad quality video",
-        #                   "a poor quality video",
-        #                   "a fair quality video",
-        #                   "a good quality video",
-        #                   "a perfect quality video"])
         self.model.visual.attnpool = AttentionPool2d(7, 2048, 32, 1024)
 
         self.clip_features = []
