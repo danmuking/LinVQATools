@@ -33,18 +33,26 @@ class TestSingleBranchDataset(TestCase):
             ]
         )
         dataset = SingleBranchDataset(video_loader=video_loader, norm=False)
-        data = dataset[2]['gt_class']
-        print(data)
+        data = dataset[10]
         # video = torch.from_numpy(np.load("temp.npy"))
-        # video = data['inputs'][0]
-        # # print(data)
-        # print(video.shape)
+        video = data['inputs']['img'][0]
+        print(video)
+        print(video.shape)
+        fra = video
+        mean = torch.FloatTensor([0.485, 0.456, 0.406])
+        std = torch.FloatTensor([0.229, 0.224, 0.225])
+        fra = fra * std.view(3, 1, 1) + mean.view(3, 1, 1)
+        fra = fra*255
+        fra = fra.permute(1, 2, 0)
+        fra = fra.numpy().astype(np.uint8)
+        fra = cv2.cvtColor(fra, cv2.COLOR_RGB2BGR)
+        cv2.imwrite("{}.jpg".format(0),fra)
         # fourcc = cv2.VideoWriter_fourcc(*'XVID')
         # # 设置视频帧频
         # fps = 10
         # # 设置视频大小
         # size = video.shape[-2], video.shape[-1]
-        # # out = cv2.VideoWriter('./out.avi', fourcc, fps, size)
+        # out = cv2.VideoWriter('./out.avi', fourcc, fps, size)
         # for i in range(video.shape[1]):
         #     fra = video[:, i, :, :]
         #     fra = fra.permute(1, 2, 0)
@@ -52,7 +60,7 @@ class TestSingleBranchDataset(TestCase):
         #     fra = cv2.cvtColor(fra, cv2.COLOR_RGB2BGR)
         #     # out.write(fra)
         #     cv2.imwrite("{}.jpg".format(i),fra)
-        # # out.release()
+        # out.release()
 
     def test_anno(self):
         with open("/data/ly/LIVE Video Quality Challenge (VQC) Database-selected/labels.txt",'r') as f:
