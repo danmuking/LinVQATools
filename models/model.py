@@ -182,7 +182,7 @@ class Model(nn.Module):
         super(Model, self).__init__()
         if model_type == 's':
             self.backbone_embed_dim = 384
-            self.backbone, _ = build_video_mae_s(drop_path_rate)
+            self.backbone, self.decoder = build_video_mae_s(drop_path_rate)
 
         self.decoder_dim = self.backbone_embed_dim // 2
         self.mean = nn.Parameter(torch.Tensor([0.485, 0.456, 0.406])[None, :, None, None, None], requires_grad=False)
@@ -205,21 +205,54 @@ class Model(nn.Module):
         self.pos_embed = get_sinusoid_encoding_table(self.backbone.pos_embed.shape[1],
                                                      self.decoder_dim)
         self.pos_embed = nn.Parameter(self.pos_embed, requires_grad=False)
+        self.fc_norm_mean_pooling = False
+        self.masked_patches_type = 'none'
+        self.pos_embed_for_cls_decoder = False
+        self.mask_token_for_cls_decoder = False
+        if self.pos_embed_for_cls_decoder or self.mask_token_for_cls_decoder:
+            self.pos_embed_cls = get_sinusoid_encoding_table(self.backbone.pos_embed.shape[1],
+                                                             512)
+            self.pos_embed_cls = nn.Parameter(self.pos_embed_cls, requires_grad=False)
+        if self.mask_token_for_cls_decoder:
+            self.mask_token_cls = nn.Parameter(torch.zeros(1, 1, 512))
+        if self.fc_norm_mean_pooling:
+            self.fc_norm = nn.LayerNorm(self.backbone_embed_dim, eps=1e-6)
 
         self.mask_ratio = mask_ratio
         if self.mask_ratio <= 0:
             self.decoder = nn.Identity()
             self.encoder_to_decoder = nn.Identity()
 
+        self.cnn_backbone = timm.create_model('tf_efficientnetv2_b0', pretrained=True, features_only=True, )
+        self.patch_size = 16
+        self.tubelet_size = 2
+        self.mask_stride = [1, 1, 1]
+        self.input_size = [16, 224]
+
+        # 8 14 14
+        self.patches_shape = [self.input_size[0] // self.tubelet_size, self.input_size[1] // self.patch_size,
+                              self.input_size[1] // self.patch_size]
+        # 8 14 14
+        self.mask_shape = [(self.patches_shape[0] // self.mask_stride[0]),
+                           (self.patches_shape[1] // self.mask_stride[1]),
+                           (self.patches_shape[2] // self.mask_stride[2])]
+
         self.linear = nn.Linear(1024, 1024)
         self.fusion = Fusion()
         self.head = Head()
 
-        self.cnn_backbone, self.preprocess, _ = open_clip.create_model_and_transforms('RN50', pretrained='openai')
-        self.cnn_backbone.visual.attnpool = AttentionPool2d(7, 2048, 32, 1024)
+        #     clip
+        self.model, self.preprocess, _ = open_clip.create_model_and_transforms('RN50', pretrained='openai')
+        tokenizer = open_clip.get_tokenizer('ViT-B-32')
+        self.model.visual.attnpool = AttentionPool2d(7, 2048, 32, 1024)
+
+        self.clip_features = []
+        for child in self.model.visual.children():
+            if not isinstance(child, nn.ReLU6):
+                child.register_forward_hook(hook=self.clip_hook)
 
         self.classified = nn.Linear(1024, 5)
-        # clip
+
         device = "cuda"
         self.clip_model, _, preprocess = open_clip.create_model_and_transforms("RN50", pretrained="openai")
         self.clip_model = self.clip_model.to(device)
@@ -231,7 +264,7 @@ class Model(nn.Module):
             "a photo contains boring content",
         ]
         self.tokenizer = open_clip.get_tokenizer("ViT-B-32")
-        self.text_tokens = self.tokenizer(texts).to(device)
+        self.text_tokens = tokenizer(texts).to(device)
 
         self.project = nn.Linear(2,1)
 
@@ -239,28 +272,85 @@ class Model(nn.Module):
             self.text_features = self.clip_model.encode_text(self.text_tokens).float()
 
     def forward(self, inputs, mask):
+        self.clip_features = []
         # vit过程
         video = inputs['video']
         x_data = video
         mask = mask.bool()
-        B = x_data.size(0)
+        if self.training:
+            with torch.no_grad():
+                # calculate the predict label
+                mean = self.mean.data.clone().detach()
+                std = self.std.data.clone().detach()
+                unnorm_frames = x_data * std + mean
+                t, h, w = unnorm_frames.size(2) // self.tubelet_size, unnorm_frames.size(
+                    3) // self.patch_size, unnorm_frames.size(4) // self.patch_size
+                if self.normlize_target:
+                    images_squeeze = rearrange(unnorm_frames, 'b c (t p0) (h p1) (w p2) -> b (t h w) (p0 p1 p2) c',
+                                               p0=self.tubelet_size, p1=self.patch_size, p2=self.patch_size)
+                    images_norm = (images_squeeze - images_squeeze.mean(dim=-2, keepdim=True)
+                                   ) / (images_squeeze.var(dim=-2, unbiased=True, keepdim=True).sqrt() + 1e-6)
+                    # we find that the mean is about 0.48 and standard deviation is about 0.08.
+                    frames_patch = rearrange(images_norm, 'b n p c -> b n (p c)')
+                else:
+                    frames_patch = rearrange(unnorm_frames, 'b c (t p0) (h p1) (w p2) -> b (t h w) (p0 p1 p2 c)',
+                                             p0=self.tubelet_size, p1=self.patch_size, p2=self.patch_size)
+                frames_patch = rearrange(frames_patch, 'b (t s0 h s1 w s2) c -> b (t h w) (s0 s1 s2 c)',
+                                         s0=self.mask_stride[0],
+                                         s1=self.mask_stride[1],
+                                         s2=self.mask_stride[2],
+                                         t=t // self.mask_stride[0],
+                                         h=h // self.mask_stride[1],
+                                         w=w // self.mask_stride[2])
+                B, _, C = frames_patch.shape
+                labels = frames_patch[(~mask).flatten(1, 2)].reshape(B, -1, C)
+        else:
+            B = x_data.size(0)
+            labels = None
         full_mask = mask.reshape(B, *self.mask_shape).repeat_interleave(self.mask_stride[0], dim=1).repeat_interleave(
             self.mask_stride[1], dim=2).repeat_interleave(self.mask_stride[2], dim=3)
         full_mask = full_mask.flatten(2)
         encoder_logits_backbone, feats, patch_embed, x_vis_list = self.backbone(x_data, ~(full_mask.flatten(1)))
+        b, t, p = full_mask.size()
+        if self.training:
+            pred_pixels = None
+            if self.mask_ratio > 0:
+                encoder_logits = self.encoder_to_decoder(encoder_logits_backbone)
+                c = encoder_logits.size(-1)
+                full_mask = full_mask.flatten(1, 2)
+                mask_token = self.mask_token.type_as(encoder_logits).repeat(b, t * p, 1)
+                mask_token[full_mask, :] = encoder_logits.flatten(0, 1)
+                logits_full = mask_token + self.pos_embed.detach().clone()
+                pred_pixels = self.decoder(logits_full, -1)
+                pred_pixels = rearrange(pred_pixels, 'b (t s0 h s1 w s2) c -> b (t h w) (s0 s1 s2 c)',
+                                        s0=self.mask_stride[0],
+                                        s1=self.mask_stride[1],
+                                        s2=self.mask_stride[2],
+                                        t=t // self.mask_stride[0],
+                                        h=h // self.mask_stride[1],
+                                        w=w // self.mask_stride[2])
+                pred_pixels = pred_pixels[(~mask).flatten(1, 2)].reshape(B, -1, C)
+        else:
+            pred_pixels = None
 
         img = inputs['img']
+        # with torch.no_grad():
         # b,n,c
-        image_latent = self.cnn_forward(img)
+        image_latent = self.clip_forward(img)
         img_feat = image_latent
         img_feat = self.linear(img_feat)
         img_global_feat = img_feat[:, 0, :]
+        # text_probs = img_global_feat @ self.text_features.T
         text_probs = self.classified(img_global_feat)
+
+        # for layer in self.clip_features:
+        #     print(layer.shape)
 
         fusion_feat = self.fusion(img_feat[:,1:,], feats)
         preds_score = self.head(fusion_feat)
 
         # ------------------------------clip-------------------------------------------
+        prs = []
         with torch.no_grad():
             image_features = self.clip_model.encode_image(img)
             logits_per_image = image_features @ self.text_features.T
@@ -268,16 +358,18 @@ class Model(nn.Module):
             semantic_affinity_index = torch.zeros(probs_a.shape[0],1).cuda()
 
             for k in [0, 1]:
+                # pn_pair = torch.from_numpy(probs_a[..., 2 * k: 2 * k + 2]).float().numpy()
                 pn_pair = probs_a[..., 2 * k: 2 * k + 2]
                 semantic_affinity_index += pn_pair[...,None, 0] - pn_pair[...,None, 1]
             prs = torch.sigmoid(semantic_affinity_index)
+        # preds_score = torch.sigmoid(preds_score)
         preds_score = self.project(torch.cat([prs, preds_score], dim=1))
 
         output = {"preds_score": preds_score, 'text_probs': text_probs}
         return output
 
-    def cnn_forward(self, images):
-        image_latent = self.cnn_backbone.visual(images)
+    def clip_forward(self, images):
+        image_latent = self.model.visual(images)
         image_latent = image_latent.permute(1, 0, 2)
         image_latent = image_latent / image_latent.norm(dim=-1, keepdim=True)
         return image_latent
