@@ -350,20 +350,19 @@ class Model(nn.Module):
         preds_score = self.head(fusion_feat)
 
         # ------------------------------clip-------------------------------------------
-        prs = []
-        with torch.no_grad():
-            image_features = self.clip_model.encode_image(img)
-            logits_per_image = image_features @ self.text_features.T
-            probs_a = logits_per_image
-            semantic_affinity_index = torch.zeros(probs_a.shape[0],1).cuda()
-
-            for k in [0, 1]:
-                # pn_pair = torch.from_numpy(probs_a[..., 2 * k: 2 * k + 2]).float().numpy()
-                pn_pair = probs_a[..., 2 * k: 2 * k + 2]
-                semantic_affinity_index += pn_pair[...,None, 0] - pn_pair[...,None, 1]
-            prs = torch.sigmoid(semantic_affinity_index)
-        # preds_score = torch.sigmoid(preds_score)
-        preds_score = self.project(torch.cat([prs, preds_score], dim=1))
+        # prs = []
+        # with torch.no_grad():
+        #     image_features = self.clip_model.encode_image(img)
+        #     logits_per_image = image_features @ self.text_features.T
+        #     probs_a = logits_per_image
+        #     semantic_affinity_index = torch.zeros(probs_a.shape[0],1).cuda()
+        #
+        #     for k in [0, 1]:
+        #         # pn_pair = torch.from_numpy(probs_a[..., 2 * k: 2 * k + 2]).float().numpy()
+        #         pn_pair = probs_a[..., 2 * k: 2 * k + 2]
+        #         semantic_affinity_index += pn_pair[...,None, 0] - pn_pair[...,None, 1]
+        #     prs = torch.sigmoid(semantic_affinity_index)
+        # preds_score = self.project(torch.cat([prs, preds_score], dim=1))
 
         output = {"preds_score": preds_score, 'text_probs': text_probs}
         return output
