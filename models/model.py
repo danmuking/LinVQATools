@@ -135,10 +135,12 @@ class Fusion(nn.Module):
 
         video_feats = video_feats / video_feats.norm(dim=1, keepdim=True)
         img_feats = img_feats / img_feats.norm(dim=1, keepdim=True)
-        video_feats = self.video_self_attn(video_feats)
-        img_feats = self.img_self_attn(img_feats)
-        cross_video_feats = self.video_cross_attn(img_feats, video_feats)
-        cross_img_feats = self.img_cross_attn(video_feats, img_feats)
+        # video_feats = self.video_self_attn(video_feats)
+        # img_feats = self.img_self_attn(img_feats)
+        # cross_video_feats = self.video_cross_attn(img_feats, video_feats)
+        # cross_img_feats = self.img_cross_attn(video_feats, img_feats)
+        cross_img_feats = img_feats
+        cross_video_feats = video_feats
 
         return cross_video_feats + cross_img_feats
 
@@ -350,19 +352,18 @@ class Model(nn.Module):
         preds_score = self.head(fusion_feat)
 
         # ------------------------------clip-------------------------------------------
-        # prs = []
-        # with torch.no_grad():
-        #     image_features = self.clip_model.encode_image(img)
-        #     logits_per_image = image_features @ self.text_features.T
-        #     probs_a = logits_per_image
-        #     semantic_affinity_index = torch.zeros(probs_a.shape[0],1).cuda()
-        #
-        #     for k in [0, 1]:
-        #         # pn_pair = torch.from_numpy(probs_a[..., 2 * k: 2 * k + 2]).float().numpy()
-        #         pn_pair = probs_a[..., 2 * k: 2 * k + 2]
-        #         semantic_affinity_index += pn_pair[...,None, 0] - pn_pair[...,None, 1]
-        #     prs = torch.sigmoid(semantic_affinity_index)
-        # preds_score = self.project(torch.cat([prs, preds_score], dim=1))
+        with torch.no_grad():
+            image_features = self.clip_model.encode_image(img)
+            logits_per_image = image_features @ self.text_features.T
+            probs_a = logits_per_image
+            semantic_affinity_index = torch.zeros(probs_a.shape[0],1).cuda()
+
+            for k in [0, 1]:
+                # pn_pair = torch.from_numpy(probs_a[..., 2 * k: 2 * k + 2]).float().numpy()
+                pn_pair = probs_a[..., 2 * k: 2 * k + 2]
+                semantic_affinity_index += pn_pair[...,None, 0] - pn_pair[...,None, 1]
+            prs = torch.sigmoid(semantic_affinity_index)
+        preds_score = self.project(torch.cat([prs, preds_score], dim=1))
 
         output = {"preds_score": preds_score, 'text_probs': text_probs}
         return output
