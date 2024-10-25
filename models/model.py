@@ -139,7 +139,7 @@ class Fusion(nn.Module):
         # img_feats = self.img_self_attn(img_feats)
         # cross_video_feats = self.video_cross_attn(img_feats, video_feats)
         # cross_img_feats = self.img_cross_attn(video_feats, img_feats)
-        cross_video_feats = video_feats
+        cross_video_feats = img_feats
         cross_img_feats = 0
 
         return cross_video_feats + cross_img_feats
