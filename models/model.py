@@ -117,6 +117,9 @@ class Fusion(nn.Module):
         self.linear2 = nn.Linear(392 * 2, 49)
         self.linear3 = nn.Linear(1024, 1024)
 
+        self.video_linear = nn.Linear(1024, 1024)
+        self.img_linear = nn.Linear(1024, 1024)
+
     def forward(self, img_feats, video_feats):
         video_feats = video_feats[-1]
         # print(video_feats.shape)
@@ -130,17 +133,14 @@ class Fusion(nn.Module):
         # img_feats = rearrange(img_feats, 'b c h w -> b (h w) c')
         img_feats = self.linear3(img_feats)
 
-        # print(video_feats.shape)
-        # print(img_feats.shape)
-
         video_feats = video_feats / video_feats.norm(dim=1, keepdim=True)
         img_feats = img_feats / img_feats.norm(dim=1, keepdim=True)
         # video_feats = self.video_self_attn(video_feats)
         # img_feats = self.img_self_attn(img_feats)
-        # cross_video_feats = self.video_cross_attn(img_feats, video_feats)
-        # cross_img_feats = self.img_cross_attn(video_feats, img_feats)
-        cross_video_feats = img_feats
-        cross_img_feats = 0
+        video_feats = self.video_linear(video_feats)
+        img_feats = self.img_linear(img_feats)
+        cross_video_feats = self.video_cross_attn(img_feats, video_feats)
+        cross_img_feats = self.img_cross_attn(video_feats, img_feats)
 
         return cross_video_feats + cross_img_feats
 
@@ -366,7 +366,7 @@ class Model(nn.Module):
         preds_score = self.project(torch.cat([prs, preds_score], dim=1))
 
         output = {"preds_score": preds_score, 'text_probs': text_probs}
-        return output,feats
+        return output
 
     def clip_forward(self, images):
         image_latent = self.model.visual(images)
@@ -550,11 +550,11 @@ class ModelWrapper(BaseModel):
             self.agent.eval()
             mask = self.agent(video, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
-            output,feats = self.model(inputs, mask)
+            output = self.model(inputs, mask)
             y_pred = output['preds_score']
             y_pred = rearrange(y_pred, "(b clip) 1 -> b clip", b=B, clip=Clip)
             y_pred = y_pred.mean(dim=1)
-            return y_pred, y,feats
+            return y_pred, y
         elif mode == 'tensor':
             inputs = rearrange(inputs, "b clip c t h w -> (b clip) c t h w")
             self.agent.eval()
@@ -564,7 +564,7 @@ class ModelWrapper(BaseModel):
             y_pred = output['preds_score']
             y_pred = rearrange(y_pred, "(b clip) 1 -> b clip", b=B, clip=Clip)
             y_pred = y_pred.mean(dim=1)
-            return y_pred,
+            return y_pred
 
     def train_step(self, data: Union[dict, tuple, list],
                    optim_wrapper: OptimWrapper) -> Dict[str, torch.Tensor]:
