@@ -366,7 +366,7 @@ class Model(nn.Module):
         preds_score = self.project(torch.cat([prs, preds_score], dim=1))
 
         output = {"preds_score": preds_score, 'text_probs': text_probs}
-        return output
+        return output,feats
 
     def clip_forward(self, images):
         image_latent = self.model.visual(images)
@@ -550,11 +550,11 @@ class ModelWrapper(BaseModel):
             self.agent.eval()
             mask = self.agent(video, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
-            output = self.model(inputs, mask)
+            output,feats = self.model(inputs, mask)
             y_pred = output['preds_score']
             y_pred = rearrange(y_pred, "(b clip) 1 -> b clip", b=B, clip=Clip)
             y_pred = y_pred.mean(dim=1)
-            return y_pred, y
+            return y_pred, y,feats
         elif mode == 'tensor':
             inputs = rearrange(inputs, "b clip c t h w -> (b clip) c t h w")
             self.agent.eval()
@@ -564,7 +564,7 @@ class ModelWrapper(BaseModel):
             y_pred = output['preds_score']
             y_pred = rearrange(y_pred, "(b clip) 1 -> b clip", b=B, clip=Clip)
             y_pred = y_pred.mean(dim=1)
-            return y_pred
+            return y_pred,
 
     def train_step(self, data: Union[dict, tuple, list],
                    optim_wrapper: OptimWrapper) -> Dict[str, torch.Tensor]:
