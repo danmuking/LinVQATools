@@ -137,10 +137,10 @@ class Fusion(nn.Module):
         img_feats = img_feats / img_feats.norm(dim=1, keepdim=True)
         video_feats = self.video_self_attn(video_feats)
         img_feats = self.img_self_attn(img_feats)
-        cross_video_feats = self.video_linear(video_feats)
-        cross_img_feats = self.img_linear(img_feats)
-        # cross_video_feats = self.video_cross_attn(img_feats, video_feats)
-        # cross_img_feats = self.img_cross_attn(video_feats, img_feats)
+        # cross_video_feats = self.video_linear(video_feats)
+        # cross_img_feats = self.img_linear(img_feats)
+        cross_video_feats = video_feats
+        cross_img_feats = img_feats
 
         return cross_video_feats + cross_img_feats
 
