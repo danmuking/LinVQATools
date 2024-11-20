@@ -264,6 +264,8 @@ class Model(nn.Module):
             "a low quality photo",
             # "a photo contains attractive content",
             # "a photo contains boring content",
+            "a good quality photo",
+            "a bad quality photo",
         ]
         self.tokenizer = open_clip.get_tokenizer("ViT-B-32")
         self.text_tokens = tokenizer(texts).to(device)
