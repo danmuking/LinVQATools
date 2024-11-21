@@ -264,8 +264,8 @@ class Model(nn.Module):
             "a low quality photo",
             # "a photo contains attractive content",
             # "a photo contains boring content",
-            "a good quality photo",
-            "a bad quality photo",
+            # "a good quality photo",
+            # "a bad quality photo",
         ]
         self.tokenizer = open_clip.get_tokenizer("ViT-B-32")
         self.text_tokens = tokenizer(texts).to(device)
@@ -360,7 +360,7 @@ class Model(nn.Module):
             probs_a = logits_per_image
             semantic_affinity_index = torch.zeros(probs_a.shape[0],1).cuda()
 
-            for k in [0, 1]:
+            for k in [0]:
                 # pn_pair = torch.from_numpy(probs_a[..., 2 * k: 2 * k + 2]).float().numpy()
                 pn_pair = probs_a[..., 2 * k: 2 * k + 2]
                 semantic_affinity_index += pn_pair[...,None, 0] - pn_pair[...,None, 1]
