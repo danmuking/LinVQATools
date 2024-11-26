@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['model', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = "11211000 model clip resize img baseline 4clip"
+name = "11260945 model clip resize img baseline 4clip"
 work_dir = 'work_dir/model/' + name
 visualizer = dict(
     type='Visualizer',

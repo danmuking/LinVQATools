@@ -260,10 +260,10 @@ class Model(nn.Module):
         self.clip_model = self.clip_model.to(device)
 
         texts = [
-            "a high quality photo",
-            "a low quality photo",
-            # "a photo contains attractive content",
-            # "a photo contains boring content",
+            # "a high quality photo",
+            # "a low quality photo",
+            "a photo contains attractive content",
+            "a photo contains boring content",
             # "a good quality photo",
             # "a bad quality photo",
         ]
