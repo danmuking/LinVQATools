@@ -2,178 +2,38 @@ from collections import OrderedDict
 from functools import partial
 from typing import Union, Dict, Optional
 
-import numpy as np
-import open_clip
-import timm
 import torch
 from einops import rearrange
 from mmengine import MODELS
 from mmengine.model import BaseModel
 from mmengine.optim import OptimWrapper
 from torch import nn
-from torch.nn import functional as F
 
-from models.backbones.clip.model import AttentionPool2d
-from models.backbones.vit_videomae import build_video_mae_s, get_sinusoid_encoding_table
-
-
-# torch.autograd.set_detect_anomaly(True)
-def rank_loss(y_pred, y):
-    ranking_loss = torch.nn.functional.relu(
-        (y_pred - y_pred.t()) * torch.sign((y.t() - y))
-    )
-    scale = 1 + torch.max(ranking_loss)
-    return (
-            torch.sum(ranking_loss) / y_pred.shape[0] / (y_pred.shape[0] - 1) / scale
-    ).float()
+from models.backbones.video_mae_v2 import VisionTransformer
+from models.evaluators import DiViDeAddEvaluator
+from models.faster_vqa import plcc_loss, rank_loss
+from models.heads import VQAHead
+from models.heads.vqa_mlp_head import VQAMlpHead, VQAPoolMlpHead
+from models.backbones.vit_videomae import PretrainVisionTransformerEncoder, PretrainVisionTransformerDecoder, \
+    build_video_mae_s, build_video_mae_b
+from models.backbones.vit_videomae import get_sinusoid_encoding_table
 
 
-def plcc_loss(y_pred, y):
-    sigma_hat, m_hat = torch.std_mean(y_pred, unbiased=False)
-    y_pred = (y_pred - m_hat) / (sigma_hat + 1e-8)
-    sigma, m = torch.std_mean(y, unbiased=False)
-    y = (y - m) / (sigma + 1e-8)
-    loss0 = torch.nn.functional.mse_loss(y_pred, y) / 4
-    rho = torch.mean(y_pred * y)
-    loss1 = torch.nn.functional.mse_loss(rho * y_pred, y) / 4
-    return ((loss0 + loss1) / 2).float()
-
-
-class MultiHeadAttention(nn.Module):
-    def __init__(self, in_dim, k_dim, v_dim, num_heads):
-        super(MultiHeadAttention, self).__init__()
-        self.num_heads = num_heads
-        self.k_dim = k_dim
-        self.v_dim = v_dim
-
-        # 定义线性投影层，用于将输入变换到多头注意力空间
-        self.proj_q = nn.Linear(in_dim, k_dim * num_heads, bias=False)
-        self.proj_k = nn.Linear(in_dim, k_dim * num_heads, bias=False)
-        self.proj_v = nn.Linear(in_dim, v_dim * num_heads, bias=False)
-        # 定义多头注意力的线性输出层
-        self.proj_o = nn.Linear(v_dim * num_heads, in_dim)
-
-    def forward(self, x, mask=None):
-        batch_size, seq_len, in_dim = x.size()
-        # 对输入进行线性投影, 将每个头的查询、键、值进行切分和拼接
-        q = self.proj_q(x).view(batch_size, seq_len, self.num_heads, self.k_dim).permute(0, 2, 1, 3)
-        k = self.proj_k(x).view(batch_size, seq_len, self.num_heads, self.k_dim).permute(0, 2, 3, 1)
-        v = self.proj_v(x).view(batch_size, seq_len, self.num_heads, self.v_dim).permute(0, 2, 1, 3)
-        # 计算注意力权重和输出结果
-        attn = torch.matmul(q, k) / self.k_dim ** 0.5  # 注意力得分
-
-        if mask is not None:
-            attn = attn.masked_fill(mask == 0, -1e9)
-
-        attn = F.softmax(attn, dim=-1)  # 注意力权重参数
-        output = torch.matmul(attn, v).permute(0, 2, 1, 3).contiguous().view(batch_size, seq_len, -1)  # 输出结果
-        # 对多头注意力输出进行线性变换和输出
-        output = self.proj_o(output)
-
-        return output
-
-
-class CrossAttention(nn.Module):
-    def __init__(self, in_dim1, in_dim2, k_dim, v_dim, num_heads):
-        super(CrossAttention, self).__init__()
-        self.num_heads = num_heads
-        self.k_dim = k_dim
-        self.v_dim = v_dim
-
-        self.proj_q1 = nn.Linear(in_dim1, k_dim * num_heads, bias=False)
-        self.proj_k2 = nn.Linear(in_dim2, k_dim * num_heads, bias=False)
-        self.proj_v2 = nn.Linear(in_dim2, v_dim * num_heads, bias=False)
-        self.proj_o = nn.Linear(v_dim * num_heads, in_dim1)
-
-    def forward(self, x1, x2, mask=None):
-        batch_size, seq_len1, in_dim1 = x1.size()
-        seq_len2 = x2.size(1)
-
-        q1 = self.proj_q1(x1).view(batch_size, seq_len1, self.num_heads, self.k_dim).permute(0, 2, 1, 3)
-        k2 = self.proj_k2(x2).view(batch_size, seq_len2, self.num_heads, self.k_dim).permute(0, 2, 3, 1)
-        v2 = self.proj_v2(x2).view(batch_size, seq_len2, self.num_heads, self.v_dim).permute(0, 2, 1, 3)
-
-        attn = torch.matmul(q1, k2) / self.k_dim ** 0.5
-
-        if mask is not None:
-            attn = attn.masked_fill(mask == 0, -1e9)
-
-        attn = F.softmax(attn, dim=-1)
-        output = torch.matmul(attn, v2).permute(0, 2, 1, 3).contiguous().view(batch_size, seq_len1, -1)
-        output = self.proj_o(output)
-
-        return output
-
-
-class Fusion(nn.Module):
-    def __init__(self):
-        super(Fusion, self).__init__()
-        self.video_self_attn = MultiHeadAttention(1024, 1024, 1024, 6)
-        self.img_self_attn = MultiHeadAttention(1024, 1024, 1024, 6)
-        self.video_cross_attn = CrossAttention(1024, 1024, 1024, 1024, 6)
-        self.img_cross_attn = CrossAttention(1024, 1024, 1024, 1024, 6)
-        self.linear1 = nn.Linear(384, 1024)
-        self.linear2 = nn.Linear(392 * 2, 49)
-        self.linear3 = nn.Linear(1024, 1024)
-
-    def forward(self, img_feats, video_feats):
-        video_feats = video_feats[-1]
-        video_feats = rearrange(video_feats, 'b n c -> b c n')
-        video_feats = self.linear2(video_feats)
-        video_feats = rearrange(video_feats, 'b c n -> b n c')
-        video_feats = self.linear1(video_feats)
-        img_feats = self.linear3(img_feats)
-
-        video_feats = video_feats / video_feats.norm(dim=1, keepdim=True)
-        img_feats = img_feats / img_feats.norm(dim=1, keepdim=True)
-        video_feats = self.video_self_attn(video_feats)
-        img_feats = self.img_self_attn(img_feats)
-        cross_video_feats = self.video_cross_attn(img_feats, video_feats)
-        cross_img_feats = self.img_cross_attn(video_feats, img_feats)
-
-        return cross_video_feats + cross_img_feats
-
-
-class Head(nn.Module):
-    def __init__(self):
-        super(Head, self).__init__()
-        dim = 1024
-        self.norm = nn.LayerNorm(dim, eps=1e-6)
-        self.dropout_ratio = 0.1
-        self.fc_hid = nn.Sequential(
-            nn.Dropout(p=self.dropout_ratio) if self.dropout_ratio > 0 else nn.Identity(),
-            nn.Linear(dim, dim // 4),
-            nn.GELU()
-        )
-        self.fc_last = nn.Sequential(
-            nn.Linear(dim // 4, 1),
-        )
-
-    def forward(self, x):
-        feat = self.norm(x)
-        x = self.fc_hid(feat)
-        x = self.fc_last(x)
-        x = torch.mean(x, dim=1)
-        return x
-
-
-def rescale(x):
-    x = np.array(x)
-    x = (x - x.mean()) / x.std()
-    return 1 / (1 + np.exp(-x))
-
-
-class Model(nn.Module):
+class LModel(nn.Module):
     def __init__(self,
                  model_type='s',
                  mask_ratio=0.,
                  head_dropout=0.5,
                  drop_path_rate=0
                  ):
-        super(Model, self).__init__()
+        super(LModel, self).__init__()
         if model_type == 's':
             self.backbone_embed_dim = 384
             self.backbone, self.decoder = build_video_mae_s(drop_path_rate)
+
+        elif model_type == 'b':
+            self.backbone_embed_dim = 384 * 2
+            self.backbone, self.decoder = build_video_mae_b()
 
         self.decoder_dim = self.backbone_embed_dim // 2
         self.mean = nn.Parameter(torch.Tensor([0.485, 0.456, 0.406])[None, :, None, None, None], requires_grad=False)
@@ -190,9 +50,14 @@ class Model(nn.Module):
         self.mask_shape = [(self.patches_shape[0] // self.mask_stride[0]),
                            (self.patches_shape[1] // self.mask_stride[1]),
                            (self.patches_shape[2] // self.mask_stride[2])]
+
+        self.vqa_head = VQAPoolMlpHead(dropout_ratio=head_dropout)
         self.mask_token = nn.Parameter(torch.zeros(1, 1, self.decoder_dim))
         self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, self.decoder_dim,
                                             bias=False)
+        # self.encoder_to_cls_decoder = nn.Linear(self.backbone_embed_dim,
+        #                                         512, bias=False)
+
         self.pos_embed = get_sinusoid_encoding_table(self.backbone.pos_embed.shape[1],
                                                      self.decoder_dim)
         self.pos_embed = nn.Parameter(self.pos_embed, requires_grad=False)
@@ -214,60 +79,16 @@ class Model(nn.Module):
             self.decoder = nn.Identity()
             self.encoder_to_decoder = nn.Identity()
 
-        self.cnn_backbone = timm.create_model('tf_efficientnetv2_b0', pretrained=True, features_only=True, )
-        self.patch_size = 16
-        self.tubelet_size = 2
-        self.mask_stride = [1, 1, 1]
-        self.input_size = [16, 224]
-
-        # 8 14 14
-        self.patches_shape = [self.input_size[0] // self.tubelet_size, self.input_size[1] // self.patch_size,
-                              self.input_size[1] // self.patch_size]
-        # 8 14 14
-        self.mask_shape = [(self.patches_shape[0] // self.mask_stride[0]),
-                           (self.patches_shape[1] // self.mask_stride[1]),
-                           (self.patches_shape[2] // self.mask_stride[2])]
-
-        self.linear = nn.Linear(1024, 1024)
-        self.fusion = Fusion()
-        self.head = Head()
-
-        #     clip
-        self.model, self.preprocess, _ = open_clip.create_model_and_transforms('RN50', pretrained='openai')
-        tokenizer = open_clip.get_tokenizer('ViT-B-32')
-        self.model.visual.attnpool = AttentionPool2d(7, 2048, 32, 1024)
-
-        self.clip_features = []
-        for child in self.model.visual.children():
-            if not isinstance(child, nn.ReLU6):
-                child.register_forward_hook(hook=self.clip_hook)
-
-        self.classified = nn.Linear(1024, 5)
-
-        device = "cuda"
-        self.clip_model, _, preprocess = open_clip.create_model_and_transforms("RN50", pretrained="openai")
-        self.clip_model = self.clip_model.to(device)
-
-        texts = [
-            "a high quality photo",
-            "a low quality photo",
-            "a photo contains attractive content",
-            "a photo contains boring content",
-        ]
-        self.tokenizer = open_clip.get_tokenizer("ViT-B-32")
-        self.text_tokens = tokenizer(texts).to(device)
-
-        self.project = nn.Linear(2,1)
-
-        with torch.no_grad():
-            self.text_features = self.clip_model.encode_text(self.text_tokens).float()
-
     def forward(self, inputs, mask):
-        self.clip_features = []
-        # vit过程
+
         video = inputs['video']
         x_data = video
         mask = mask.bool()
+        ####################################
+        # new_mask = mask.reshape(10, 1, 8, 14, 14).float()
+        # new_mask = new_mask.repeat_interleave(2, dim=2).repeat_interleave(16, dim=3).repeat_interleave(16, dim=4)
+        # x_data_mask = x_data * new_mask.to(x_data.device)
+        ####################################
         if self.training:
             with torch.no_grad():
                 # calculate the predict label
@@ -323,48 +144,9 @@ class Model(nn.Module):
                 pred_pixels = pred_pixels[(~mask).flatten(1, 2)].reshape(B, -1, C)
         else:
             pred_pixels = None
-
-        img = inputs['img']
-        # with torch.no_grad():
-        # b,n,c
-        image_latent = self.clip_forward(img)
-        img_feat = image_latent
-        img_feat = self.linear(img_feat)
-        img_global_feat = img_feat[:, 0, :]
-        # text_probs = img_global_feat @ self.text_features.T
-        text_probs = self.classified(img_global_feat)
-
-        # for layer in self.clip_features:
-        #     print(layer.shape)
-
-        fusion_feat = self.fusion(img_feat[:,1:,], feats)
-        preds_score = self.head(fusion_feat)
-
-        # ------------------------------clip-------------------------------------------
-        with torch.no_grad():
-            image_features = self.clip_model.encode_image(img)
-            logits_per_image = image_features @ self.text_features.T
-            probs_a = logits_per_image
-            semantic_affinity_index = torch.zeros(probs_a.shape[0],1).cuda()
-
-            for k in [0, 1]:
-                pn_pair = probs_a[..., 2 * k: 2 * k + 2]
-                semantic_affinity_index += pn_pair[...,None, 0] - pn_pair[...,None, 1]
-            prs = torch.sigmoid(semantic_affinity_index)
-        preds_score = self.project(torch.cat([prs, preds_score], dim=1))
-
-        output = {"preds_score": preds_score, 'text_probs': text_probs}
+        preds_score = self.vqa_head(feats)
+        output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score}
         return output
-
-    def clip_forward(self, images):
-        image_latent = self.model.visual(images)
-        image_latent = image_latent.permute(1, 0, 2)
-        image_latent = image_latent / image_latent.norm(dim=-1, keepdim=True)
-        return image_latent
-
-    def clip_hook(self, module, fea_in, fea_out):
-        # print(fea_out[0].shape)
-        self.clip_features.append(fea_out)
 
 
 class CellRunningMaskAgent(nn.Module):
@@ -449,20 +231,19 @@ class CellRunningMaskAgent(nn.Module):
             output = {"mask": 1.0 - selected_mask}
         return output
 
-
 @MODELS.register_module()
-class ModelWrapper(BaseModel):
+class LModelWrapper(BaseModel):
     def __init__(
             self,
             model_type="s",
-            mask_ratio=0,
+            mask_ratio=0.25,
             head_dropout=0.5,
             drop_path_rate=0,
             **kwargs
     ):
         super().__init__()
-        self.model = Model(model_type=model_type, mask_ratio=mask_ratio, head_dropout=head_dropout,
-                           drop_path_rate=drop_path_rate)
+        self.mask_ratio = mask_ratio
+        self.model = LModel(model_type=model_type, mask_ratio=mask_ratio,head_dropout=head_dropout,drop_path_rate=drop_path_rate)
         self.agent = CellRunningMaskAgent(mask_ratio)
 
         if model_type == 'b':
@@ -494,8 +275,7 @@ class ModelWrapper(BaseModel):
         info = self.load_state_dict(t_state_dict, strict=False)
         print(info)
 
-    def forward(self, inputs: torch.Tensor, gt_label=None, gt_class=None, data_samples: Optional[list] = None,
-                mode: str = 'tensor',
+    def forward(self, inputs: torch.Tensor, gt_label=None, data_samples: Optional[list] = None, mode: str = 'tensor',
                 **kargs) -> \
             Union[
                 Dict[str, torch.Tensor], list]:
@@ -508,25 +288,24 @@ class ModelWrapper(BaseModel):
             img = rearrange(img, "b clip c h w -> (b clip) c h w")
             inputs = {'video': video, 'img': img}
             self.agent.train()
-            mask = self.agent(video, [8, 14, 14])['mask']
+            mask = self.agent(inputs, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
             output = self.model(inputs, mask)
             y_pred = output['preds_score']
-            class_pred = output['text_probs']
             criterion = nn.MSELoss()
             mse_loss = criterion(y_pred, y)
             p_loss, r_loss = plcc_loss(y_pred, y), rank_loss(y_pred, y)
-            gt_class = gt_class
-            ce_loss = nn.CrossEntropyLoss()
-            # print(class_pred.shape)
-            # print(gt_class.shape)
-            # print(class_pred)
-            # print(gt_class)
-            celoss = ce_loss(class_pred, gt_class) * 0.5
+
             vqa_loss = mse_loss + p_loss + 10 * r_loss
-            total_loss = vqa_loss + celoss
+            total_loss = vqa_loss
             return_dict = {'total_loss': total_loss, "vqa_lozz": vqa_loss, 'mse_lozz': mse_loss,
-                           'p_lozz': p_loss, 'r_lozz': r_loss, "ce_lozz": celoss}
+                           'p_lozz': p_loss, 'r_lozz': r_loss}
+            if self.mask_ratio > 0:
+                mae_loss = nn.MSELoss(reduction='none')(output['preds_pixel'], output['labels_pixel']).mean()
+                total_loss = mae_loss * 1 + total_loss
+                return_dict["total_loss"] = total_loss
+                return_dict["mae_lozz"] = mae_loss
+
             return return_dict
         elif mode == 'predict':
             y = gt_label.float().unsqueeze(-1)
@@ -536,7 +315,7 @@ class ModelWrapper(BaseModel):
             img = rearrange(img, "b clip c h w -> (b clip) c h w")
             inputs = {'video': video, 'img': img}
             self.agent.eval()
-            mask = self.agent(video, [8, 14, 14])['mask']
+            mask = self.agent(inputs, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
             output = self.model(inputs, mask)
             y_pred = output['preds_score']
@@ -586,6 +365,9 @@ class ModelWrapper(BaseModel):
             data = self.data_preprocessor(data, True)
             losses = self._run_forward(data, mode='loss')  # type: ignore
 
+        # losses = {'total_loss': losses['total_loss'], 'vqa_lozz': losses['vqa_lozz'],
+        #           'mse_lozz': losses['mse_lozz'], 'mae_lozz': losses['mae_lozz'], 'p_lozz': losses['p_lozz'],
+        #           'r_lozz': losses['r_lozz']}
         parsed_losses, log_vars = self.parse_losses(losses)  # type: ignore
         optim_wrapper.update_params(parsed_losses)
         return log_vars
