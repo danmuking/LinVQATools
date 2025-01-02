@@ -3,7 +3,7 @@ import lmdb
 import numpy as np
 
 video = dict()
-with open("/home/ly/code/LinVQATools/data/odv_vqa/VQA_ODV.txt",'r') as f:
+with open("/home/ly/data/code/LinVQATools/data/odv_vqa/VQA_ODV.txt",'r') as f:
     lines = f.readlines()
 for line in lines:
     line:str = line.strip()

@@ -8,16 +8,18 @@ import cv2
 import numpy as np
 import torch
 from torch.utils.data import DataLoader
+from torchvision.transforms import ToPILImage
 # import cv2
 # import numpy as np
 from tqdm import tqdm
 
-from data.default_dataset import DefaultDataset
 from data.resize_dataset import ResizeDataset
+from data.spatio_dataset import SpatioDataset
 
 
 def makedir(path: str):
-    dir_path = os.path.dirname(path)
+    # dir_path = os.path.dirname(path)
+    dir_path = path
     if (os.path.exists(dir_path)):
         pass
     else:
@@ -45,11 +47,11 @@ if __name__ == '__main__':
         aligned=8,
     )
     freeze_support()
-    train_dataset = ResizeDataset(anno_reader='ODVVQAReader',
-                             anno_root=r'G:/code/LinVQATools/data/odv_vqa/',
+    train_dataset = SpatioDataset(anno_reader='ODVVQAReader',
+                             anno_root=r'/home/ly/data/code/LinVQATools/data/odv_vqa',
                              norm=False,
-                             split_file=r'G:\code\LinVQATools\data\odv_vqa\tr_te_VQA_ODV.txt',
-                             frame_sampler=frame_sampler, spatial_sampler=spatial_sampler, phase='test')
+                             split_file=r'/home/ly/data/code/LinVQATools/data/odv_vqa/tr_te_VQA_ODV.txt',
+                             frame_sampler=frame_sampler, spatial_sampler=spatial_sampler, phase='train')
     train_dataloader = DataLoader(train_dataset, batch_size=1, num_workers=1, shuffle=False)
     # test_dataset = DefaultDataset(anno_reader='ODVVQAReader',
     #                          anno_root=r'G:/code/LinVQATools/data/odv_vqa/',
@@ -63,46 +65,24 @@ if __name__ == '__main__':
         video_info = train_dataset.data[index]
         video_path = video_info["video_path"]
         video_path = video_path.split('/')
-        # print(video_path)
-        video_path.insert(2, 'resize')
-        video_path[0] = "G:\\"
+        video_path.insert(2, 'spatio')
+        video_path[0] = "/data/ly/"
         video_path[1] = ""
-        video_path = os.path.join(*video_path)[:-4]+'\\'
+        video_path[3] = ""
+        video_path = os.path.join(*video_path)[:-4]
         # video_path = os.path.join('D:/code/LinVQATools/data/odv_vqa/',video_path)
+        # print(video_path)
         makedir(video_path)
         video = data['inputs']
-        video = torch.stack(video,0).permute(1,3,0,2,4,5)
-        print(video.shape)
-        video = video[0][0]
-        print(video.shape)
-        video = video.permute(0,2,3,1).numpy().astype(np.uint8)
-        print(video_path)
-        print(data['name'])
-        print(video.shape)
-        for i in range(video.shape[0]):
-            img = video[i]
+        # print(len(video))
+        for i in range(len(video)):
+            # 将 Tensor 转为 PIL 图像
+            to_pil = ToPILImage()  # 使用 torchvision.transforms.ToPILImage
+            image = to_pil(video[i][0])
             img_path = os.path.join(video_path,"{}.png".format(i))
-            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-            cv2.imwrite(img_path, img)  # 存入快照
-        # break
-
-        # torch.save(video,video_path)
-        # print(data)
-        # fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        # # 设置视频帧频
-        # fps = 10
-        # # 设置视频大小
-        # size = video.shape[-2], video.shape[-1]
-        #
-        # out = cv2.VideoWriter(video_path, fourcc, fps, size)
-        # for i in range(video.shape[1]):
-        #     fra = video[:, i, :, :]
-        #     fra = fra.permute(1, 2, 0)
-        #     fra = fra.numpy().astype(np.uint8)
-        #     fra = cv2.cvtColor(fra, cv2.COLOR_RGB2BGR)
-        #     out.write(fra)
-        # out.release()
+            image.save(img_path)
         index = index + 1
+        # break
 
 
 
