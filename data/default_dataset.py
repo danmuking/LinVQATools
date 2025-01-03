@@ -91,7 +91,6 @@ class SingleBranchDataset(Dataset):
     def __getitem__(self, index):
         video_info = self.data[index]
         video_path: Dict = video_info["video_path"]
-        vr = VideoReader(video_path)
         score = video_info["score"]
         frame_num = video_info['frame_num']
 
@@ -101,17 +100,11 @@ class SingleBranchDataset(Dataset):
             video = self.video_loader(video_path=video_path, frame_num=frame_num)
             videos.append(video)
 
-            frame_index = random.randint(0, len(vr) - 1)
-            # 交换维度
-            # print(video_path)
+            frame_index = random.randint(0, 31)
             video_item = video_path.split('/')
-            img_path = "/data/ly/resize_center_crop_224/0/VQA_ODV/{}/{}/{}.png".format(video_item[4],video_item[5][:-4],frame_index)
-            # print(img_path)
-            # print(img.shape)
+            img_path = "/data/ly/spatio/VQA_ODV/{}/{}/{}.png".format(video_item[4],video_item[5][:-4],frame_index)
             img = Image.open(img_path)
             img = self.img_transform(img)
-            # print(img.shape)
-            # print(img.shape)
             imgs.append(img)
 
         video = torch.stack(videos, dim=0)

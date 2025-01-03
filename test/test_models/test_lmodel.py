@@ -18,7 +18,7 @@ class TestCellRunningMaskAgent(TestCase):
         mask = mask.reshape(mask.size(0), 8, -1).cuda()
         model(inputs,mask)
     def test_lmodel_wrapper(self):
-        model = LModelWrapper(mask_ratio=0.75).cuda()
-        inputs = {"video":torch.rand((6,1, 3, 16, 224, 224)).cuda(),"img":torch.rand((6,1,3,224,224)).cuda()}
-        y = model(inputs,gt_label=torch.rand((6)).cuda(),gt_class=torch.empty(6, dtype=torch.long).random_(5).cuda(),mode='loss')
+        model = LModelWrapper(mask_ratio=0.25)
+        inputs = {"video":torch.rand((6,1, 3, 16, 224, 224)),"img":torch.rand((6,1,3,160,160))}
+        y = model(inputs,gt_label=torch.rand((6)),gt_class=torch.empty(6, dtype=torch.long).random_(5),mode='loss')
         print(y)

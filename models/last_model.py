@@ -17,6 +17,7 @@ from models.heads.vqa_mlp_head import VQAMlpHead, VQAPoolMlpHead
 from models.backbones.vit_videomae import PretrainVisionTransformerEncoder, PretrainVisionTransformerDecoder, \
     build_video_mae_s, build_video_mae_b
 from models.backbones.vit_videomae import get_sinusoid_encoding_table
+import torch.nn.functional as F
 
 
 class LModel(nn.Module):
@@ -78,6 +79,34 @@ class LModel(nn.Module):
         if self.mask_ratio <= 0:
             self.decoder = nn.Identity()
             self.encoder_to_decoder = nn.Identity()
+
+
+    #     image part
+        self.spaconv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=2, padding=5, dilation=5)
+        self.spabn1 = nn.BatchNorm2d(64)
+        self.spaconv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.spabn2 = nn.BatchNorm2d(64)
+        self.spaconv3 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1)
+        self.spabn3 = nn.BatchNorm2d(64)
+        self.spaconv4 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1)
+        self.spabn4 = nn.BatchNorm2d(128)
+        self.spaconv5 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1)
+        self.spabn5 = nn.BatchNorm2d(128)
+        self.spaconv6 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=2, padding=1)
+        self.spabn6 = nn.BatchNorm2d(256)
+        self.spaconv7 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=1)
+        self.spabn7 = nn.BatchNorm2d(256)
+        self.conv8 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, stride=1, padding=1)
+        self.bn8 = nn.BatchNorm2d(512)
+        self.conv9 = nn.Conv2d(in_channels=512, out_channels=1024, kernel_size=3, stride=1, padding=1)
+        self.bn9 = nn.BatchNorm2d(1024)
+        self.relu = nn.ReLU()
+        self.maxpool = nn.MaxPool2d(1, stride=2)
+        self.avg_pooling = nn.AdaptiveAvgPool2d((1, 1))
+        self.flat = nn.Flatten()
+        self.linear_scorein = nn.Linear(1024,128)
+        self.linear_scoreout = nn.Linear(128, 1)
+
 
     def forward(self, inputs, mask):
 
@@ -145,6 +174,59 @@ class LModel(nn.Module):
         else:
             pred_pixels = None
         preds_score = self.vqa_head(feats)
+
+
+        # image part
+        img = inputs['img']
+        spax = self.spaconv1(img)
+        spax = self.spabn1(spax)
+        spax = self.relu(spax)
+
+        residual = spax
+        spax = self.spaconv2(spax)
+        spax = self.spabn2(spax)
+        spax = self.relu(spax)
+        spax = self.spaconv3(spax)
+        spax = self.spabn3(spax)
+        spax += residual
+        spax = self.relu(spax)
+
+        residual = spax
+        residual = F.pad(residual, (0, 0, 0, 0, 0, 64))
+        residual = self.maxpool(residual)
+        spax = self.spaconv4(spax)
+        spax = self.spabn4(spax)
+        spax = self.relu(spax)
+        spax = self.spaconv5(spax)
+        spax = self.spabn5(spax)
+        spax += residual
+        spax = self.relu(spax)
+
+        residual = spax
+        residual = F.pad(residual, (0, 0, 0, 0, 0, 128))
+        residual = self.maxpool(residual)
+        spax = self.spaconv6(spax)
+        spax = self.spabn6(spax)
+        spax = self.relu(spax)
+        spax = self.spaconv7(spax)
+        spax = self.spabn7(spax)
+        spax += residual
+        spax = self.relu(spax)
+        out = spax
+        out = self.conv8(out)
+        out = self.bn8(out)
+        out = self.relu(out)
+        out = self.conv9(out)
+        out = self.bn9(out)
+        out = self.relu(out)
+
+        out = self.avg_pooling(out)
+        out = self.flat(out)
+
+        score_out = self.linear_scorein(out)
+        score_out = self.linear_scoreout(score_out)
+        preds_score = preds_score+score_out
+
         output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score}
         return output
 
