@@ -107,6 +107,9 @@ class LModel(nn.Module):
         self.linear_scorein = nn.Linear(1024,128)
         self.linear_scoreout = nn.Linear(128, 1)
 
+    #     fusion part
+        self.fusion = nn.Linear(2,1)
+
 
     def forward(self, inputs, mask):
 
@@ -225,7 +228,8 @@ class LModel(nn.Module):
 
         score_out = self.linear_scorein(out)
         score_out = self.linear_scoreout(score_out)
-        preds_score = preds_score+score_out
+        # fusion part
+        preds_score = self.fusion(torch.cat([score_out, preds_score], dim=1))
 
         output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score}
         return output
