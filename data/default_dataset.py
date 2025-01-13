@@ -73,7 +73,7 @@ class SingleBranchDataset(Dataset):
         #                         transforms.ToTensor(),
         #                         transforms.Normalize(self.mean, self.std)
         #                     ])
-        pp_cfg = PreprocessCfg()
+        pp_cfg = PreprocessCfg(size=(160,160))
         self.img_transform = image_transform_v2(
             pp_cfg,
             is_train=True,

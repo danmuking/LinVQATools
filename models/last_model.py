@@ -19,6 +19,59 @@ from models.backbones.vit_videomae import PretrainVisionTransformerEncoder, Pret
 from models.backbones.vit_videomae import get_sinusoid_encoding_table
 import torch.nn.functional as F
 
+from models.model import MultiHeadAttention, CrossAttention
+
+
+class Fusion(nn.Module):
+    """MLP Regression Head for VQA.
+    Args:
+        in_channels: input channels for MLP
+        hidden_channels: hidden channels for MLP
+        dropout_ratio: the dropout ratio for features before the MLP (default 0.5)
+    """
+
+    def __init__(
+            self,
+    ):
+        super().__init__()
+
+        self.linear1 = nn.Linear(384, 256)
+        self.linear2 = nn.Linear(1176, 1024)
+        self.linear3 = nn.Linear(20*20, 256)
+        self.linear4 = nn.Linear(1024, 1024)
+        self.relu = nn.ReLU()
+
+        self.video_self_attn = MultiHeadAttention(1024, 1024, 1024, 6)
+        self.img_self_attn = MultiHeadAttention(1024, 1024, 1024, 6)
+        self.video_cross_attn = CrossAttention(1024, 1024, 1024, 1024, 6)
+        self.img_cross_attn = CrossAttention(1024, 1024, 1024, 1024, 6)
+
+    def forward(self, x1,x2):
+        x1 = self.linear1(x1)
+        x1 = self.relu(x1)
+        x1 = rearrange(x1, 'b n c -> b c n')
+        x1 = self.linear2(x1)
+        # 256,1024
+        x1 = self.relu(x1)
+
+        x2 = rearrange(x2, 'b c h w -> b c (h w)')
+        x2 = self.linear3(x2)
+        x2 = self.relu(x2)
+        x2 = rearrange(x2, 'b n c -> b c n')
+        x2 = self.linear4(x2)
+        # 256,1024
+        x2 = self.relu(x2)
+
+        x1 = x1 / x1.norm(dim=2, keepdim=True)
+        x2 = x2 / x2.norm(dim=2, keepdim=True)
+        x1 = self.video_self_attn(x1)
+        x2 = self.img_self_attn(x2)
+        cross_video_feats = self.video_cross_attn(x2, x1)
+        cross_img_feats = self.img_cross_attn(x1, x2)
+
+
+        return cross_video_feats + cross_img_feats
+
 
 class LModel(nn.Module):
     def __init__(self,
@@ -52,7 +105,7 @@ class LModel(nn.Module):
                            (self.patches_shape[1] // self.mask_stride[1]),
                            (self.patches_shape[2] // self.mask_stride[2])]
 
-        self.vqa_head = VQAPoolMlpHead(dropout_ratio=head_dropout)
+        
         self.mask_token = nn.Parameter(torch.zeros(1, 1, self.decoder_dim))
         self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, self.decoder_dim,
                                             bias=False)
@@ -108,7 +161,9 @@ class LModel(nn.Module):
         self.linear_scoreout = nn.Linear(128, 1)
 
     #     fusion part
+        self.fusion_module = Fusion()
         self.fusion = nn.Linear(2,1)
+        self.score = nn.Linear(256,1)
 
 
     def forward(self, inputs, mask):
@@ -176,7 +231,6 @@ class LModel(nn.Module):
                 pred_pixels = pred_pixels[(~mask).flatten(1, 2)].reshape(B, -1, C)
         else:
             pred_pixels = None
-        preds_score = self.vqa_head(feats)
 
 
         # image part
@@ -223,13 +277,11 @@ class LModel(nn.Module):
         out = self.bn9(out)
         out = self.relu(out)
 
-        out = self.avg_pooling(out)
-        out = self.flat(out)
 
-        score_out = self.linear_scorein(out)
-        score_out = self.linear_scoreout(score_out)
         # fusion part
-        preds_score = self.fusion(torch.cat([score_out, preds_score], dim=1))
+        fusion_feat = self.fusion_module(feats[-1],out)
+        fusion_feat = torch.mean(fusion_feat, dim=2)
+        preds_score = self.score(fusion_feat)
 
         output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score}
         return output

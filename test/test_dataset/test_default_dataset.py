@@ -36,17 +36,17 @@ class TestSingleBranchDataset(TestCase):
         data = dataset[10]
         # video = torch.from_numpy(np.load("temp.npy"))
         video = data['inputs']['img'][0]
-        print(video)
+        # print(video)
         print(video.shape)
-        fra = video
-        mean = torch.FloatTensor([0.485, 0.456, 0.406])
-        std = torch.FloatTensor([0.229, 0.224, 0.225])
-        fra = fra * std.view(3, 1, 1) + mean.view(3, 1, 1)
-        fra = fra*255
-        fra = fra.permute(1, 2, 0)
-        fra = fra.numpy().astype(np.uint8)
-        fra = cv2.cvtColor(fra, cv2.COLOR_RGB2BGR)
-        cv2.imwrite("{}.jpg".format(0),fra)
+        # fra = video
+        # mean = torch.FloatTensor([0.485, 0.456, 0.406])
+        # std = torch.FloatTensor([0.229, 0.224, 0.225])
+        # fra = fra * std.view(3, 1, 1) + mean.view(3, 1, 1)
+        # fra = fra*255
+        # fra = fra.permute(1, 2, 0)
+        # fra = fra.numpy().astype(np.uint8)
+        # fra = cv2.cvtColor(fra, cv2.COLOR_RGB2BGR)
+        # cv2.imwrite("{}.jpg".format(0),fra)
         # fourcc = cv2.VideoWriter_fourcc(*'XVID')
         # # 设置视频帧频
         # fps = 10
