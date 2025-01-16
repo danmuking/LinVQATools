@@ -73,9 +73,14 @@ class SingleBranchDataset(Dataset):
         #                         transforms.ToTensor(),
         #                         transforms.Normalize(self.mean, self.std)
         #                     ])
-        pp_cfg = PreprocessCfg(size=(160,160))
-        self.img_transform = image_transform_v2(
-            pp_cfg,
+        pp_cfg1 = PreprocessCfg(size=(160,160))
+        pp_cfg2 = PreprocessCfg()
+        self.tem_img_transform = image_transform_v2(
+            pp_cfg1,
+            is_train=True,
+        )
+        self.spa_img_transform = image_transform_v2(
+            pp_cfg2,
             is_train=True,
         )
 
@@ -93,9 +98,11 @@ class SingleBranchDataset(Dataset):
         video_path: Dict = video_info["video_path"]
         score = video_info["score"]
         frame_num = video_info['frame_num']
+        vr = VideoReader(video_path)
 
         videos = []
-        imgs = []
+        tem_imgs = []
+        spa_imgs = []
         for i in range(self.clip):
             video = self.video_loader(video_path=video_path, frame_num=frame_num)
             videos.append(video)
@@ -104,18 +111,26 @@ class SingleBranchDataset(Dataset):
             video_item = video_path.split('/')
             img_path = "/data/ly/spatio/VQA_ODV/{}/{}/{}.png".format(video_item[4],video_item[5][:-4],frame_index)
             img = Image.open(img_path)
-            img = self.img_transform(img)
-            imgs.append(img)
+            img = self.tem_img_transform(img)
+            tem_imgs.append(img)
+
+            frame_index = random.randint(0, len(vr) - 1)
+            video_item = video_path.split('/')
+            img_path = "/data/ly/resize_center_crop_224/0/VQA_ODV/{}/{}/{}.png".format(video_item[4],video_item[5][:-4],frame_index)
+            img = Image.open(img_path)
+            img = self.spa_img_transform(img)
+            spa_imgs.append(img)
 
         video = torch.stack(videos, dim=0)
-        img = torch.stack(imgs, dim=0)
+        tem_img = torch.stack(tem_imgs, dim=0)
+        spa_img = torch.stack(spa_imgs, dim=0)
         raw_video = video
         if self.norm:
             video = video / 255.0
             video = ((video.permute(0, 2, 3, 4, 1) - self.mean) / self.std).permute(0, 4, 1, 2, 3)
         # print("score:",score)
         data = {
-            "inputs": {'video': video, 'img': img},
+            "inputs": {'video': video, 'tem_img': tem_img,"spa_img":spa_img},
             "raw_video": raw_video,
             "num_clips": self.clip,
             # "frame_inds": frame_idxs,

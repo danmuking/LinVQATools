@@ -2,6 +2,7 @@ from collections import OrderedDict
 from functools import partial
 from typing import Union, Dict, Optional
 
+import open_clip
 import torch
 from einops import rearrange
 from mmengine import MODELS
@@ -160,8 +161,14 @@ class LModel(nn.Module):
         self.linear_scorein = nn.Linear(1024,128)
         self.linear_scoreout = nn.Linear(128, 1)
 
+    #     resnet
+    #     device = "cuda"
+        self.resnet, _, preprocess = open_clip.create_model_and_transforms("RN50", pretrained="openai")
+        # self.clip_model = self.clip_model.to(device)
+
     #     fusion part
         self.fusion_module = Fusion()
+        self.linear1 = nn.Linear(1024,1)
         self.fusion = nn.Linear(2,1)
         self.score = nn.Linear(256,1)
 
@@ -234,8 +241,8 @@ class LModel(nn.Module):
 
 
         # image part
-        img = inputs['img']
-        spax = self.spaconv1(img)
+        tem_img = inputs['tem_img']
+        spax = self.spaconv1(tem_img)
         spax = self.spabn1(spax)
         spax = self.relu(spax)
 
@@ -277,11 +284,15 @@ class LModel(nn.Module):
         out = self.bn9(out)
         out = self.relu(out)
 
+        # resnet
+        image_latent = self.resnet.visual(inputs['spa_img'])
+        score3 = self.linear1(image_latent)
 
         # fusion part
         fusion_feat = self.fusion_module(feats[-1],out)
         fusion_feat = torch.mean(fusion_feat, dim=2)
         preds_score = self.score(fusion_feat)
+        preds_score = preds_score+score3
 
         output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score}
         return output
@@ -422,9 +433,11 @@ class LModelWrapper(BaseModel):
             y = gt_label.float().unsqueeze(-1)
             video = inputs['video']
             video = rearrange(video, "b clip c t h w -> (b clip) c t h w")
-            img = inputs['img']
-            img = rearrange(img, "b clip c h w -> (b clip) c h w")
-            inputs = {'video': video, 'img': img}
+            spa_img = inputs['spa_img']
+            spa_img = rearrange(spa_img, "b clip c h w -> (b clip) c h w")
+            tem_img = inputs['tem_img']
+            tem_img = rearrange(tem_img, "b clip c h w -> (b clip) c h w")
+            inputs = {'video': video, 'spa_img': spa_img,'tem_img':tem_img}
             self.agent.train()
             mask = self.agent(inputs, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
@@ -449,9 +462,11 @@ class LModelWrapper(BaseModel):
             y = gt_label.float().unsqueeze(-1)
             video = inputs['video']
             video = rearrange(video, "b clip c t h w -> (b clip) c t h w")
-            img = inputs['img']
-            img = rearrange(img, "b clip c h w -> (b clip) c h w")
-            inputs = {'video': video, 'img': img}
+            spa_img = inputs['spa_img']
+            spa_img = rearrange(spa_img, "b clip c h w -> (b clip) c h w")
+            tem_img = inputs['tem_img']
+            tem_img = rearrange(tem_img, "b clip c h w -> (b clip) c h w")
+            inputs = {'video': video, 'spa_img': spa_img,'tem_img':tem_img}
             self.agent.eval()
             mask = self.agent(inputs, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
