@@ -3,6 +3,7 @@ from functools import partial
 from typing import Union, Dict, Optional
 
 import open_clip
+import timm
 import torch
 from einops import rearrange
 from mmengine import MODELS
@@ -163,12 +164,16 @@ class LModel(nn.Module):
 
     #     resnet
     #     device = "cuda"
-        self.resnet, _, preprocess = open_clip.create_model_and_transforms("RN50", pretrained="openai")
+        pretrained_cfg_overlay = {'file' : r"/data/ly/code/LinVQATools/pretrained_weights/convnextv2/pytorch_model.bin"}
+        self.spatio_model = timm.create_model('convnextv2_tiny', pretrained=True,
+                                              pretrained_cfg_overlay=pretrained_cfg_overlay,
+                                              num_classes=0,
+                                              )
         # self.clip_model = self.clip_model.to(device)
 
     #     fusion part
         self.fusion_module = Fusion()
-        self.linear1 = nn.Linear(1024,1)
+        self.linear1 = nn.Linear(768,1)
         self.fusion = nn.Linear(2,1)
         self.score = nn.Linear(256,1)
 
@@ -285,7 +290,7 @@ class LModel(nn.Module):
         out = self.relu(out)
 
         # resnet
-        image_latent = self.resnet.visual(inputs['spa_img'])
+        image_latent = self.spatio_model(inputs['spa_img'])
         score3 = self.linear1(image_latent)
 
         # fusion part
