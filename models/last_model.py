@@ -164,8 +164,8 @@ class LModel(nn.Module):
 
     #     resnet
     #     device = "cuda"
-        pretrained_cfg_overlay = {'file' : r"/data/ly/code/LinVQATools/pretrained_weights/convnextv2/pytorch_model.bin"}
-        self.spatio_model = timm.create_model('convnextv2_tiny', pretrained=True,
+        pretrained_cfg_overlay = {'file' : r"/data/ly/code/LinVQATools/pretrained_weights/resnet50d/pytorch_model.bin"}
+        self.spatio_model = timm.create_model('resnet50d', pretrained=True,
                                               pretrained_cfg_overlay=pretrained_cfg_overlay,
                                               num_classes=0,
                                               )
@@ -173,7 +173,7 @@ class LModel(nn.Module):
 
     #     fusion part
         self.fusion_module = Fusion()
-        self.linear1 = nn.Linear(768,1)
+        self.linear1 = nn.Linear(2048,1)
         self.fusion = nn.Linear(2,1)
         self.score = nn.Linear(256,1)
 
