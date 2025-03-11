@@ -164,8 +164,8 @@ class LModel(nn.Module):
 
     #     resnet
     #     device = "cuda"
-        pretrained_cfg_overlay = {'file' : r"/data/ly/code/LinVQATools/pretrained_weights/efficientnet/pytorch_model.bin"}
-        self.spatio_model = timm.create_model('efficientnet_b0', pretrained=True,
+        pretrained_cfg_overlay = {'file' : r"//data/ly/code/LinVQATools/pretrained_weights/inception_resnet_v2/pytorch_model.bin"}
+        self.spatio_model = timm.create_model('inception_resnet_v2', pretrained=True,
                                               pretrained_cfg_overlay=pretrained_cfg_overlay,
                                               num_classes=0,
                                               )
