@@ -173,7 +173,7 @@ class LModel(nn.Module):
 
     #     fusion part
         self.fusion_module = Fusion()
-        self.linear1 = nn.Linear(1280,1)
+        self.linear1 = nn.Linear(1536,1)
         self.fusion = nn.Linear(2,1)
         self.score = nn.Linear(256,1)
 
