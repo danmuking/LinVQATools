@@ -40,11 +40,11 @@ class Fusion(nn.Module):
 
         self.linear1 = nn.Linear(384, 256)
         self.linear2 = nn.Linear(1176, 1024)
-        self.linear3 = nn.Linear(20*20, 256)
+        self.linear3 = nn.Linear(20 * 20, 256)
         self.linear4 = nn.Linear(1024, 1024)
         self.relu = nn.ReLU()
         # x3
-        self.linear5 = nn.Linear(7*7, 256)
+        self.linear5 = nn.Linear(7 * 7, 256)
         self.linear6 = nn.Linear(1024, 1024)
 
         self.mhsa1 = MultiHeadAttention(1024, 1024, 1024, 6)
@@ -57,7 +57,7 @@ class Fusion(nn.Module):
         self.mhca5 = CrossAttention(1024, 1024, 1024, 1024, 6)
         self.mhca6 = CrossAttention(1024, 1024, 1024, 1024, 6)
 
-    def forward(self, x1,x2,x3):
+    def forward(self, x1, x2, x3):
         x1 = self.linear1(x1)
         x1 = self.relu(x1)
         x1 = rearrange(x1, 'b n c -> b c n')
@@ -65,10 +65,10 @@ class Fusion(nn.Module):
         # 256,1024
         x1 = self.relu(x1)
 
-        x2 = rearrange(x2, 'b c h w -> b c (h w)')
+        x2 = rearrange(x2, 'b n c -> b c n')
         x2 = self.linear3(x2)
         x2 = self.relu(x2)
-        x2 = rearrange(x2, 'b n c -> b c n')
+        x2 = rearrange(x2, 'b c n -> b n c')
         x2 = self.linear4(x2)
         # 256,1024
         x2 = self.relu(x2)
@@ -88,14 +88,12 @@ class Fusion(nn.Module):
         x2 = self.mhsa2(x2)
         x3 = self.mhsa3(x3)
 
-
         feat = self.mhca1(x1, x2)
-        feat = feat+self.mhca1(x2, x1)
-        feat = feat+self.mhca1(x1, x3)
-        feat = feat+self.mhca1(x3, x1)
-        feat = feat+self.mhca1(x2, x3)
-        feat = feat+self.mhca1(x3, x2)
-
+        feat = feat + self.mhca1(x2, x1)
+        feat = feat + self.mhca1(x1, x3)
+        feat = feat + self.mhca1(x3, x1)
+        feat = feat + self.mhca1(x2, x3)
+        feat = feat + self.mhca1(x3, x2)
 
         return feat
 
@@ -132,7 +130,6 @@ class LModel(nn.Module):
                            (self.patches_shape[1] // self.mask_stride[1]),
                            (self.patches_shape[2] // self.mask_stride[2])]
 
-        
         self.mask_token = nn.Parameter(torch.zeros(1, 1, self.decoder_dim))
         self.encoder_to_decoder = nn.Linear(self.backbone_embed_dim, self.decoder_dim,
                                             bias=False)
@@ -160,8 +157,7 @@ class LModel(nn.Module):
             self.decoder = nn.Identity()
             self.encoder_to_decoder = nn.Identity()
 
-
-    #     image part
+        #     image part
         self.spaconv1 = nn.Conv2d(in_channels=3, out_channels=64, kernel_size=3, stride=2, padding=5, dilation=5)
         self.spabn1 = nn.BatchNorm2d(64)
         self.spaconv2 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1, padding=1)
@@ -181,24 +177,19 @@ class LModel(nn.Module):
         self.conv9 = nn.Conv2d(in_channels=512, out_channels=1024, kernel_size=3, stride=1, padding=1)
         self.bn9 = nn.BatchNorm2d(1024)
         self.relu = nn.ReLU()
+        self.mhsa = MultiHeadAttention(1024, 1024, 1024, 6)
         self.maxpool = nn.MaxPool2d(1, stride=2)
-        self.avg_pooling = nn.AdaptiveAvgPool2d((1, 1))
-        self.flat = nn.Flatten()
-        self.linear_scorein = nn.Linear(1024,128)
-        self.linear_scoreout = nn.Linear(128, 1)
 
-    #     resnet
-    #     device = "cuda"
+        #     resnet
+        #     device = "cuda"
         self.resnet, _, _ = open_clip.create_model_and_transforms('RN50', pretrained='openai')
         self.resnet.visual.attnpool = AttentionPool2d(7, 2048, 32, 1024)
 
-
-    #     fusion part
+        #     fusion part
         self.fusion_module = Fusion()
-        self.linear1 = nn.Linear(1024,1)
-        self.fusion = nn.Linear(2,1)
-        self.score = nn.Linear(256,1)
-
+        self.linear1 = nn.Linear(1024, 1)
+        self.fusion = nn.Linear(2, 1)
+        self.score = nn.Linear(256, 1)
 
     def forward(self, inputs, mask):
 
@@ -267,7 +258,6 @@ class LModel(nn.Module):
             pred_pixels = None
         content_feat = feats[-1]
 
-
         # image part
         tem_img = inputs['tem_img']
         spax = self.spaconv1(tem_img)
@@ -311,16 +301,19 @@ class LModel(nn.Module):
         out = self.conv9(out)
         out = self.bn9(out)
         out = self.relu(out)
+        out = rearrange(out, 'b c h w -> b (h w) c')
+        out = self.mhsa(out)
+        out = self.relu(out)
         time_feat = out
 
         # resnet
         image_latent = self.resnet.visual(inputs['spa_img'])
         image_latent = image_latent.permute(1, 0, 2)
         image_latent = image_latent / image_latent.norm(dim=-1, keepdim=True)
-        spatio_feature = image_latent[:,1:,]
+        spatio_feature = image_latent[:, 1:, ]
 
         # fusion part
-        fusion_feat = self.fusion_module(content_feat,time_feat,spatio_feature)
+        fusion_feat = self.fusion_module(content_feat, time_feat, spatio_feature)
         fusion_feat = torch.mean(fusion_feat, dim=2)
         preds_score = self.score(fusion_feat)
         preds_score = preds_score
@@ -411,6 +404,7 @@ class CellRunningMaskAgent(nn.Module):
             output = {"mask": 1.0 - selected_mask}
         return output
 
+
 @MODELS.register_module()
 class LModelWrapper(BaseModel):
     def __init__(
@@ -423,7 +417,8 @@ class LModelWrapper(BaseModel):
     ):
         super().__init__()
         self.mask_ratio = mask_ratio
-        self.model = LModel(model_type=model_type, mask_ratio=mask_ratio,head_dropout=head_dropout,drop_path_rate=drop_path_rate)
+        self.model = LModel(model_type=model_type, mask_ratio=mask_ratio, head_dropout=head_dropout,
+                            drop_path_rate=drop_path_rate)
         self.agent = CellRunningMaskAgent(mask_ratio)
 
         if model_type == 'b':
@@ -468,7 +463,7 @@ class LModelWrapper(BaseModel):
             spa_img = rearrange(spa_img, "b clip c h w -> (b clip) c h w")
             tem_img = inputs['tem_img']
             tem_img = rearrange(tem_img, "b clip c h w -> (b clip) c h w")
-            inputs = {'video': video, 'spa_img': spa_img,'tem_img':tem_img}
+            inputs = {'video': video, 'spa_img': spa_img, 'tem_img': tem_img}
             self.agent.train()
             mask = self.agent(inputs, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
@@ -497,7 +492,7 @@ class LModelWrapper(BaseModel):
             spa_img = rearrange(spa_img, "b clip c h w -> (b clip) c h w")
             tem_img = inputs['tem_img']
             tem_img = rearrange(tem_img, "b clip c h w -> (b clip) c h w")
-            inputs = {'video': video, 'spa_img': spa_img,'tem_img':tem_img}
+            inputs = {'video': video, 'spa_img': spa_img, 'tem_img': tem_img}
             self.agent.eval()
             mask = self.agent(inputs, [8, 14, 14])['mask']
             mask = mask.reshape(mask.size(0), 8, -1)
