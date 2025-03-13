@@ -214,7 +214,7 @@ class Model(nn.Module):
             self.decoder = nn.Identity()
             self.encoder_to_decoder = nn.Identity()
 
-        self.cnn_backbone = timm.create_model('tf_efficientnetv2_b0', pretrained=True, features_only=True, )
+        # self.cnn_backbone = timm.create_model('tf_efficientnetv2_b0', pretrained=True, features_only=True, )
         self.patch_size = 16
         self.tubelet_size = 2
         self.mask_stride = [1, 1, 1]
@@ -358,6 +358,7 @@ class Model(nn.Module):
 
     def clip_forward(self, images):
         image_latent = self.model.visual(images)
+        print(image_latent.shape)
         image_latent = image_latent.permute(1, 0, 2)
         image_latent = image_latent / image_latent.norm(dim=-1, keepdim=True)
         return image_latent
