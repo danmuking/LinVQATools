@@ -8,6 +8,7 @@ from einops import rearrange
 from mmengine import MODELS
 from mmengine.model import BaseModel
 from mmengine.optim import OptimWrapper
+from models.backbones.clip.model import AttentionPool2d
 from torch import nn
 
 from models.backbones.video_mae_v2 import VisionTransformer
@@ -42,12 +43,18 @@ class Fusion(nn.Module):
         self.linear4 = nn.Linear(1024, 1024)
         self.relu = nn.ReLU()
 
-        self.video_self_attn = MultiHeadAttention(1024, 1024, 1024, 6)
-        self.img_self_attn = MultiHeadAttention(1024, 1024, 1024, 6)
-        self.video_cross_attn = CrossAttention(1024, 1024, 1024, 1024, 6)
-        self.img_cross_attn = CrossAttention(1024, 1024, 1024, 1024, 6)
+        self.linear5 = nn.Linear(7*7, 256)
+        self.linear6 = nn.Linear(1024, 1024)
 
-    def forward(self, x1,x2):
+        self.mhsa1 = MultiHeadAttention(1024, 1024, 1024, 6)
+        self.mhsa2 = MultiHeadAttention(1024, 1024, 1024, 6)
+        self.mhsa3 = MultiHeadAttention(1024, 1024, 1024, 6)
+        self.mhca1 = CrossAttention(1024, 1024, 1024, 1024, 6)
+        self.mhca2 = CrossAttention(1024, 1024, 1024, 1024, 6)
+        self.mhca3 = CrossAttention(1024, 1024, 1024, 1024, 6)
+        self.mhca4 = CrossAttention(1024, 1024, 1024, 1024, 6)
+
+    def forward(self, x1,x2,x3):
         x1 = self.linear1(x1)
         x1 = self.relu(x1)
         x1 = rearrange(x1, 'b n c -> b c n')
@@ -63,15 +70,33 @@ class Fusion(nn.Module):
         # 256,1024
         x2 = self.relu(x2)
 
+        x3 = rearrange(x3, 'b n c -> b c n')
+        x3 = self.linear5(x3)
+        x3 = self.relu(x3)
+        x3 = rearrange(x3, 'b c n -> b n c')
+        x3 = self.linear6(x3)
+        # 256,1024
+        x3 = self.relu(x3)
+
         x1 = x1 / x1.norm(dim=2, keepdim=True)
         x2 = x2 / x2.norm(dim=2, keepdim=True)
-        x1 = self.video_self_attn(x1)
-        x2 = self.img_self_attn(x2)
-        cross_video_feats = self.video_cross_attn(x2, x1)
-        cross_img_feats = self.img_cross_attn(x1, x2)
+        x3 = x3 / x3.norm(dim=2, keepdim=True)
+
+        # print(x1.shape)
+        # print(x2.shape)
+        # print(x3.shape)
+        x1 = self.mhsa1(x1)
+        x2 = self.mhsa2(x2)
+        x3 = self.mhsa3(x3)
 
 
-        return cross_video_feats + cross_img_feats
+
+        feat = self.mhca1(x1, x2)
+        feat = feat+self.mhca1(x2, x1)
+        feat = feat+self.mhca1(x1, x3)
+        feat = feat+self.mhca1(x3, x1)
+
+        return feat
 
 
 class LModel(nn.Module):
@@ -157,8 +182,8 @@ class LModel(nn.Module):
 
     #     resnet
     #     device = "cuda"
-        self.resnet, _, preprocess = open_clip.create_model_and_transforms("RN50", pretrained="openai")
-        # self.clip_model = self.clip_model.to(device)
+        self.resnet, _, _ = open_clip.create_model_and_transforms("RN50", pretrained="openai")
+        self.resnet.visual.attnpool = AttentionPool2d(7, 2048, 32, 1024)
 
         #     fusion part
         self.fusion_module = Fusion()
@@ -280,13 +305,15 @@ class LModel(nn.Module):
 
         # resnet
         image_latent = self.resnet.visual(inputs['spa_img'])
-        score3 = self.linear1(image_latent)
+        image_latent = image_latent.permute(1, 0, 2)
+        image_latent = image_latent / image_latent.norm(dim=-1, keepdim=True)
+        spatio_feature = image_latent[:,1:,]
 
         # fusion part
-        fusion_feat = self.fusion_module(content_feat,time_feat)
+        fusion_feat = self.fusion_module(content_feat,time_feat,spatio_feature)
         fusion_feat = torch.mean(fusion_feat, dim=2)
         preds_score = self.score(fusion_feat)
-        preds_score = preds_score+score3
+        preds_score = preds_score
 
         output = {"preds_pixel": pred_pixels, "labels_pixel": labels, "preds_score": preds_score}
         return output

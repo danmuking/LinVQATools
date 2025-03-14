@@ -52,6 +52,8 @@ class MultiHeadAttention(nn.Module):
         self.proj_v = nn.Linear(in_dim, v_dim * num_heads, bias=False)
         # 定义多头注意力的线性输出层
         self.proj_o = nn.Linear(v_dim * num_heads, in_dim)
+        self.relu = nn.ReLU()
+        self.linear = nn.Linear(in_dim, in_dim)
 
     def forward(self, x, mask=None):
         batch_size, seq_len, in_dim = x.size()
@@ -69,6 +71,9 @@ class MultiHeadAttention(nn.Module):
         output = torch.matmul(attn, v).permute(0, 2, 1, 3).contiguous().view(batch_size, seq_len, -1)  # 输出结果
         # 对多头注意力输出进行线性变换和输出
         output = self.proj_o(output)
+        output = self.relu(output)
+        output = self.linear(output)
+
 
         return output
 
@@ -84,6 +89,8 @@ class CrossAttention(nn.Module):
         self.proj_k2 = nn.Linear(in_dim2, k_dim * num_heads, bias=False)
         self.proj_v2 = nn.Linear(in_dim2, v_dim * num_heads, bias=False)
         self.proj_o = nn.Linear(v_dim * num_heads, in_dim1)
+        self.relu = nn.ReLU()
+        self.linear = nn.Linear(in_dim1, in_dim1)
 
     def forward(self, x1, x2, mask=None):
         batch_size, seq_len1, in_dim1 = x1.size()
@@ -101,6 +108,8 @@ class CrossAttention(nn.Module):
         attn = F.softmax(attn, dim=-1)
         output = torch.matmul(attn, v2).permute(0, 2, 1, 3).contiguous().view(batch_size, seq_len1, -1)
         output = self.proj_o(output)
+        output = self.relu(output)
+        output = self.linear(output)
 
         return output
 

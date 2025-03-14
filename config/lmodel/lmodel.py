@@ -2,7 +2,7 @@ custom_imports = dict(
     imports=['last_model', 'default_dataset', 'srocc', 'rmse',
              'plcc', 'krcc', 'train_evaluator_hook', 'custom_ema_hook'],
     allow_failed_imports=False)
-name = "03132113 lmodel"
+name = "03140843 lmodel"
 work_dir = 'work_dir/lmodel/'+name
 visualizer = dict(
     type='Visualizer',
