@@ -1,4 +1,5 @@
 import os
+import time
 
 # os.environ["CUDA_VISIBLE_DEVICES"] = ''
 os.environ["WANDB_API_KEY"] = '2125be99aae223011562a86318a7e1edd8556487'
@@ -9,6 +10,9 @@ import init_environment
 from mmengine import Config
 
 from mmengine.runner import Runner
+
+# 等待5小时
+time.sleep(6 * 3600)
 
 config = Config.fromfile('./config/lmodel/lmodel.py')
 runner = Runner.from_cfg(config)
