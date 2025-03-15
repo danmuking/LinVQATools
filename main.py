@@ -11,7 +11,7 @@ from mmengine import Config
 
 from mmengine.runner import Runner
 
-
+# time.sleep(6*3600)
 config = Config.fromfile('./config/lmodel/lmodel.py')
 runner = Runner.from_cfg(config)
 runner.train()
