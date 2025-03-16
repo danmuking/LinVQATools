@@ -112,6 +112,8 @@ class Fusion(nn.Module):
         self.mhca2 = CrossAttention(1024, 1024, 1024, 1024, 6)
         self.mhca3 = CrossAttention(1024, 1024, 1024, 1024, 6)
         self.mhca4 = CrossAttention(1024, 1024, 1024, 1024, 6)
+        self.mhca5 = CrossAttention(1024, 1024, 1024, 1024, 6)
+        self.mhca6 = CrossAttention(1024, 1024, 1024, 1024, 6)
 
     def forward(self, x1,x2,x3):
         x1 = self.linear1(x1)
@@ -150,6 +152,9 @@ class Fusion(nn.Module):
         feat = feat+self.mhca2(x2, x1)
         feat = feat+self.mhca3(x1, x3)
         feat = feat+self.mhca4(x3, x1)
+        feat = feat+self.mhca5(x2, x3)
+        feat = feat+self.mhca6(x3, x2)
+
 
         return feat
 
