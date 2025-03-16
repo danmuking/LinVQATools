@@ -90,12 +90,6 @@ class CrossAttention(nn.Module):
 
 
 class Fusion(nn.Module):
-    """MLP Regression Head for VQA.
-    Args:
-        in_channels: input channels for MLP
-        hidden_channels: hidden channels for MLP
-        dropout_ratio: the dropout ratio for features before the MLP (default 0.5)
-    """
 
     def __init__(
             self,
@@ -150,12 +144,12 @@ class Fusion(nn.Module):
         x1 = self.mhsa1(x1)
         x2 = self.mhsa2(x2)
         x3 = self.mhsa3(x3)
-        feat = x1+x2+x3
+        # feat = x1+x2+x3
 
-        # feat = self.mhca1(x1, x2)
-        # feat = feat+self.mhca1(x2, x1)
-        # feat = feat+self.mhca1(x1, x3)
-        # feat = feat+self.mhca1(x3, x1)
+        feat = self.mhca1(x1, x2)
+        feat = feat+self.mhca2(x2, x1)
+        feat = feat+self.mhca3(x1, x3)
+        feat = feat+self.mhca4(x3, x1)
 
         return feat
 
