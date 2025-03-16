@@ -146,7 +146,10 @@ class Fusion(nn.Module):
         x1 = self.mhsa1(x1)
         x2 = self.mhsa2(x2)
         x3 = self.mhsa3(x3)
-        # feat = x1+x2+x3
+
+        x1 = x1 / x1.norm(dim=2, keepdim=True)
+        x2 = x2 / x2.norm(dim=2, keepdim=True)
+        x3 = x3 / x3.norm(dim=2, keepdim=True)
 
         feat = self.mhca1(x1, x2)
         feat = feat+self.mhca2(x2, x1)
