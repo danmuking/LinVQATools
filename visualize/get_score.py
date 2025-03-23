@@ -65,7 +65,7 @@ for data in tqdm(dataset):
     gt_label = data['gt_label']
     with torch.no_grad():
         y = model(inputs=inputs, gt_label=torch.rand((2)),mode='predict')
-    pre = y
+    pre = y[0]
     name_List.append(name)
     gt_label_List.append(gt_label)
     pre_List.append(pre.detach().numpy()[0])
