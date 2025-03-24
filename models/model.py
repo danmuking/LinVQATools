@@ -117,6 +117,9 @@ class Fusion(nn.Module):
         self.linear2 = nn.Linear(392 * 2, 49)
         self.linear3 = nn.Linear(1024, 1024)
 
+        self.video_linear = nn.Linear(1024, 1024)
+        self.img_linear = nn.Linear(1024, 1024)
+
     def forward(self, img_feats, video_feats):
         video_feats = video_feats[-1]
         # print(video_feats.shape)
@@ -130,13 +133,12 @@ class Fusion(nn.Module):
         # img_feats = rearrange(img_feats, 'b c h w -> b (h w) c')
         img_feats = self.linear3(img_feats)
 
-        # print(video_feats.shape)
-        # print(img_feats.shape)
-
         video_feats = video_feats / video_feats.norm(dim=1, keepdim=True)
         img_feats = img_feats / img_feats.norm(dim=1, keepdim=True)
-        video_feats = self.video_self_attn(video_feats)
-        img_feats = self.img_self_attn(img_feats)
+        # video_feats = self.video_self_attn(video_feats)
+        # img_feats = self.img_self_attn(img_feats)
+        video_feats = self.video_linear(video_feats)
+        img_feats = self.img_linear(img_feats)
         cross_video_feats = self.video_cross_attn(img_feats, video_feats)
         cross_img_feats = self.img_cross_attn(video_feats, img_feats)
 
@@ -170,6 +172,8 @@ def rescale(x):
     x = np.array(x)
     x = (x - x.mean()) / x.std()
     return 1 / (1 + np.exp(-x))
+
+
 class Model(nn.Module):
     def __init__(self,
                  model_type='s',
@@ -221,11 +225,12 @@ class Model(nn.Module):
             self.decoder = nn.Identity()
             self.encoder_to_decoder = nn.Identity()
 
-        self.cnn_backbone = timm.create_model('tf_efficientnetv2_b0', pretrained=True, features_only=True, )
+        # self.cnn_backbone = timm.create_model('tf_efficientnetv2_b0', pretrained=True, features_only=True, )
         self.patch_size = 16
         self.tubelet_size = 2
         self.mask_stride = [1, 1, 1]
         self.input_size = [16, 224]
+
         # 8 14 14
         self.patches_shape = [self.input_size[0] // self.tubelet_size, self.input_size[1] // self.patch_size,
                               self.input_size[1] // self.patch_size]
@@ -241,11 +246,6 @@ class Model(nn.Module):
         #     clip
         self.model, self.preprocess, _ = open_clip.create_model_and_transforms('RN50', pretrained='openai')
         tokenizer = open_clip.get_tokenizer('ViT-B-32')
-        # text = tokenizer(["a bad quality video",
-        #                   "a poor quality video",
-        #                   "a fair quality video",
-        #                   "a good quality video",
-        #                   "a perfect quality video"])
         self.model.visual.attnpool = AttentionPool2d(7, 2048, 32, 1024)
 
         self.clip_features = []
@@ -255,7 +255,7 @@ class Model(nn.Module):
 
         self.classified = nn.Linear(1024, 5)
 
-        device = "cuda"
+        device = "cpu"
         self.clip_model, _, preprocess = open_clip.create_model_and_transforms("RN50", pretrained="openai")
         self.clip_model = self.clip_model.to(device)
 
@@ -352,19 +352,17 @@ class Model(nn.Module):
         preds_score = self.head(fusion_feat)
 
         # ------------------------------clip-------------------------------------------
-        prs = []
         with torch.no_grad():
             image_features = self.clip_model.encode_image(img)
             logits_per_image = image_features @ self.text_features.T
             probs_a = logits_per_image
-            semantic_affinity_index = torch.zeros(probs_a.shape[0],1).cuda()
+            semantic_affinity_index = torch.zeros(probs_a.shape[0],1)
 
             for k in [0, 1]:
                 # pn_pair = torch.from_numpy(probs_a[..., 2 * k: 2 * k + 2]).float().numpy()
                 pn_pair = probs_a[..., 2 * k: 2 * k + 2]
                 semantic_affinity_index += pn_pair[...,None, 0] - pn_pair[...,None, 1]
             prs = torch.sigmoid(semantic_affinity_index)
-        # preds_score = torch.sigmoid(preds_score)
         preds_score = self.project(torch.cat([prs, preds_score], dim=1))
 
         output = {"preds_score": preds_score, 'text_probs': text_probs}
